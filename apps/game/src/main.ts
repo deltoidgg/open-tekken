@@ -1,10 +1,11 @@
 /**
- * Bootstrap: fixed-step 60 Hz sim with accumulator, interpolated rendering,
+ * Bootstrap: fixed-step PAL sim with accumulator, interpolated rendering,
  * event fan-out to HUD/VFX/SFX, pause/debug/menu handling (spec §2, §4, §12).
  */
 import { GhostAI, type Difficulty } from "./ai/ai.ts";
 import { Sfx } from "./audio/sfx.ts";
 import { Rng } from "./core/rng.ts";
+import { T5_SIM_HZ } from "./data/tuning.ts";
 import { InputDevices } from "./input/devices.ts";
 import { emptyPad, type Pad } from "./input/pad.ts";
 import { SceneRenderer } from "./render/scene.ts";
@@ -12,7 +13,7 @@ import { Sim } from "./sim/sim.ts";
 import type { GameState, Phase, SimEvent } from "./sim/state.ts";
 import { Hud } from "./ui/hud.ts";
 
-const STEP = 1 / 60;
+const STEP = 1 / T5_SIM_HZ;
 
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 const hudRoot = document.getElementById("hud")!;
@@ -322,7 +323,7 @@ function frame(now: number): void {
   simMs = steps > 0 ? (performance.now() - t0) / steps : simMs;
 
   if (!aiOff) hud.aiLabel = ai.aiState;
-  const introT = sim.gs.phase === "intro" ? Math.min(1, sim.gs.phaseFrame / 120) : -1;
+  const introT = sim.gs.phase === "intro" ? Math.min(1, sim.gs.phaseFrame / (T5_SIM_HZ * 2)) : -1;
   scene.render(sim, acc / STEP, introT);
   hud.update(sim, dtMs, fps, simMs);
 }

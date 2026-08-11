@@ -1,5 +1,9 @@
+/** The supplied SCES-53202 reference runs its PAL game clock at 50 Hz. */
+export const T5_SIM_HZ = 50;
+
 /** All gameplay tuning in one place (spec sections 3-5, 9). */
 export const TUNING = {
+  simulationHz: T5_SIM_HZ,
   maxHp: 145,
   roundSeconds: 60,
   roundsToWin: 3,
@@ -9,25 +13,19 @@ export const TUNING = {
   wallPad: 0.35, // fighter body radius vs wall
 
   // movement (5.3)
-  walkFwd: 2.1 / 60,
-  walkBack: 1.55 / 60,
-  dashDist: 0.9,
-  dashFrames: 16,
-  runStartFrame: 24,
-  runSpeed: 4.2 / 60,
-  backdashDist: 1.05,
-  backdashFrames: 21,
+  dashFrames: 30,
+  runStartFrame: 12,
+  backdashFrames: 35,
   backdashCancelFrame: 8,
   backdashGuardlessUntil: 2,
-  sidestepDist: 0.75,
-  sidestepFrames: 18,
-  sidestepBlockFrom: 11,
+  sidestepFrames: 27,
   sidestepAttackCancelFrom: 6,
-  cdDist: 0.85,
+  sidewalkEntryUntil: 12,
+  sidewalkStartFrames: 32,
+  sidewalkLoopFrames: 36,
+  sidewalkStopFrames: 15,
   cdFrames: 20,
   cdTc: [4, 18] as [number, number],
-  jumpVy: (5.2 / 60) * 60, // m/s
-  gravity: 24, // m/s^2
 
   // combat (5.4-5.9)
   hitstopHit: 6,
@@ -35,6 +33,8 @@ export const TUNING = {
   hitstopBlock: 4,
   chMult: 1.2,
   cleanMult: 1.5,
+  /** T5 skeleton and stage coordinates use 1000 world units per metre. */
+  t5WorldUnitsPerMeter: 1000,
   pushback: { small: 0.12, mid: 0.28, big: 0.45 },
   hurtRadius: 0.35,
   standHeight: 1.75,

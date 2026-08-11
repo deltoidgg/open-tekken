@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { GhostAI, type Difficulty } from "../src/ai/ai.ts";
 import { Rng } from "../src/core/rng.ts";
+import { TUNING } from "../src/data/tuning.ts";
 import { emptyPad } from "../src/input/pad.ts";
 import { Sim } from "../src/sim/sim.ts";
 
@@ -9,7 +10,7 @@ import { Sim } from "../src/sim/sim.ts";
  * rounds must end, and round durations must stay in a sane band.
  */
 
-const MAX_MATCH_FRAMES = 5 * 60 * 60; // 5 minutes of sim time
+const MAX_MATCH_FRAMES = 5 * 60 * TUNING.simulationHz; // 5 minutes of sim time
 
 function runMatch(difficulty: Difficulty, seed: number) {
   const sim = new Sim({ seed });
@@ -46,8 +47,8 @@ describe("AI sanity (CPU vs CPU)", () => {
         // every round ended and lasted between 3s and the 60s timer
         expect(roundFrames.length).toBeGreaterThanOrEqual(3);
         for (const rf of roundFrames) {
-          expect(rf).toBeGreaterThan(3 * 60);
-          expect(rf).toBeLessThanOrEqual(61 * 60);
+          expect(rf).toBeGreaterThan(3 * TUNING.simulationHz);
+          expect(rf).toBeLessThanOrEqual(61 * TUNING.simulationHz);
         }
       }
     });
@@ -61,7 +62,7 @@ describe("AI sanity (CPU vs CPU)", () => {
       total += roundFrames.reduce((s, f) => s + f, 0);
       rounds += roundFrames.length;
     }
-    const avgSeconds = total / rounds / 60;
+    const avgSeconds = total / rounds / TUNING.simulationHz;
     expect(avgSeconds).toBeGreaterThan(10);
     expect(avgSeconds).toBeLessThan(50);
   });

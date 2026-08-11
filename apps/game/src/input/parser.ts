@@ -12,7 +12,7 @@ export interface MotionEvent {
 export interface FrameInput {
   frame: number;
   dir: Dir;
-  /** buttons newly pressed this frame (chord-grouped with 1f skew) */
+  /** buttons newly pressed this frame, including a chord completed with 1f skew */
   pressed: number;
   /** direction held on the frame the chord's first button went down */
   pressedDir: Dir;
@@ -52,9 +52,9 @@ export class CommandParser {
   private prevBtns = 0;
   private hist: HistEntry[] = [];
   private motions: MotionEvent[] = [];
-  private pendingPress = 0;
-  private pendingPressFrame = -10;
-  private pendingPressDir: Dir = "n";
+  private chordSeed = 0;
+  private chordSeedFrame = -10;
+  private chordSeedDir: Dir = "n";
   private lastPressDir: Dir = "n";
   private lastPressFrame = -10;
   private cdDfFrame = -100;
@@ -68,10 +68,14 @@ export class CommandParser {
     this.prevBtns = 0;
     this.hist = [];
     this.motions = [];
-    this.pendingPress = 0;
-    this.pendingPressFrame = -10;
+    this.chordSeed = 0;
+    this.chordSeedFrame = -10;
+    this.chordSeedDir = "n";
+    this.lastPressDir = "n";
+    this.lastPressFrame = -10;
     this.cdDfFrame = -100;
     this.somStage = 0;
+    this.somStageFrame = -100;
   }
 
   step(pad: Pad): FrameInput {
@@ -84,37 +88,46 @@ export class CommandParser {
 
     this.detectMotions(dir);
 
-    // Chord grouping: presses within 1 frame are merged into one event,
-    // released on the following frame so a chord is seen atomically. The
-    // direction and frame of the FIRST press are captured so command
-    // detection (d/f+2, just frames) keys off the moment the button went down.
+    // Emit a singleton immediately. If another button arrives on the next
+    // frame, emit the completed chord as a correction event; the sim may
+    // replace the provisional first-frame action before it can become active.
     const newly = pad.btns & ~this.prevBtns;
-    let pressed = 0;
+    let pressed = newly;
+    let pressedDir = dir;
+    let pressedAtFrame = this.frame;
     if (newly) {
-      if (this.frame - this.pendingPressFrame <= 1 && this.pendingPress) {
-        pressed = this.pendingPress | newly;
-        this.pendingPress = 0;
-        this.lastPressDir = this.pendingPressDir;
-        this.lastPressFrame = this.pendingPressFrame;
+      const chordSeedHeld = (pad.btns & this.chordSeed) === this.chordSeed;
+      if (this.chordSeed && this.frame - this.chordSeedFrame === 1 && chordSeedHeld) {
+        pressed |= this.chordSeed;
+        pressedDir = this.chordSeedDir;
+        pressedAtFrame = this.chordSeedFrame;
+        this.chordSeed = 0;
+        this.chordSeedFrame = -10;
       } else {
-        this.pendingPress = newly;
-        this.pendingPressFrame = this.frame;
-        this.pendingPressDir = dir;
-        pressed = 0; // wait one frame for possible chord partner
+        // A same-frame multi-button press is already an atomic chord and must
+        // not seed a second chord on the next frame.
+        if ((newly & (newly - 1)) === 0) {
+          this.chordSeed = newly;
+          this.chordSeedFrame = this.frame;
+          this.chordSeedDir = dir;
+        } else {
+          this.chordSeed = 0;
+          this.chordSeedFrame = -10;
+        }
       }
-    } else if (this.pendingPress && this.frame - this.pendingPressFrame >= 1) {
-      pressed = this.pendingPress;
-      this.pendingPress = 0;
-      this.lastPressDir = this.pendingPressDir;
-      this.lastPressFrame = this.pendingPressFrame;
+      this.lastPressDir = pressedDir;
+      this.lastPressFrame = pressedAtFrame;
+    } else if (this.frame - this.chordSeedFrame > 1) {
+      this.chordSeed = 0;
+      this.chordSeedFrame = -10;
     }
 
     const out: FrameInput = {
       frame: this.frame,
       dir,
       pressed,
-      pressedDir: this.lastPressDir,
-      pressedAtFrame: this.lastPressFrame,
+      pressedDir: pressed ? pressedDir : this.lastPressDir,
+      pressedAtFrame: pressed ? pressedAtFrame : this.lastPressFrame,
       rawPressed: newly,
       held: pad.btns,
       motions: this.motions.filter((m) => this.frame - m.frame <= MOTION_KEEP),

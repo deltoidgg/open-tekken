@@ -26,7 +26,11 @@ export function setSeparation(sim: Sim, separation: number): void {
   b.pos.x = separation / 2;
   b.pos.z = 0;
   a.face = 0;
+  a.t5RootFace = 0;
+  a.t5PreviousFace = 0;
   b.face = Math.PI;
+  b.t5RootFace = Math.PI;
+  b.t5PreviousFace = Math.PI;
 }
 
 /** Run n frames with fixed pads. */

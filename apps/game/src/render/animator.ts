@@ -410,6 +410,16 @@ export function poseFor(f: FighterState, t: number): Pose {
       return p;
     }
     case "jump": {
+      if (f.t5JumpMoveId >= 251 && f.t5JumpMoveId <= 253) {
+        return crouchPose(Math.sin(clamp(f.actionFrame / 10, 0, 1) * Math.PI) * 0.65, t);
+      }
+      if (f.actionFrame <= 8) {
+        return crouchPose(clamp(f.actionFrame / 8, 0, 1) * 0.7, t);
+      }
+      if (f.actionFrame >= 39) {
+        const recovery = Math.sin(clamp((f.actionFrame - 38) / 8, 0, 1) * Math.PI);
+        return crouchPose(recovery * 0.65, t);
+      }
       const p = kamae(t);
       p.hipL = [1.3, 0, 0];
       p.kneeL = [-1.8, 0, 0];

@@ -8,6 +8,8 @@ import { moveById } from "../data/jin.ts";
 import { TUNING as T } from "../data/tuning.ts";
 import type { Sim } from "../sim/sim.ts";
 import type { FighterState, GameState } from "../sim/state.ts";
+import { sampleT5RootOffset } from "../sim/t5-geometry.ts";
+import { t5LocomotionPhase } from "../sim/t5-locomotion.ts";
 import { poseFor } from "./animator.ts";
 import { CameraRig } from "./camera.ts";
 import { P1_PALETTE, P2_PALETTE, Rig } from "./rig.ts";
@@ -19,6 +21,34 @@ interface FighterSnapshot {
   y: number;
   z: number;
   face: number;
+  rootFace: number;
+  rootSide: number;
+  rootUp: number;
+  rootForward: number;
+}
+
+function nativeRootOffset(fighter: FighterState): readonly [number, number, number] {
+  if (fighter.action === "jump") {
+    const phase = t5LocomotionPhase(
+      fighter.action,
+      fighter.actionFrame,
+      false,
+      fighter.t5JumpMoveId,
+    );
+    if (phase) {
+      const root = sampleT5RootOffset(phase.animation, phase.actionFrame);
+      return phase.transfersRoot ? [0, root[1], 0] : root;
+    }
+  }
+  const sampled =
+    fighter.action === "attack" && fighter.moveId
+      ? sampleT5RootOffset(moveById(fighter.moveId).t5Animation, fighter.actionFrame)
+      : ([0, 0, 0] as const);
+  return [
+    fighter.t5AnimationOrigin[0] + sampled[0],
+    fighter.t5AnimationOrigin[1] + sampled[1],
+    fighter.t5AnimationOrigin[2] + sampled[2],
+  ];
 }
 
 export class SceneRenderer {
@@ -59,8 +89,17 @@ export class SceneRenderer {
     }
 
     const snap = (x: number): [FighterSnapshot, FighterSnapshot] => [
-      { x: -x, y: 0, z: 0, face: 0 },
-      { x, y: 0, z: 0, face: Math.PI },
+      { x: -x, y: 0, z: 0, face: 0, rootFace: 0, rootSide: 0, rootUp: 0, rootForward: 0 },
+      {
+        x,
+        y: 0,
+        z: 0,
+        face: Math.PI,
+        rootFace: Math.PI,
+        rootSide: 0,
+        rootUp: 0,
+        rootForward: 0,
+      },
     ];
     this.prev = snap(1.5);
     this.curr = snap(1.5);
@@ -103,8 +142,18 @@ export class SceneRenderer {
   snapshot(gs: GameState): void {
     for (const i of [0, 1] as const) {
       const f = gs.fighters[i];
+      const [rootSide, rootUp, rootForward] = nativeRootOffset(f);
       this.prev[i] = this.curr[i];
-      this.curr[i] = { x: f.pos.x, y: f.pos.y, z: f.pos.z, face: f.face };
+      this.curr[i] = {
+        x: f.pos.x,
+        y: f.pos.y,
+        z: f.pos.z,
+        face: f.face,
+        rootFace: f.t5RootFace,
+        rootSide,
+        rootUp,
+        rootForward,
+      };
     }
   }
 
@@ -129,6 +178,10 @@ export class SceneRenderer {
       let y: number;
       let z: number;
       let face: number;
+      let rootFace: number;
+      let rootSide: number;
+      let rootUp: number;
+      let rootForward: number;
       let poseSrc: FighterState;
       if (replayFrame) {
         const s = replayFrame.fighters[i];
@@ -136,6 +189,7 @@ export class SceneRenderer {
         y = s.y;
         z = s.z;
         face = s.face;
+        rootFace = s.t5RootFace;
         poseSrc = {
           ...f,
           action: s.action,
@@ -144,8 +198,17 @@ export class SceneRenderer {
           moveId: s.moveId,
           crouching: s.crouching,
           groundState: s.groundState,
+          t5AnimationOrigin: s.t5AnimationOrigin,
+          t5ReactionMoveId: s.t5ReactionMoveId,
+          t5ReactionOrigin: s.t5ReactionOrigin,
+          t5AirTrajectoryMoveId: s.t5AirTrajectoryMoveId,
+          t5AirTrajectoryFrame: s.t5AirTrajectoryFrame,
+          t5AirTrajectoryOrigin: s.t5AirTrajectoryOrigin,
+          t5JumpMoveId: s.t5JumpMoveId,
+          t5RootFace: s.t5RootFace,
           pos: { x: s.x, y: s.y, z: s.z },
         };
+        [rootSide, rootUp, rootForward] = nativeRootOffset(poseSrc);
       } else {
         const p = this.prev[i];
         const c = this.curr[i];
@@ -153,8 +216,17 @@ export class SceneRenderer {
         y = p.y + (c.y - p.y) * alpha;
         z = p.z + (c.z - p.z) * alpha;
         face = c.face;
+        rootFace = c.rootFace;
+        rootSide = p.rootSide + (c.rootSide - p.rootSide) * alpha;
+        rootUp = p.rootUp + (c.rootUp - p.rootUp) * alpha;
+        rootForward = p.rootForward + (c.rootForward - p.rootForward) * alpha;
         poseSrc = f;
       }
+      const forwardX = Math.cos(rootFace);
+      const forwardZ = Math.sin(rootFace);
+      x += forwardX * rootForward - forwardZ * rootSide;
+      y += rootUp;
+      z += forwardZ * rootForward + forwardX * rootSide;
       rig.root.position.set(x, y, z);
       const pose = poseFor(poseSrc, this.time + i * 1.7);
       // crisp attacks snap harder than idle transitions

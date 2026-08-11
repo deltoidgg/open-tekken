@@ -1,6 +1,6 @@
 import type { Vec3 } from "../core/math.ts";
 import { v3 } from "../core/math.ts";
-import type { Reaction } from "../data/types.ts";
+import type { Reaction, T5LocalPoint } from "../data/types.ts";
 import { TUNING } from "../data/tuning.ts";
 
 export type Action =
@@ -63,18 +63,33 @@ export interface ContactInfo {
   frame: number;
 }
 
+export interface ActivePushback {
+  remainingDuration: number;
+  displacement: number;
+  samples: readonly number[];
+  sampleIndex: number;
+  directionX: number;
+  directionZ: number;
+}
+
 export interface FighterState {
   id: 0 | 1;
   pos: Vec3;
   vel: Vec3; // airborne / slide velocity (m/s)
   /** facing angle in radians on the xz plane (0 = +x) */
   face: number;
+  /** Orientation used to place the animation root before the skeleton turns around it. */
+  t5RootFace: number;
+  /** Skeleton-facing angle retained for previous-pose strike sweeps. */
+  t5PreviousFace: number;
   hp: number;
 
   action: Action;
   actionFrame: number;
   actionTotal: number;
   hitstop: number;
+  /** Exact per-frame T5 pushback envelope currently being consumed. */
+  pushback: ActivePushback | null;
 
   // attack context
   moveId: string | null;
@@ -84,22 +99,55 @@ export interface FighterState {
   moveHitLanded: boolean;
   followupQueued: string | null;
   followupAt: number;
-  /** press buffered for the *queued* followup's own string (e.g. d/b+2,2,3 mashed early) */
-  followupChain: string | null;
+  /** Exact target frame selected by ROM cancel extra-data; null keeps legacy timing. */
+  followupTargetFrame: number | null;
+  /** ROM cancel mode used to preserve or compensate animation-local strike space. */
+  followupTransitionMode: "reset" | "preserve" | null;
+  /** Route-specific PAL facing setup retained while a jump cancel waits for its gate. */
+  t5QueuedCancelOrientationMode: number | null;
+  followupAutomatic: boolean;
+  /** Descendant route buffered behind the currently queued followup. */
+  followupChain: string[];
+  /** Accumulated animation-local origin carried across ROM string transitions. */
+  t5AnimationOrigin: T5LocalPoint;
+  /** PAL cancel mode that configured this attack's facing state after normalization. */
+  t5CancelOrientationMode: number | null;
+  /** Signed cumulative turn in the PAL engine's 16-bit angle units. */
+  t5OrientationTurn: number;
+  /** Fixed angle increment currently scheduled by PAL post-active state 7. */
+  t5OrientationStep: number;
+  /** Remaining ticks in the current state-7 angle schedule. */
+  t5OrientationFrames: number;
+  /** Last move-timeline frame on which orientation was advanced. */
+  t5OrientationLastFrame: number;
 
   // ss context: +1 = background (u), -1 = foreground (d)
   ssDir: 1 | -1;
-  ssHold: boolean;
+  ssPhase: "step" | "walkStart" | "walkRelease" | "walkLoop" | "walkStop";
 
   // stun context
   stunKind: Reaction | "none";
   stunEscapable: boolean;
+  /** Current native victim animation selected by a T5 hit-reaction record. */
+  t5ReactionMoveId: number | null;
+  /** Local origin carried when an airborne hit replaces one reaction pose with another. */
+  t5ReactionOrigin: T5LocalPoint;
+  /** Native launch arc that continues underneath ordinary airborne hit reactions. */
+  t5AirTrajectoryMoveId: number | null;
+  t5AirTrajectoryFrame: number;
+  t5AirTrajectoryOrigin: T5LocalPoint;
 
   // crouch / rising
   crouching: boolean;
   /** consecutive frames spent holding crouch — FC moves unlock at 11 (spec 5.1) */
   crouchFrames: number;
+  /** PAL crouch-entry, crouch-alias, or rising move currently supplying the pose. */
+  t5CrouchMoveId: number;
   risingLeft: number;
+
+  // jump
+  /** PAL jump, jump-abort, or directional jump move supplying the current shell. */
+  t5JumpMoveId: number;
 
   // ground
   groundState: GroundState;
@@ -121,8 +169,6 @@ export interface FighterState {
   // ukemi
   lastTechPress: number; // sim frame of most recent 1/2 press
   invuln: number;
-  /** frames up has been held (jump threshold) */
-  upHeld: number;
 
   // round stats
   tookDamageThisRound: boolean;
@@ -191,11 +237,14 @@ export function createFighter(id: 0 | 1): FighterState {
     pos: v3(id === 0 ? -1.5 : 1.5, 0, 0),
     vel: v3(),
     face: id === 0 ? 0 : Math.PI,
+    t5RootFace: id === 0 ? 0 : Math.PI,
+    t5PreviousFace: id === 0 ? 0 : Math.PI,
     hp: TUNING.maxHp,
     action: "idle",
     actionFrame: 0,
     actionTotal: 0,
     hitstop: 0,
+    pushback: null,
     moveId: null,
     startupOffset: 0,
     hitResolved: [],
@@ -203,14 +252,31 @@ export function createFighter(id: 0 | 1): FighterState {
     moveHitLanded: false,
     followupQueued: null,
     followupAt: 0,
-    followupChain: null,
+    followupTargetFrame: null,
+    followupTransitionMode: null,
+    t5QueuedCancelOrientationMode: null,
+    followupAutomatic: false,
+    followupChain: [],
+    t5AnimationOrigin: [0, 0, 0],
+    t5CancelOrientationMode: null,
+    t5OrientationTurn: 0,
+    t5OrientationStep: 0,
+    t5OrientationFrames: 0,
+    t5OrientationLastFrame: -1,
     ssDir: 1,
-    ssHold: false,
+    ssPhase: "step",
     stunKind: "none",
     stunEscapable: false,
+    t5ReactionMoveId: null,
+    t5ReactionOrigin: [0, 0, 0],
+    t5AirTrajectoryMoveId: null,
+    t5AirTrajectoryFrame: 0,
+    t5AirTrajectoryOrigin: [0, 0, 0],
     crouching: false,
     crouchFrames: 0,
+    t5CrouchMoveId: 234,
     risingLeft: 0,
+    t5JumpMoveId: 21,
     groundState: "FUFA",
     downFrames: 0,
     comboHits: 0,
@@ -224,7 +290,6 @@ export function createFighter(id: 0 | 1): FighterState {
     kiaiHeld: false,
     lastTechPress: -100,
     invuln: 0,
-    upHeld: 0,
     tookDamageThisRound: false,
     lastContact: null,
   };
@@ -278,7 +343,7 @@ export function isActionable(f: FighterState): boolean {
     case "CDS":
       return true;
     case "ss":
-      return f.actionFrame >= TUNING.sidestepAttackCancelFrom;
+      return f.actionFrame + 1 >= TUNING.sidestepAttackCancelFrom;
     case "backdash":
       return f.actionFrame >= TUNING.backdashCancelFrame;
     default:

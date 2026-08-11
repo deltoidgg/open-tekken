@@ -3,6 +3,80 @@ import type { Dir } from "../input/pad.ts";
 export type HitLevel = "h" | "m" | "l" | "sm" | "M" | "L" | "unblockable";
 export type Reaction = "normal" | "KND" | "JG" | "CS" | "FS" | "DS" | "SH" | "SLD" | "PLD";
 
+/** Native T5 pushback envelope. Distances remain in the ROM's world units. */
+export interface PushbackDef {
+  duration: number;
+  displacement: number;
+  samples: readonly number[];
+}
+
+export interface HitPushbacks {
+  normal: PushbackDef;
+  counterHit: PushbackDef;
+  block: PushbackDef;
+}
+
+/** T5 local-space point in metres: lateral, vertical, then forward. */
+export type T5LocalPoint = readonly [side: number, up: number, forward: number];
+
+export interface T5NativeAnimationDef {
+  romMoveId: number;
+  animationLength: number;
+  /** Frame-zero root relative to Jin's common standing-animation root. */
+  initialRootOffset?: T5LocalPoint;
+  /** Component-wise channel-0-plus-channel-1 root displacement from animation frame zero. */
+  rootOffsets: readonly T5LocalPoint[];
+  /** Eight posed player-body sphere centres, indexed by zero-based animation frame. */
+  bodyPushCenters?: readonly (readonly T5LocalPoint[])[];
+  /** Fourteen skeleton-node anchors used to materialize player+0x378 hurt records. */
+  hurtSphereCenters?: readonly (readonly T5LocalPoint[])[];
+}
+
+export interface T5NativeReactionAnimationDef extends T5NativeAnimationDef {
+  /** First frame at which the native cancel table permits ground transitions. */
+  airborneLandingFrame?: number;
+  /** Fourteen skeleton-node anchors used to materialize player+0x378 hurt records. */
+  hurtSphereCenters: readonly (readonly T5LocalPoint[])[];
+}
+
+export interface T5ReactionMoveIds {
+  normal: number;
+  counterHit: number;
+}
+
+export interface T5NativeCapsuleDef {
+  start: T5LocalPoint;
+  end: T5LocalPoint;
+}
+
+export interface T5NativeHitboxSample {
+  /** Zero-based frame sampled by the native animation decoder. */
+  animationFrame: number;
+  capsules: readonly T5NativeCapsuleDef[];
+}
+
+export interface T5NativeHitboxDef {
+  /** Packed move+0x40 location codes retained as provenance. */
+  packedLocation: number;
+  samples: readonly T5NativeHitboxSample[];
+}
+
+export interface T5NativeHurtSphereDef {
+  locationCode: number;
+  center: T5LocalPoint;
+  radius: number;
+}
+
+export interface T5NativeBodyPushSphereDef {
+  /** Slot in player+0x490 and its corresponding skeleton node. */
+  slot: number;
+  node: number;
+  center: T5LocalPoint;
+  radius: number;
+  /** Native attacks clear slots 1 and 2 so their arms do not body-push. */
+  disabledDuringAttack: boolean;
+}
+
 /** States a move can be initiated from. */
 export type FighterStance = "stand" | "FC" | "WS" | "CD" | "CDS" | "run" | "air" | "grounded";
 
@@ -19,6 +93,16 @@ export interface HitDef {
   onBlock: number;
   onHit: number | Reaction;
   onCH: number | Reaction;
+  /** Absolute victim stun from the ROM, used when a shell transition changes attacker recovery. */
+  blockstun?: number;
+  hitstun?: number;
+  counterHitstun?: number;
+  /** Outcome-specific pushback recovered from the T5 reaction record. */
+  pushback?: HitPushbacks;
+  /** Posed strike geometry recovered from the native skeleton path. */
+  t5Hitbox?: T5NativeHitboxDef;
+  /** Native victim animation selected by the move's front-hit reaction record. */
+  t5ReactionMoves?: T5ReactionMoveIds;
   launch?: { vy: number; vxCarry: number };
   flags?: Partial<{
     jails: true;
@@ -45,6 +129,10 @@ export interface FollowupDef {
   dir?: Dir | Dir[];
   /** accept window, frames relative to parent move start */
   window: [number, number];
+  /** Parent animation frame at which the accepted ROM cancel transitions. */
+  startingFrame?: number;
+  /** Cancel extra-data behavior for the target animation timeline. */
+  transitionMode?: "reset" | "preserve";
   /** slide input (3~3): replaces the pending parent before it comes out */
   slide?: boolean;
   requiresContact?: boolean;
@@ -63,9 +151,13 @@ export interface MoveDef {
   hits: HitDef[];
   crush?: { TC?: [number, number]; TJ?: [number, number] };
   tracking: { left: boolean; right: boolean };
+  /** PAL orientation setup mode after cancel extra-data normalization. */
+  t5CancelOrientationMode?: number;
   recoversState?: "stand" | "crouch" | "grounded" | "CDS";
   /** attacker root motion: [startFrame, endFrame, meters forward] */
   advance?: [number, number, number];
+  /** ROM-backed local root displacement, separate from the logical anchor. */
+  t5Animation?: T5NativeAnimationDef;
   /**
    * Frames of recovery skipped when the move LANDS (hit, not block) —
    * trip/launcher hit-animations recover faster than their block recovery,
@@ -73,6 +165,12 @@ export interface MoveDef {
    */
   hitRecoveryBonus?: number;
   followups?: FollowupDef[];
+  /** Unconditional command-zero transition in the original move record. */
+  autoTransition?: {
+    moveId: string;
+    startingFrame: number;
+    transitionMode: "reset" | "preserve";
+  };
   /** auto-parry incoming m/h strikes during startup (ten-string guard points) */
   guardPoint?: boolean;
   /** parries h/m punches during startup (CDS 2 Suigetsu) */

@@ -85,7 +85,7 @@ describe("strings: NC vs interruptible (spec 5.4)", () => {
     run(sim, 3, {}, { dx: 1 });
     sim.step(pad({ btns: B2 }), pad({ dx: 1 }));
     run(sim, 40, {}, { dx: 1 });
-    expect(before - hpOf(sim)[1]).toBe(7 + 8); // 7 + floor(12*0.7)
+    expect(before - hpOf(sim)[1]).toBe(7 + 12);
   });
 
   it("1,2 jails on block — defender cannot duck the second high", () => {
@@ -237,11 +237,13 @@ describe("Kazama parry (spec 5.12)", () => {
 });
 
 describe("counter hit reactions", () => {
-  it("standing 4 crumples on hit (CS)", () => {
+  it("standing 4 uses the recovered normal T5 hit reaction", () => {
     const sim = fightSim(1.2);
     sim.step(pad({ btns: B4 }), pad({ dx: 1 }));
     run(sim, 24, {}, { dx: 1 });
-    expect(sim.gs.fighters[1].action).toBe("crumple");
+    expect(sim.gs.fighters[1].action).toBe("hitstun");
+    expect(sim.gs.fighters[0].lastContact?.advantage).toBe(+2);
+    expect(sim.gs.fighters[0].lastContact?.damage).toBe(17);
   });
 
   it("d/f+2 launches only on CH", () => {
@@ -261,6 +263,17 @@ describe("counter hit reactions", () => {
 });
 
 describe("match flow", () => {
+  it("uses the live PAL 50 Hz game clock", () => {
+    const sim = fightSim(1.0);
+    sim.gs.timer = 60;
+    sim.gs.timerAcc = 0;
+
+    run(sim, TUNING.simulationHz - 1);
+    expect(sim.gs.timer).toBe(60);
+    run(sim, 1);
+    expect(sim.gs.timer).toBe(59);
+  });
+
   it("KO advances rounds and awards a win", () => {
     const sim = fightSim(1.0);
     sim.gs.fighters[1].hp = 5;
@@ -268,7 +281,14 @@ describe("match flow", () => {
     run(sim, 20, {}, { dx: 1 });
     expect(sim.gs.phase).toBe("koFreeze");
     // ride through freeze/slowmo/roundEnd/replay to next round
-    run(sim, TUNING.koFreezeFrames + TUNING.koSlowmoFrames + 160 + TUNING.replaySeconds * 60 + 80);
+    run(
+      sim,
+      TUNING.koFreezeFrames +
+        TUNING.koSlowmoFrames +
+        160 +
+        TUNING.replaySeconds * TUNING.simulationHz +
+        80,
+    );
     expect(sim.gs.wins[0]).toBe(1);
     expect(sim.gs.round).toBe(2);
     expect(sim.gs.phase === "roundIntro" || sim.gs.phase === "fight").toBe(true);

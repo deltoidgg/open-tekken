@@ -1,15 +1,70 @@
 /**
- * Jin Kazama — T5DR dataset, authored 1:1 from T5DR_CLONE_SPEC.md section 6.
- * Startup/damage/advantage values are the canonical build targets; recovery
- * (totalFrames) is chosen so listed advantages hold exactly (spec Appendix B).
+ * Jin Kazama gameplay dataset. ROM-verified Tekken 5 PAL values override the
+ * original T5DR spec baseline; fields not yet recovered remain provisional.
  */
 import { B1, B2, B3, B4 } from "../input/pad.ts";
-import type { HitDef, HitLevel, MoveDef, Reaction, ThrowDef } from "./types.ts";
+import * as T5_JIN_BASICS_NATIVE from "./t5-jin-basics-native.ts";
+import {
+  T5_JIN_1_ANIMATION,
+  T5_JIN_1_HITBOX,
+  T5_JIN_2_ANIMATION,
+  T5_JIN_2_HITBOX,
+} from "./t5-jin-native.ts";
+import {
+  T5_JIN_12_ANIMATION,
+  T5_JIN_12_HITBOX,
+  T5_JIN_123_ANIMATION,
+  T5_JIN_123_HITBOX,
+  T5_JIN_124_ANIMATION,
+  T5_JIN_124_HITBOX,
+  T5_JIN_ROUTE_PUNCH_ANIMATION,
+  T5_JIN_ROUTE_PUNCH_HITBOX,
+} from "./t5-jin-string-native.ts";
+import {
+  T5_JIN_13_ANIMATION,
+  T5_JIN_13_ENTRY_ANIMATION,
+  T5_JIN_13_ENTRY_HITBOX,
+  T5_JIN_13_HITBOX,
+  T5_JIN_133_ANIMATION,
+  T5_JIN_133DF3_ANIMATION,
+  T5_JIN_133DF3_HITBOX,
+  T5_JIN_133_HITBOX,
+} from "./t5-jin-kazama-string-native.ts";
+import {
+  T5_JIN_MOVE_322_ANIMATION,
+  T5_JIN_MOVE_322_HITBOX,
+  T5_JIN_MOVE_465_ANIMATION,
+  T5_JIN_MOVE_465_HITBOX,
+  T5_JIN_MOVE_467_ANIMATION,
+  T5_JIN_MOVE_467_HITBOX,
+  T5_JIN_MOVE_509_ANIMATION,
+  T5_JIN_MOVE_509_HITBOX,
+  T5_JIN_MOVE_677_ANIMATION,
+  T5_JIN_MOVE_677_HITBOX,
+} from "./t5-jin-launchers-native.ts";
+import { T5_JIN_JUMP_MOVES } from "./t5-jump.ts";
+import type {
+  HitDef,
+  HitLevel,
+  HitPushbacks,
+  MoveDef,
+  PushbackDef,
+  Reaction,
+  T5NativeHitboxDef,
+  T5ReactionMoveIds,
+  ThrowDef,
+} from "./types.ts";
 
 interface HitOpts {
   range?: number;
   airReach?: number;
   activeLen?: number;
+  blockstun?: number;
+  hitstun?: number;
+  counterHitstun?: number;
+  pushback?: HitPushbacks;
+  t5Hitbox?: T5NativeHitboxDef;
+  t5ReactionMoves?: T5ReactionMoveIds;
   launch?: { vy: number; vxCarry: number };
   flags?: HitDef["flags"];
 }
@@ -32,10 +87,78 @@ function hit(
     onBlock,
     onHit,
     onCH,
+    blockstun: opts.blockstun,
+    hitstun: opts.hitstun,
+    counterHitstun: opts.counterHitstun,
+    pushback: opts.pushback,
+    t5Hitbox: opts.t5Hitbox,
+    t5ReactionMoves: opts.t5ReactionMoves,
     launch: opts.launch,
     flags: opts.flags,
   };
 }
+
+function t5Pushback(
+  duration: number,
+  displacement: number,
+  samples: readonly number[],
+): PushbackDef {
+  return { duration, displacement, samples };
+}
+
+function outcomes(normal: PushbackDef, counterHit: PushbackDef, block: PushbackDef): HitPushbacks {
+  return { normal, counterHit, block };
+}
+
+const PB_ZERO = t5Pushback(0, 0, [0, 0, 0, 0, 0, 0, 0, 0]);
+const PB_BLOCK = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0]);
+const PB_210 = t5Pushback(0, 0, [100, 50, 30, 20, 10, 0, 0, 0]);
+const PB_365 = t5Pushback(0, 0, [100, 100, 50, 50, 25, 20, 10, 10]);
+const PB_410 = t5Pushback(0, 0, [200, 100, 50, 40, 20, 0, 0, 0]);
+const PB_550 = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0]);
+const PB_730 = t5Pushback(0, 0, [200, 200, 100, 100, 50, 40, 20, 20]);
+const PB_PULL_35 = t5Pushback(0, 0, [-20, -10, -5, 0, 0, 0, 0, 0]);
+const PB_PULL_5 = t5Pushback(0, 0, [-5, 0, 0, 0, 0, 0, 0, 0]);
+const PB_LAUNCH_52 = t5Pushback(52, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
+const PB_WS2 = t5Pushback(48, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
+const PB_D34_BLOCK = t5Pushback(0, 0, [150, 90, 50, 40, 20, 0, 0, 0]);
+const PB_WS2_BLOCK = t5Pushback(0, 0, [100, 80, 30, 20, 10, 0, 0, 0]);
+const PB_133DF3_CH = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0]);
+const PB_B4 = t5Pushback(33, 70, [300, 200, 100, 50, 0, 0, 0, 0]);
+const PB_DF2_CH = t5Pushback(48, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
+const PB_DF4 = t5Pushback(30, 60, [300, 500, 300, 200, 50, 30, 0, 0]);
+const PB_D4_CH = t5Pushback(33, 5, [80, 40, 20, 10, 0, 0, 0, 0]);
+const PB_D4_BLOCK = t5Pushback(0, 0, [-3, 0, 0, 0, 0, 0, 0, 0]);
+const PB_DB3 = t5Pushback(38, 50, [300, 200, 100, 50, 0, 0, 0, 0]);
+const PB_DB3_CH = t5Pushback(40, 75, [600, 400, 200, 100, 0, 0, 0, 0]);
+const PB_D1 = t5Pushback(20, 20, [400, 400, 200, 200, 100, 80, 40, 20]);
+const PB_D1_BLOCK = t5Pushback(10, 10, [200, 200, 100, 30, 20, 0, 0, 0]);
+
+/** First recovered slice of Jin's native T5 outcome-specific pushback table. */
+const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
+  "jin.1": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.2": outcomes(PB_410, PB_410, PB_BLOCK),
+  "jin.3": outcomes(PB_210, PB_210, PB_BLOCK),
+  "jin.4": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.f2": outcomes(PB_410, PB_410, PB_BLOCK),
+  "jin.f3": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.b2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.b4": outcomes(PB_B4, PB_B4, PB_ZERO),
+  "jin.df1": outcomes(PB_410, PB_410, PB_BLOCK),
+  "jin.df2": outcomes(PB_730, PB_DF2_CH, PB_BLOCK),
+  "jin.df3": outcomes(PB_ZERO, PB_ZERO, PB_BLOCK),
+  "jin.df4": outcomes(PB_DF4, PB_DF4, PB_ZERO),
+  "jin.d1": outcomes(PB_D1, PB_D1, PB_D1_BLOCK),
+  "jin.d2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.d3": outcomes(PB_365, PB_365, PB_BLOCK),
+  "jin.d4": outcomes(PB_730, PB_D4_CH, PB_D4_BLOCK),
+  "jin.db1": outcomes(PB_550, PB_550, PB_BLOCK),
+  "jin.db2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
+  "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.133": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.133df3": outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
+};
 
 type MoveOpts = Partial<
   Omit<MoveDef, "id" | "command" | "name" | "startup" | "totalFrames" | "hits">
@@ -50,13 +173,18 @@ function mv(
   hits: HitDef[],
   opts: MoveOpts = {},
 ): MoveDef {
+  const recoveredPushback = T5_PUSHBACK_BY_MOVE[id];
+  const recoveredHits =
+    recoveredPushback && hits[0]
+      ? [{ ...hits[0], pushback: recoveredPushback }, ...hits.slice(1)]
+      : hits;
   return {
     id,
     command,
     name,
     startup,
     totalFrames,
-    hits,
+    hits: recoveredHits,
     from: opts.from ?? ["stand"],
     tracking: opts.tracking ?? { left: false, right: false },
     anim: opts.anim ?? { clip: id.replace("jin.", "") },
@@ -68,6 +196,7 @@ const TRACK_BOTH = { left: true, right: true };
 const TRACK_R = { left: false, right: true };
 
 export const JIN_MOVES: MoveDef[] = [
+  ...T5_JIN_JUMP_MOVES,
   // ── 6.2 Standing jabs & basic ────────────────────────────────────────────
   mv(
     "jin.1",
@@ -75,16 +204,44 @@ export const JIN_MOVES: MoveDef[] = [
     "Jab",
     10,
     26,
-    [hit("h", 7, 10, +3, +9, +9, { range: 1.45, flags: { knockback: "small" } })],
+    [
+      hit("h", 7, 10, +3, +9, +9, {
+        range: 1.45,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_1_HITBOX,
+        t5ReactionMoves: { normal: 783, counterHit: 780 },
+        flags: { knockback: "small" },
+      }),
+    ],
     {
       input: { buttons: B1, dir: ["n", "f"] },
       tracking: TRACK_BOTH,
-      advance: [2, 6, 0.15],
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_1_ANIMATION,
       anim: { clip: "jabL" },
       followups: [
-        { moveId: "jin.12", buttons: B2, window: [4, 24] },
-        { moveId: "jin.13", buttons: B3, window: [4, 24] },
-        { moveId: "jin.1d3", buttons: B3, dir: ["d", "db", "df"], window: [4, 24] },
+        {
+          moveId: "jin.12",
+          buttons: B2,
+          window: [1, 14],
+          startingFrame: 10,
+          transitionMode: "reset",
+        },
+        {
+          moveId: "jin.13.entry",
+          buttons: B3,
+          window: [1, 9],
+          startingFrame: 9,
+          transitionMode: "preserve",
+        },
+        {
+          moveId: "jin.1d3",
+          buttons: B3,
+          dir: ["d", "db", "df"],
+          window: [1, 14],
+          startingFrame: 10,
+          transitionMode: "reset",
+        },
       ],
       tags: ["punish10"],
     },
@@ -94,12 +251,21 @@ export const JIN_MOVES: MoveDef[] = [
     "2",
     "Right Jab",
     10,
-    26,
-    [hit("h", 9, 10, 0, +9, +9, { range: 1.45, flags: { knockback: "small" } })],
+    29,
+    [
+      hit("h", 9, 10, 0, +9, +9, {
+        range: 1.45,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_2_HITBOX,
+        t5ReactionMoves: { normal: 800, counterHit: 800 },
+        flags: { knockback: "small" },
+      }),
+    ],
     {
       input: { buttons: B2, dir: ["n", "f"] },
       tracking: TRACK_BOTH,
-      advance: [2, 6, 0.15],
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_2_ANIMATION,
       anim: { clip: "jabR" },
       followups: [
         { moveId: "jin.21", buttons: B1, window: [4, 24] },
@@ -108,47 +274,134 @@ export const JIN_MOVES: MoveDef[] = [
       tags: ["punish10"],
     },
   ),
-  mv("jin.3", "3", "Left High Kick", 14, 38, [hit("h", 19, 14, 0, +4, +4, { range: 1.85 })], {
-    input: { buttons: B3, dir: ["n", "f"] },
-    anim: { clip: "highKickL" },
-  }),
-  mv("jin.4", "4", "Roundhouse", 18, 46, [hit("h", 21, 18, +6, "CS", "CS", { range: 1.9 })], {
-    input: { buttons: B4, dir: ["n"] },
-    anim: { clip: "roundhouseR" },
-    followups: [{ moveId: "jin.43", buttons: B3, window: [16, 22] }],
-    tags: ["chTool"],
-  }),
+  mv(
+    "jin.3",
+    "3",
+    "Left High Kick",
+    14,
+    40,
+    [
+      hit("h", 19, 14, 0, +4, +4, {
+        range: 1.85,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_395_HITBOX,
+        t5ReactionMoves: { normal: 893, counterHit: 893 },
+      }),
+    ],
+    {
+      input: { buttons: B3, dir: ["n", "b"] },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_395_ANIMATION,
+      anim: { clip: "highKickL" },
+    },
+  ),
+  mv(
+    "jin.4",
+    "4",
+    "Roundhouse",
+    12,
+    40,
+    [
+      hit("h", 17, 12, -7, +2, +2, {
+        range: 1.9,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_397_HITBOX,
+        t5ReactionMoves: { normal: 893, counterHit: 893 },
+      }),
+    ],
+    {
+      input: { buttons: B4, dir: ["n", "f"] },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_397_ANIMATION,
+      anim: { clip: "roundhouseR" },
+      followups: [{ moveId: "jin.43", buttons: B3, window: [16, 22] }],
+    },
+  ),
 
   // ── jab strings (6.3) ────────────────────────────────────────────────────
   mv(
     "jin.12",
     "1,2",
     "1-2 Punches",
-    12,
-    30,
+    10,
+    29,
     [
-      hit("h", 12, 12, 0, +8, +8, {
+      hit("h", 12, 10, 0, +8, +9, {
         range: 1.5,
+        activeLen: 0,
+        pushback: outcomes(PB_730, PB_730, PB_BLOCK),
+        t5Hitbox: T5_JIN_12_HITBOX,
+        t5ReactionMoves: { normal: 370, counterHit: 790 },
         flags: { nc: true, jails: true, knockback: "small" },
       }),
     ],
     {
-      advance: [2, 8, 0.12],
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_12_ANIMATION,
       anim: { clip: "jabR" },
       followups: [
-        { moveId: "jin.123", buttons: B3, window: [6, 32] },
-        { moveId: "jin.124", buttons: B4, window: [6, 30] },
+        {
+          moveId: "jin.123.entry",
+          buttons: B3,
+          window: [1, 9],
+          startingFrame: 9,
+          transitionMode: "preserve",
+        },
+        {
+          moveId: "jin.124",
+          buttons: B4,
+          window: [1, 17],
+          startingFrame: 13,
+          transitionMode: "reset",
+        },
       ],
+    },
+  ),
+  mv(
+    "jin.123.entry",
+    "1,2,3 (route punch)",
+    "Route Punch",
+    10,
+    29,
+    [
+      hit("h", 11, 10, -7, +10, +9, {
+        range: 1.5,
+        activeLen: 0,
+        pushback: outcomes(PB_730, PB_730, PB_BLOCK),
+        t5Hitbox: T5_JIN_ROUTE_PUNCH_HITBOX,
+        t5ReactionMoves: { normal: 802, counterHit: 790 },
+        flags: { nc: true, knockback: "small" },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 1,
+      t5Animation: T5_JIN_ROUTE_PUNCH_ANIMATION,
+      anim: { clip: "jabR" },
+      autoTransition: {
+        moveId: "jin.123",
+        startingFrame: 15,
+        transitionMode: "reset",
+      },
     },
   ),
   mv(
     "jin.123",
     "1,2,3",
     "Axe Kick",
-    17,
-    48,
-    [hit("m", 25, 17, +1, "KND", "KND", { range: 1.7, flags: { knockback: "mid" } })],
+    23,
+    47,
+    [
+      hit("m", 25, 23, +1, "KND", "KND", {
+        range: 1.7,
+        activeLen: 3,
+        pushback: outcomes(PB_730, PB_730, PB_BLOCK),
+        t5Hitbox: T5_JIN_123_HITBOX,
+        t5ReactionMoves: { normal: 870, counterHit: 870 },
+        flags: { knockback: "mid" },
+      }),
+    ],
     {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_123_ANIMATION,
       anim: { clip: "axeKickL" },
       followups: [
         { moveId: "jin.som_f1", buttons: B1, dir: "f", window: [15, 40], requiresBuff: "som" },
@@ -160,50 +413,186 @@ export const JIN_MOVES: MoveDef[] = [
     "jin.124",
     "1,2,4",
     "Roundhouse Kick",
-    16,
-    46,
+    20,
+    47,
     [
-      hit("h", 22, 16, -1, "KND", "KND", {
+      hit("h", 22, 20, -4, "CS", "CS", {
         range: 1.85,
         airReach: 2.2,
+        activeLen: 2,
+        pushback: outcomes(PB_B4, PB_B4, PB_ZERO),
+        t5Hitbox: T5_JIN_124_HITBOX,
+        t5ReactionMoves: { normal: 401, counterHit: 401 },
         flags: { knockback: "mid" },
       }),
     ],
     {
-      advance: [2, 10, 0.15],
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_124_ANIMATION,
       anim: { clip: "roundhouseR" },
     },
   ),
-  mv("jin.13", "1,3", "Knee Popper", 14, 34, [hit("h", 10, 14, -6, +4, +4, { range: 1.6 })], {
-    anim: { clip: "snapKickL" },
-    followups: [
-      { moveId: "jin.132", buttons: B2, window: [6, 28] },
-      { moveId: "jin.133", buttons: B3, window: [2, 12], slide: true }, // 1,3~3 slide input
+  mv(
+    "jin.13.entry",
+    "1,3 (route jab)",
+    "Route Jab",
+    10,
+    26,
+    [
+      hit("h", 6, 10, +3, +9, +9, {
+        range: 1.6,
+        activeLen: 0,
+        pushback: outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
+        t5Hitbox: T5_JIN_13_ENTRY_HITBOX,
+        t5ReactionMoves: { normal: 783, counterHit: 780 },
+        flags: { nc: true, knockback: "small" },
+      }),
     ],
+    {
+      t5CancelOrientationMode: 1,
+      t5Animation: T5_JIN_13_ENTRY_ANIMATION,
+      anim: { clip: "jabL" },
+      autoTransition: {
+        moveId: "jin.13",
+        startingFrame: 10,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv(
+    "jin.13",
+    "1,3",
+    "Knee Popper",
+    14,
+    15,
+    [
+      hit("h", 10, 14, -5, +5, +5, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 20,
+        hitstun: 30,
+        counterHitstun: 30,
+        pushback: outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
+        t5Hitbox: T5_JIN_13_HITBOX,
+        t5ReactionMoves: { normal: 797, counterHit: 794 },
+        flags: { nc: true, knockback: "small" },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_13_ANIMATION,
+      anim: { clip: "snapKickL" },
+      followups: [
+        {
+          moveId: "jin.132",
+          buttons: B2,
+          window: [1, 14],
+          startingFrame: 14,
+          transitionMode: "preserve",
+        },
+        {
+          moveId: "jin.133",
+          buttons: B3,
+          window: [1, 11],
+          startingFrame: 11,
+          transitionMode: "reset",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.13.recover",
+        startingFrame: 15,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv("jin.13.recover", "", "Knee Popper Recovery", 0, 25, [], {
+    anim: { clip: "snapKickL" },
   }),
-  mv("jin.132", "1,3,2", "Kazama Fury 3", 14, 36, [hit("m", 10, 14, -1, +3, +3, { range: 1.6 })], {
+  mv(
+    "jin.132",
+    "1,3,2",
+    "Kazama Fury 3",
+    32,
+    33,
+    [
+      hit("m", 10, 32, 0, +4, +4, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 25,
+        hitstun: 29,
+        counterHitstun: 29,
+      }),
+    ],
+    {
+      anim: { clip: "bodyPunchR" },
+      followups: [
+        {
+          moveId: "jin.1321",
+          buttons: B1,
+          window: [1, 32],
+          startingFrame: 32,
+          transitionMode: "preserve",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.132.recover",
+        startingFrame: 33,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv("jin.132.recover", "", "Kazama Fury 3 Recovery", 0, 25, [], {
     anim: { clip: "bodyPunchR" },
-    followups: [{ moveId: "jin.1321", buttons: B1, window: [6, 28] }],
   }),
   mv(
     "jin.1321",
     "1,3,2,1",
     "Kazama Fury 4",
-    14,
-    38,
-    [hit("m", 10, 14, -4, +3, +3, { range: 1.6 })],
+    42,
+    43,
+    [
+      hit("m", 10, 42, -3, +4, +4, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 25,
+        hitstun: 32,
+        counterHitstun: 32,
+      }),
+    ],
     {
       anim: { clip: "bodyPunchL" },
-      followups: [{ moveId: "jin.13214", buttons: B4, window: [6, 28] }],
+      followups: [
+        {
+          moveId: "jin.13214",
+          buttons: B4,
+          window: [1, 42],
+          startingFrame: 42,
+          transitionMode: "preserve",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.1321.recover",
+        startingFrame: 43,
+        transitionMode: "reset",
+      },
     },
   ),
+  mv("jin.1321.recover", "", "Kazama Fury 4 Recovery", 0, 28, [], {
+    anim: { clip: "bodyPunchL" },
+  }),
   mv(
     "jin.13214",
     "1,3,2,1,4",
     "Kazama Fury",
-    16,
-    44,
-    [hit("l", 10, 16, -8, +24, +24, { range: 1.7, flags: { knockback: "mid" } })],
+    59,
+    80,
+    [
+      hit("l", 10, 59, -2, +24, +24, {
+        range: 1.7,
+        activeLen: 1,
+        flags: { knockback: "mid" },
+      }),
+    ],
     {
       anim: { clip: "lowRoundR" },
       kiaiFollowup: true,
@@ -213,22 +602,55 @@ export const JIN_MOVES: MoveDef[] = [
     "jin.133",
     "1,3~3",
     "Snap Kick",
-    20,
-    42,
-    [hit("m", 22, 20, +5, "SLD", "SLD", { range: 1.8, flags: { knockback: "mid" } })],
+    22,
+    47,
+    [
+      hit("m", 22, 22, +5, "SLD", "SLD", {
+        range: 1.8,
+        activeLen: 3,
+        blockstun: 30,
+        hitstun: 40,
+        counterHitstun: 40,
+        pushback: outcomes(PB_730, PB_730, PB_BLOCK),
+        t5Hitbox: T5_JIN_133_HITBOX,
+        t5ReactionMoves: { normal: 585, counterHit: 585 },
+        flags: { knockback: "mid" },
+      }),
+    ],
     {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_133_ANIMATION,
       anim: { clip: "snapKickHardL" },
-      followups: [{ moveId: "jin.133df3", buttons: B3, dir: ["df"], window: [18, 40] }],
+      followups: [
+        {
+          moveId: "jin.133df3",
+          buttons: B3,
+          dir: ["df"],
+          window: [18, 48],
+          startingFrame: 35,
+          transitionMode: "reset",
+        },
+      ],
     },
   ),
   mv(
     "jin.133df3",
     "1,3~3,d/f+3",
     "Foot Blade Ender",
-    15,
-    42,
-    [hit("m", 13, 15, 0, +1, "FS", { range: 1.75 })],
+    19,
+    50,
+    [
+      hit("m", 13, 19, -12, +1, "FS", {
+        range: 1.75,
+        activeLen: 2,
+        pushback: outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
+        t5Hitbox: T5_JIN_133DF3_HITBOX,
+        t5ReactionMoves: { normal: 896, counterHit: 583 },
+      }),
+    ],
     {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_133DF3_ANIMATION,
       anim: { clip: "sideKickL" },
     },
   ),
@@ -236,9 +658,16 @@ export const JIN_MOVES: MoveDef[] = [
     "jin.1d3",
     "1,d+3",
     "Low Kick",
-    15,
-    40,
-    [hit("L", 7, 15, -12, -1, -1, { range: 1.6, airReach: 0.9, flags: { hitsGrounded: true } })],
+    16,
+    47,
+    [
+      hit("L", 7, 16, -12, -1, -1, {
+        range: 1.6,
+        airReach: 0.9,
+        activeLen: 1,
+        flags: { hitsGrounded: true },
+      }),
+    ],
     {
       anim: { clip: "lowKickL" },
     },
@@ -291,18 +720,52 @@ export const JIN_MOVES: MoveDef[] = [
   ),
 
   // ── f / command normals (6.2) ───────────────────────────────────────────
-  mv("jin.f2", "f+2", "Right Elbow", 16, 42, [hit("h", 12, 16, -15, -9, -9, { range: 1.55 })], {
-    input: { buttons: B2, dir: "f" },
-    anim: { clip: "elbowR" },
-    followups: [{ moveId: "jin.ts2", buttons: B3, window: [8, 36] }],
-    tags: ["tenstring"],
-  }),
-  mv("jin.f3", "f+3", "Left Middle Kick", 12, 34, [hit("m", 16, 12, -5, +6, +6, { range: 1.75 })], {
-    input: { buttons: B3, dir: "f" },
-    anim: { clip: "midKickL" },
-    followups: [{ moveId: "jin.f33", buttons: B3, window: [2, 10], slide: true }],
-    tags: ["punish12"],
-  }),
+  mv(
+    "jin.f2",
+    "f+2",
+    "Right Elbow",
+    16,
+    50,
+    [
+      hit("h", 12, 16, -15, -9, -9, {
+        range: 1.55,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_404_HITBOX,
+        t5ReactionMoves: { normal: 783, counterHit: 783 },
+      }),
+    ],
+    {
+      input: { buttons: B2, dir: "f" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_404_ANIMATION,
+      anim: { clip: "elbowR" },
+      followups: [{ moveId: "jin.ts2", buttons: B3, window: [8, 36] }],
+      tags: ["tenstring"],
+    },
+  ),
+  mv(
+    "jin.f3",
+    "f+3",
+    "Left Middle Kick",
+    12,
+    36,
+    [
+      hit("m", 16, 12, -5, +6, +6, {
+        range: 1.75,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_418_HITBOX,
+        t5ReactionMoves: { normal: 803, counterHit: 803 },
+      }),
+    ],
+    {
+      input: { buttons: B3, dir: "f" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_418_ANIMATION,
+      anim: { clip: "midKickL" },
+      followups: [{ moveId: "jin.f33", buttons: B3, window: [2, 10], slide: true }],
+      tags: ["punish12"],
+    },
+  ),
   mv(
     "jin.f33",
     "f+3~3",
@@ -323,7 +786,6 @@ export const JIN_MOVES: MoveDef[] = [
     44,
     [hit("m", 21, 16, -8, +2, "CS", { range: 1.85 })],
     {
-      input: { buttons: B4, dir: "f" },
       anim: { clip: "frontKickR" },
       kiaiFollowup: true,
       tags: ["chTool"],
@@ -370,11 +832,21 @@ export const JIN_MOVES: MoveDef[] = [
     "d/f+1",
     "Left Body Blow",
     13,
-    33,
-    [hit("m", 12, 13, -2, +9, +9, { range: 1.65, flags: { knockback: "small" } })],
+    34,
+    [
+      hit("m", 12, 13, -2, +9, +9, {
+        range: 1.65,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_469_HITBOX,
+        t5ReactionMoves: { normal: 806, counterHit: 803 },
+        flags: { knockback: "small" },
+      }),
+    ],
     {
       input: { buttons: B1, dir: "df" },
       tracking: TRACK_R,
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_469_ANIMATION,
       anim: { clip: "bodyPunchL" },
       followups: [
         { moveId: "jin.df14", buttons: B4, window: [5, 28] },
@@ -403,16 +875,20 @@ export const JIN_MOVES: MoveDef[] = [
     "d/f+2",
     "Short Uppercut",
     15,
-    44,
+    41,
     [
       hit("m", 15, 15, -7, +4, "JG", {
         range: 1.7,
         airReach: 2.1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_494_HITBOX,
+        t5ReactionMoves: { normal: 842, counterHit: 159 },
         launch: { vy: 7.4, vxCarry: 0.9 },
       }),
     ],
     {
       input: { buttons: B2, dir: "df" },
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_494_ANIMATION,
       anim: { clip: "uppercutR" },
       tags: ["chLauncher"],
     },
@@ -422,10 +898,19 @@ export const JIN_MOVES: MoveDef[] = [
     "d/f+3",
     "Left Foot Blade",
     14,
-    46,
-    [hit("m", 10, 14, -16, -3, "FS", { range: 1.75 })],
+    40,
+    [
+      hit("m", 15, 14, -7, +2, "FS", {
+        range: 1.75,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_496_HITBOX,
+        t5ReactionMoves: { normal: 499, counterHit: 896 },
+      }),
+    ],
     {
       input: { buttons: B3, dir: "df" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_496_ANIMATION,
       anim: { clip: "sideKickL" },
       kiaiFollowup: true,
     },
@@ -439,11 +924,15 @@ export const JIN_MOVES: MoveDef[] = [
     [
       hit("m", 33, 19, -17, "KND", "KND", {
         range: 2.05,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_502_HITBOX,
+        t5ReactionMoves: { normal: 505, counterHit: 505 },
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],
     {
       input: { buttons: B4, dir: "df" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_502_ANIMATION,
       anim: { clip: "sideKickHardR" },
       kiaiFollowup: true,
     },
@@ -455,10 +944,19 @@ export const JIN_MOVES: MoveDef[] = [
     "d+1",
     "Corpse Thrust",
     21,
-    52,
-    [hit("m", 24, 21, -4, "KND", "KND", { range: 1.7, flags: { knockback: "mid" } })],
+    53,
+    [
+      hit("m", 24, 21, -4, "KND", "KND", {
+        range: 1.7,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_563_HITBOX,
+        t5ReactionMoves: { normal: 898, counterHit: 898 },
+        flags: { knockback: "mid" },
+      }),
+    ],
     {
       input: { buttons: B1, dir: "d" },
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_563_ANIMATION,
       anim: { clip: "corpseThrust" },
     },
   ),
@@ -467,11 +965,20 @@ export const JIN_MOVES: MoveDef[] = [
     "d+2",
     "Tile Splitter",
     11,
-    32,
-    [hit("sm", 8, 11, -4, +7, +7, { range: 1.5, flags: { selfRC: true } })],
+    34,
+    [
+      hit("sm", 8, 11, -4, +7, +7, {
+        range: 1.5,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_456_HITBOX,
+        t5ReactionMoves: { normal: 803, counterHit: 803 },
+        flags: { selfRC: true },
+      }),
+    ],
     {
       input: { buttons: B2, dir: "d" },
       recoversState: "crouch",
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_456_ANIMATION,
       anim: { clip: "tileSplitter" },
     },
   ),
@@ -480,11 +987,21 @@ export const JIN_MOVES: MoveDef[] = [
     "d+3",
     "Left Low Kick",
     15,
-    40,
-    [hit("l", 7, 15, -11, 0, 0, { range: 1.55, airReach: 0.9 })],
+    45,
+    [
+      hit("l", 7, 15, -11, 0, 0, {
+        range: 1.55,
+        airReach: 0.9,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_458_HITBOX,
+        t5ReactionMoves: { normal: 811, counterHit: 811 },
+      }),
+    ],
     {
       input: { buttons: B3, dir: "d" },
       crush: { TC: [1, 32] },
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_458_ANIMATION,
       anim: { clip: "lowKickL" },
       followups: [{ moveId: "jin.d33", buttons: B3, window: [7, 30] }],
     },
@@ -497,11 +1014,22 @@ export const JIN_MOVES: MoveDef[] = [
     "d+4",
     "Long Sweep",
     16,
-    45,
-    [hit("L", 15, 16, -15, -4, -4, { range: 2.0, airReach: 0.9, flags: { hitsGrounded: true } })],
+    50,
+    [
+      hit("L", 15, 16, -15, -4, -4, {
+        range: 2.0,
+        airReach: 0.9,
+        activeLen: 3,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_462_HITBOX,
+        t5ReactionMoves: { normal: 463, counterHit: 463 },
+        flags: { hitsGrounded: true },
+      }),
+    ],
     {
       input: { buttons: B4, dir: "d" },
       crush: { TC: [1, 36] },
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_462_ANIMATION,
       anim: { clip: "sweepR" },
     },
   ),
@@ -510,26 +1038,57 @@ export const JIN_MOVES: MoveDef[] = [
     "d+3+4",
     "Leaping Twin Kicks",
     14,
-    56,
+    15,
     [
-      hit("m", 5, 14, -30, "JG", "JG", {
+      hit("m", 5, 14, +33, +44, +44, {
         range: 1.6,
         airReach: 2.0,
-        launch: { vy: 8.4, vxCarry: 0.5 },
-      }),
-      hit("h", 15, 20, -30, "JG", "JG", {
-        range: 1.7,
-        airReach: 2.3,
-        launch: { vy: 8.4, vxCarry: 0.6 },
-        flags: { nc: true },
+        activeLen: 1,
+        blockstun: 19,
+        hitstun: 30,
+        counterHitstun: 30,
+        pushback: outcomes(PB_PULL_5, PB_ZERO, PB_PULL_5),
+        t5Hitbox: T5_JIN_MOVE_465_HITBOX,
+        t5ReactionMoves: { normal: 803, counterHit: 803 },
       }),
     ],
     {
       input: { buttons: B3 | B4, dir: "d" },
       crush: { TJ: [10, 30] },
-      hitRecoveryBonus: 6,
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_MOVE_465_ANIMATION,
+      autoTransition: {
+        moveId: "jin.d34.second",
+        startingFrame: 15,
+        transitionMode: "preserve",
+      },
       anim: { clip: "canCan" },
       tags: ["launcher", "punish14"],
+    },
+  ),
+  mv(
+    "jin.d34.second",
+    "d+3+4 (second kick)",
+    "Leaping Twin Kicks 2",
+    24,
+    62,
+    [
+      hit("h", 15, 24, -19, "JG", "JG", {
+        range: 1.7,
+        airReach: 2.3,
+        activeLen: 3,
+        pushback: outcomes(PB_LAUNCH_52, PB_LAUNCH_52, PB_D34_BLOCK),
+        t5Hitbox: T5_JIN_MOVE_467_HITBOX,
+        t5ReactionMoves: { normal: 161, counterHit: 161 },
+        launch: { vy: 8.4, vxCarry: 0.6 },
+        flags: { nc: true },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_MOVE_467_ANIMATION,
+      anim: { clip: "canCan" },
+      tags: ["launcher"],
     },
   ),
   mv(
@@ -537,12 +1096,22 @@ export const JIN_MOVES: MoveDef[] = [
     "d/b+1",
     "Short Body Jab",
     10,
-    30,
-    [hit("sm", 5, 10, -5, +6, +6, { range: 1.4, flags: { selfRC: true } })],
+    34,
+    [
+      hit("sm", 5, 10, -5, +6, +6, {
+        range: 1.4,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_455_HITBOX,
+        t5ReactionMoves: { normal: 806, counterHit: 803 },
+        flags: { selfRC: true },
+      }),
+    ],
     {
       input: { buttons: B1, dir: "db" },
       crush: { TC: [1, 30] },
       recoversState: "crouch",
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_455_ANIMATION,
       anim: { clip: "bodyJab" },
     },
   ),
@@ -551,11 +1120,19 @@ export const JIN_MOVES: MoveDef[] = [
     "d/b+2",
     "Backfist Slice",
     16,
-    44,
-    [hit("m", 12, 16, -15, -4, "CS", { range: 1.65 })],
+    50,
+    [
+      hit("m", 12, 16, -15, -4, "CS", {
+        range: 1.65,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_526_HITBOX,
+        t5ReactionMoves: { normal: 806, counterHit: 854 },
+      }),
+    ],
     {
       input: { buttons: B2, dir: "db" },
-      advance: [3, 10, 0.2],
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_526_ANIMATION,
       anim: { clip: "backfistSliceR" },
       followups: [{ moveId: "jin.db22", buttons: B2, window: [8, 34] }],
     },
@@ -596,14 +1173,20 @@ export const JIN_MOVES: MoveDef[] = [
     "jin.db3",
     "d/b+3",
     "Reverse Roundhouse",
-    20,
-    52,
+    19,
+    59,
     [
-      // Appendix B: use 28 damage
-      hit("h", 28, 20, -11, "KND", "KND", { range: 1.95, flags: { knockback: "big" } }),
+      hit("h", 21, 19, -12, "KND", "KND", {
+        range: 1.95,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_592_HITBOX,
+        t5ReactionMoves: { normal: 163, counterHit: 163 },
+        flags: { knockback: "big" },
+      }),
     ],
     {
       input: { buttons: B3, dir: "db" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_592_ANIMATION,
       anim: { clip: "reverseRoundL" },
     },
   ),
@@ -611,31 +1194,50 @@ export const JIN_MOVES: MoveDef[] = [
     "jin.db4",
     "d/b+4",
     "Shin Kick",
-    20,
-    50,
+    12,
+    39,
     [
-      // Appendix B: -3 on hit; CH launches (PLD float)
-      hit("l", 15, 20, -14, -3, "JG", {
+      hit("l", 7, 12, -8, +3, +3, {
         range: 1.8,
         airReach: 0.9,
-        launch: { vy: 6.4, vxCarry: 0.35 },
+        activeLen: 0,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_460_HITBOX,
+        t5ReactionMoves: { normal: 811, counterHit: 811 },
       }),
     ],
     {
       input: { buttons: B4, dir: "db" },
       crush: { TC: [6, 36] },
-      hitRecoveryBonus: 14,
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_460_ANIMATION,
       anim: { clip: "shinKick" },
-      tags: ["chLauncher", "low"],
+      tags: ["low"],
     },
   ),
 
   // ── b ────────────────────────────────────────────────────────────────────
-  mv("jin.b2", "b+2", "Right Backfist", 16, 40, [hit("h", 12, 16, -10, +1, +1, { range: 1.7 })], {
-    input: { buttons: B2, dir: "b" },
-    anim: { clip: "backfistR" },
-    followups: [{ moveId: "jin.b23", buttons: B3, window: [8, 32] }],
-  }),
+  mv(
+    "jin.b2",
+    "b+2",
+    "Right Backfist",
+    16,
+    45,
+    [
+      hit("h", 12, 16, -10, +1, +1, {
+        range: 1.7,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_423_HITBOX,
+        t5ReactionMoves: { normal: 776, counterHit: 776 },
+      }),
+    ],
+    {
+      input: { buttons: B2, dir: "b" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_423_ANIMATION,
+      anim: { clip: "backfistR" },
+      followups: [{ moveId: "jin.b23", buttons: B3, window: [8, 32] }],
+    },
+  ),
   mv(
     "jin.b23",
     "b+2,3",
@@ -662,7 +1264,6 @@ export const JIN_MOVES: MoveDef[] = [
     36,
     [hit("h", 15, 14, +2, +6, "PLD", { range: 1.8 })],
     {
-      input: { buttons: B3, dir: "b" },
       anim: { clip: "crescentL" },
       followups: [{ moveId: "jin.b34", buttons: B4, window: [6, 30] }],
       tags: ["chTool"],
@@ -684,10 +1285,19 @@ export const JIN_MOVES: MoveDef[] = [
     "b+4",
     "Spinning Heel Kick",
     17,
-    46,
-    [hit("m", 18, 17, -7, "CS", "CS", { range: 1.9 })],
+    47,
+    [
+      hit("m", 18, 17, -7, "CS", "CS", {
+        range: 1.9,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_399_HITBOX,
+        t5ReactionMoves: { normal: 401, counterHit: 401 },
+      }),
+    ],
     {
       input: { buttons: B4, dir: "b" },
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_399_ANIMATION,
       anim: { clip: "spinHeelR" },
     },
   ),
@@ -770,18 +1380,23 @@ export const JIN_MOVES: MoveDef[] = [
     "u/f+4",
     "Hop Kick",
     15,
-    44,
+    46,
     [
       hit("m", 13, 15, -12, "JG", "JG", {
         range: 1.75,
         airReach: 2.3,
+        activeLen: 2,
+        pushback: outcomes(PB_LAUNCH_52, PB_LAUNCH_52, PB_BLOCK),
+        t5Hitbox: T5_JIN_MOVE_322_HITBOX,
+        t5ReactionMoves: { normal: 160, counterHit: 160 },
         launch: { vy: 8.0, vxCarry: 0.7 },
       }),
     ],
     {
       input: { buttons: B4, dir: "uf" },
       crush: { TJ: [3, 34] },
-      hitRecoveryBonus: 10,
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_MOVE_322_ANIMATION,
       anim: { clip: "hopKick" },
       tags: ["launcher", "punish15"],
     },
@@ -1059,18 +1674,23 @@ export const JIN_MOVES: MoveDef[] = [
     "WS+2",
     "Rising Uppercut",
     14,
-    42,
+    35,
     [
-      hit("m", 15, 14, -12, "JG", "JG", {
+      hit("m", 15, 14, -2, "JG", "JG", {
         range: 1.6,
         airReach: 2.2,
+        activeLen: 1,
+        pushback: outcomes(PB_WS2, PB_WS2, PB_WS2_BLOCK),
+        t5Hitbox: T5_JIN_MOVE_509_HITBOX,
+        t5ReactionMoves: { normal: 159, counterHit: 159 },
         launch: { vy: 7.8, vxCarry: 0.7 },
       }),
     ],
     {
       input: { buttons: B2 },
       from: ["WS"],
-      hitRecoveryBonus: 10,
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_MOVE_509_ANIMATION,
       anim: { clip: "risingUppercut" },
       tags: ["launcher", "wsPunish"],
     },
@@ -1124,18 +1744,23 @@ export const JIN_MOVES: MoveDef[] = [
     "f,N,d,d/f+2",
     "Wind Hook Fist",
     12,
-    40,
+    38,
     [
       hit("h", 25, 12, -2, "KND", "KND", {
         range: 1.85,
         airReach: 2.1,
+        activeLen: 1,
+        pushback: outcomes(PB_DB3, PB_DB3_CH, PB_410),
+        t5Hitbox: T5_JIN_MOVE_677_HITBOX,
+        t5ReactionMoves: { normal: 163, counterHit: 163 },
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],
     {
       input: { buttons: B2, motion: "cd" },
       from: ["stand", "CD"],
-      advance: [1, 8, 0.3],
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_MOVE_677_ANIMATION,
       anim: { clip: "whf" },
     },
   ),
