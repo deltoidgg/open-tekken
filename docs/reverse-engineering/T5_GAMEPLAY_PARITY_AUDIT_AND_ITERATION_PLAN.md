@@ -354,8 +354,18 @@ release from `255 fN` selects reverse abort `253` for held back or `251` for
 neutral at frame `N-1`, counts down to frame 1, then publishes back walk `227`
 or standing. Back-walk release preserves its timeline in `228`; the next back
 edge starts a fresh distance-selected `232 f1`. The clone now reproduces this
-graph and its descending native root deltas. Passive guard and button-cancel
-precedence remain the next KBD slice.
+graph and its descending native root deltas. Shell-owned guard and button-cancel
+precedence were the next KBD slice, resolved in the checkpoint below.
+
+Third checkpoint: the apparent guard window is a shell distinction, not a
+timer. Held entries `230/232` use automatic-guard status `0x21052`; neutral
+release shells `231/233` use vulnerable `0x20842`. Reverse `251/253` guard while
+forward `252` does not, and vulnerable locomotion takes a normal rather than
+counter hit. Live button traces show both direct `255 f5 -> 352 f1` and
+published `253 f2 -> 352 f1` priority. Cancel group `850` gives standing
+commands frames 1..5, then falls through to its all-frame WS/FC entries. The
+clone now derives guard and command stance from those native shells and removes
+the provisional frame-count guard constant.
 
 ## Rules for future tuning
 

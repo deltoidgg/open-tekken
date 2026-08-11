@@ -7,6 +7,7 @@ import { moveById, JIN_THROWS } from "../data/jin.ts";
 import { t5JinReactionAnimation } from "../data/t5-jin-reactions-native.ts";
 import { t5JumpAttackRoute, t5StandingJumpAttackRoute } from "../data/t5-jump.ts";
 import type {
+  FighterStance,
   FollowupDef,
   HitDef,
   MoveDef,
@@ -421,7 +422,10 @@ export class Sim {
     // T5 enters the jump anticipation on the first up frame. Its own cancel
     // graph arbitrates tap/hold and directional changes through source frame 8.
     if (f.action === "jump") {
-      if (f.t5LocomotionReverse) return;
+      if (f.t5LocomotionReverse) {
+        if (inp.pressed && this.tryStartT5ReverseCommand(f, opp, inp)) return;
+        return;
+      }
       if (!this.tryT5JumpAttack(f, inp)) this.decideJumpStartup(f, inp);
       return;
     }
@@ -469,7 +473,13 @@ export class Sim {
   }
 
   /** Start a command from a fresh press, including special actions before moves. */
-  private tryStartCommand(f: FighterState, opp: FighterState, inp: FrameInput): boolean {
+  private tryStartCommand(
+    f: FighterState,
+    opp: FighterState,
+    inp: FrameInput,
+    moveStance: FighterStance | null = stanceOf(f),
+    allowStandingJumpAttack = moveStance === "stand",
+  ): boolean {
     const pdir = inp.pressedDir;
     // Kazama parry: b+1+3 / b+2+4
     if ((inp.pressed === (B1 | B3) || inp.pressed === (B2 | B4)) && DIR_HAS_B[pdir]) {
@@ -483,7 +493,7 @@ export class Sim {
       return true;
     }
     // CDS entry b+1
-    if (inp.pressed === B1 && pdir === "b" && stanceOf(f) === "stand") {
+    if (inp.pressed === B1 && pdir === "b" && moveStance === "stand") {
       this.setAction(f, "CDS", 40);
       return true;
     }
@@ -497,18 +507,37 @@ export class Sim {
       return true;
     }
     const jumpAttack = t5StandingJumpAttackRoute(pdir, inp.pressed);
-    if (jumpAttack && stanceOf(f) === "stand") {
+    if (jumpAttack && allowStandingJumpAttack) {
       this.startAttack(f, moveById(jumpAttack.moveId));
       f.t5CancelOrientationMode = jumpAttack.orientationMode;
       return true;
     }
     // attacks
-    const mvSel = selectMove(f, inp, opp.action === "grounded", this.jfWindow);
+    const mvSel =
+      moveStance === null
+        ? null
+        : selectMove(f, inp, opp.action === "grounded", this.jfWindow, moveStance);
     if (mvSel) {
       this.startAttack(f, mvSel);
       return true;
     }
     return false;
+  }
+
+  private tryStartT5ReverseCommand(f: FighterState, opp: FighterState, inp: FrameInput): boolean {
+    // PAL group 850 checks standing commands first on reverse frames 1..5.
+    // Once that window closes, neutral buttons select WS moves while a held
+    // down direction selects the FC family. Other shared groups (throws,
+    // parries, and standing jump attacks) remain available throughout.
+    const moveStance: FighterStance | null =
+      f.actionFrame <= 5
+        ? "stand"
+        : DIR_HAS_D[inp.pressedDir]
+          ? "FC"
+          : inp.pressedDir === "n"
+            ? "WS"
+            : null;
+    return this.tryStartCommand(f, opp, inp, moveStance, true);
   }
 
   private decideMovement(f: FighterState, inp: FrameInput): void {
@@ -1765,12 +1794,18 @@ export class Sim {
       return def.crouching && DIR_HAS_D[inp.dir] ? "crouch" : "stand";
     }
     const dir = inp.dir;
+    const passiveT5StandingGuard =
+      (def.action === "backdash" &&
+        (def.t5BackdashMoveId === 230 || def.t5BackdashMoveId === 232)) ||
+      (def.action === "jump" &&
+        def.t5LocomotionReverse &&
+        (def.t5JumpMoveId === 251 || def.t5JumpMoveId === 253));
     const guardableAction =
       def.action === "idle" ||
       def.action === "walkB" ||
       def.action === "rising" ||
       def.action === "turn" ||
-      (def.action === "backdash" && actionFrame > T.backdashGuardlessUntil) ||
+      passiveT5StandingGuard ||
       (def.action === "ss" && def.ssPhase === "walkStop") ||
       (def.action === "getup" && actionFrame >= 8) ||
       def.action === "crouch" ||

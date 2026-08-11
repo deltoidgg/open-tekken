@@ -22,7 +22,6 @@ export const TUNING = {
   backdashFrames: 35,
   backdashCancelFrame: 1,
   backdashCloseDistance: 1.8,
-  backdashGuardlessUntil: 2,
   sidestepFrames: 27,
   sidestepAttackCancelFrom: 6,
   sidewalkEntryUntil: 12,

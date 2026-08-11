@@ -1,8 +1,8 @@
 # Tekken 5 PAL guard and attack-orientation runtime
 
-Status: implemented for the recovered Jin attack and sidestep slice. Evidence
-comes from the supplied `SCES-53202` version 1.00 disc, Jin's read-only live
-moveset, and an EE-memory snapshot. Updated 2026-08-10.
+Status: implemented for the recovered Jin attack, sidestep, and KBD slice.
+Evidence comes from the supplied `SCES-53202` version 1.00 disc, Jin's read-only
+live moveset, and an EE-memory snapshot. Updated 2026-08-11.
 
 ## Guard status in the move records
 
@@ -11,20 +11,23 @@ TKMovesets identifies this field as the move's vulnerability/status word,
 including automatic guard state. Cross-move comparison resolves the sidestep
 case without relying on the old clone timing guess:
 
-| Runtime shell             |                                     Move(s) |        Vulnerability |
-| ------------------------- | ------------------------------------------: | -------------------: |
-| Standing                  |                                         220 |             `0x1952` |
-| Forward walk              |                                         222 |            `0x80842` |
-| Dash                      |                                         224 |            `0x10842` |
-| Back walk/backdash        |                               227, 230, 232 |            `0x21052` |
-| Neutral crouch/down entry |                                    234, 254 |             `0x3929` |
-| Crouch forward            |                               241, 242, 250 |            `0x12821` |
-| Crouch guard              |                                243-245, 255 |            `0x23029` |
-| Neutral/forward rise      |                                    256, 257 | `0x1952` / `0x10842` |
-| Active sidestep/sidewalk  |                                   1062-1073 |              `0x842` |
-| Sidewalk stop             |                                  1078, 1079 |             `0x1952` |
-| Mapped standing attacks   | 334, 337, 338, 368, 369, 374, 376, 578, 579 |              `0x842` |
-| Mapped moving attack      |                                         577 |            `0x80842` |
+| Runtime shell             |                                     Move(s) |                    Vulnerability |
+| ------------------------- | ------------------------------------------: | -------------------------------: |
+| Standing                  |                                         220 |                         `0x1952` |
+| Forward walk              |                                         222 |                        `0x80842` |
+| Dash                      |                                         224 |                        `0x10842` |
+| Held-back walk/backdash   |                               227, 230, 232 |                        `0x21052` |
+| Back-walk neutral release |                                         228 |                         `0x1952` |
+| Backdash neutral release  |                                    231, 233 |                        `0x20842` |
+| Reverse neutral/fwd/back  |                               251, 252, 253 | `0x1952` / `0x10842` / `0x21052` |
+| Neutral crouch/down entry |                                    234, 254 |                         `0x3929` |
+| Crouch forward            |                               241, 242, 250 |                        `0x12821` |
+| Crouch guard              |                                243-245, 255 |                        `0x23029` |
+| Neutral/forward rise      |                                    256, 257 |             `0x1952` / `0x10842` |
+| Active sidestep/sidewalk  |                                   1062-1073 |                          `0x842` |
+| Sidewalk stop             |                                  1078, 1079 |                         `0x1952` |
+| Mapped standing attacks   | 334, 337, 338, 368, 369, 374, 376, 578, 579 |                          `0x842` |
+| Mapped moving attack      |                                         577 |                        `0x80842` |
 
 Active sidestep shells have the same low status word as attacks, not standing.
 They therefore do not passively autoblock. Moves 1078/1079 restore the exact
@@ -34,6 +37,13 @@ The crouch records likewise separate posture from guard: held `d` uses
 234/254 and does not block lows, while held `d/b` uses the `0x23029` shell
 family and crouch-blocks. This replaces the clone's old rule that treated both
 directions as equivalent low guard.
+
+Backdash has the same kind of shell split. Held `230/232` guards immediately;
+neutral input first preserves the animation frame into `231/233`, whose
+`0x20842` status is vulnerable. Reverse neutral `251` and reverse back `253`
+restore standing guard, while reverse forward `252` remains vulnerable. This
+replaces the old `backdashGuardlessUntil` timing guess with native state and
+ensures movement arbitration changes the guard result before contact.
 
 Every active sidestep shell also has a direct `b -> 227` cancel accepted from
 source frame 1. The clone evaluates movement cancels before contact, matching
@@ -176,6 +186,9 @@ Focused tests protect:
 - a neutral active sidestep being hit rather than autoblocking;
 - same-tick `b -> walkB` guarding;
 - passive guard returning in the sidewalk-stop shell;
+- first-frame held-back guard and normal-hit neutral backdash release;
+- neutral/back reverse guard with vulnerable forward reverse;
+- normal-hit rather than counter-hit exposure for vulnerable locomotion shells;
 - a jab intersection that hits the standing skeleton but misses quick-step's
   native frame-1 hurt pose;
 - a strike intersection that hits the standing skeleton but misses Jin's

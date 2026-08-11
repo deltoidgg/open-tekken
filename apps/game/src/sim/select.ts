@@ -43,9 +43,10 @@ export function selectMove(
   inp: FrameInput,
   oppGrounded: boolean,
   jfWindow: number = TUNING.justFrameWindow,
+  stanceOverride?: FighterStance,
 ): MoveDef | null {
   if (!inp.pressed) return null;
-  const stance = stanceOf(f);
+  const stance = stanceOverride ?? stanceOf(f);
   const dir = inp.pressedDir;
 
   // CD-state remaps (spec 5.3/6.6): f+4 from CD = WS+4 axe kick; uf+3 = slash kick.

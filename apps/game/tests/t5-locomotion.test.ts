@@ -516,6 +516,103 @@ describe("Tekken 5 PAL locomotion roots", () => {
     });
   });
 
+  it("gives a same-tick button command priority over the crouch-back release bridge", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackdash(sim);
+    run(sim, 4, { dx: -1, dy: -1 });
+
+    sim.step(pad({ dx: -1, btns: B1 }), pad());
+
+    expect(fighter).toMatchObject({ action: "CDS", actionFrame: 1 });
+    expect(fighter.t5LocomotionReverse).toBe(false);
+  });
+
+  it("accepts standing commands through reverse frame 5 before the WS and FC tables win", () => {
+    const standing = fightSim(8);
+    const whileStanding = fightSim(8);
+    const fullCrouch = fightSim(8);
+    Object.assign(standing.gs.fighters[0], {
+      action: "jump",
+      actionFrame: 5,
+      actionTotal: 10,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+    Object.assign(whileStanding.gs.fighters[0], {
+      action: "jump",
+      actionFrame: 6,
+      actionTotal: 10,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+    Object.assign(fullCrouch.gs.fighters[0], {
+      action: "jump",
+      actionFrame: 6,
+      actionTotal: 10,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+
+    standing.step(pad({ btns: B1 }), pad());
+    whileStanding.step(pad({ btns: B1 }), pad());
+    fullCrouch.step(pad({ dy: -1, btns: B1 }), pad());
+
+    expect(standing.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.1",
+    });
+    expect(whileStanding.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.ws1",
+    });
+    expect(fullCrouch.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.fc1",
+    });
+  });
+
+  it("cancels an already published held-back reverse frame into b+1", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    Object.assign(fighter, {
+      action: "jump",
+      actionFrame: 2,
+      actionTotal: 10,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+
+    sim.step(pad({ dx: -1, btns: B1 }), pad());
+
+    expect(fighter).toMatchObject({ action: "CDS", actionFrame: 1 });
+    expect(fighter.t5LocomotionReverse).toBe(false);
+  });
+
+  it("does not extend b+1's standing-command window past reverse frame 5", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    Object.assign(fighter, {
+      action: "jump",
+      actionFrame: 6,
+      actionTotal: 10,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+
+    sim.step(pad({ dx: -1, btns: B1 }), pad());
+
+    expect(fighter).toMatchObject({
+      action: "jump",
+      actionFrame: 5,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+  });
+
   it("computes descending native root deltas for reverse locomotion", () => {
     expect(t5LocomotionRootDeltaBetween("jump", 4, 3, false, 253)).toEqual([
       T5_JIN_LOCOMOTION_253.rootOffsets[2]![0] - T5_JIN_LOCOMOTION_253.rootOffsets[3]![0],
@@ -772,6 +869,66 @@ describe("Tekken 5 PAL locomotion roots", () => {
     attacker.t5OrientationTurn = 0;
     attacker.t5OrientationLastFrame = 10;
   }
+
+  it.each([
+    [230, 231],
+    [232, 233],
+  ] as const)(
+    "guards in held-back shell %i and takes a normal hit after neutral selects %i",
+    (entryMoveId, releaseMoveId) => {
+      const held = fightSim(1);
+      const released = fightSim(1);
+      const route = fightSim(1);
+      for (const sim of [held, released, route]) {
+        if (sim !== route) putJabOnNextFrame(sim);
+        Object.assign(sim.gs.fighters[1], {
+          action: "backdash",
+          actionFrame: 1,
+          actionTotal: 35,
+          t5BackdashMoveId: entryMoveId,
+        });
+      }
+
+      const heldBefore = hpOf(held)[1];
+      held.step(pad(), pad({ dx: -1 }));
+      expect(held.gs.fighters[1].action).toBe("blockstun");
+      expect(hpOf(held)[1]).toBe(heldBefore);
+
+      route.step(pad(), pad());
+      expect(route.gs.fighters[1].t5BackdashMoveId).toBe(releaseMoveId);
+
+      const releasedBefore = hpOf(released)[1];
+      released.step(pad(), pad());
+      expect(hpOf(released)[1]).toBeLessThan(releasedBefore);
+      expect(released.gs.fighters[0].lastContact?.result).toBe("hit");
+    },
+  );
+
+  it.each([
+    { moveId: 251, defenderPad: {}, result: "block" },
+    { moveId: 252, defenderPad: { dx: 1 }, result: "hit" },
+    { moveId: 253, defenderPad: { dx: -1 }, result: "block" },
+  ] as const)(
+    "resolves reverse shell $moveId passive guard as $result",
+    ({ moveId, defenderPad, result }) => {
+      const sim = fightSim(1);
+      const defender = sim.gs.fighters[1];
+      putJabOnNextFrame(sim);
+      Object.assign(defender, {
+        action: "jump",
+        actionFrame: 3,
+        actionTotal: 10,
+        t5JumpMoveId: moveId,
+        t5LocomotionReverse: true,
+      });
+
+      const before = hpOf(sim)[1];
+      sim.step(pad(), pad(defenderPad));
+
+      expect(sim.gs.fighters[0].lastContact?.result).toBe(result);
+      expect(hpOf(sim)[1] === before).toBe(result === "block");
+    },
+  );
 
   it("does not passively autoblock during an active sidestep shell", () => {
     const sim = fightSim(1);
