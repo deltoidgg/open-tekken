@@ -187,6 +187,30 @@ export function t5LocomotionRootDelta(
   return [current[0] - previous[0], current[1] - previous[1], current[2] - previous[2]];
 }
 
+/** Logical-root transfer between two frames of the same native locomotion shell. */
+export function t5LocomotionRootDeltaBetween(
+  action: Action,
+  fromActionFrame: number,
+  toActionFrame: number,
+  released = false,
+  nativeMoveId?: number,
+): T5LocalPoint {
+  const from = t5LocomotionPhase(action, fromActionFrame, released, nativeMoveId);
+  const to = t5LocomotionPhase(action, toActionFrame, released, nativeMoveId);
+  if (
+    !from ||
+    !to ||
+    !from.transfersRoot ||
+    !to.transfersRoot ||
+    from.animation.romMoveId !== to.animation.romMoveId
+  ) {
+    return T5_ZERO_ROOT_OFFSET;
+  }
+  const fromRoot = sampleT5RootOffset(from.animation, from.actionFrame);
+  const toRoot = sampleT5RootOffset(to.animation, to.actionFrame);
+  return [toRoot[0] - fromRoot[0], toRoot[1] - fromRoot[1], toRoot[2] - fromRoot[2]];
+}
+
 const SIDESTEP_MOVES = {
   1: {
     step: 1062,

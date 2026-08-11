@@ -26,6 +26,24 @@ param(
   [int]$TriggerAtMilliseconds3 = 1200,
   [ValidateRange(1, 2000)]
   [int]$TriggerHoldMilliseconds3 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey4 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds4 = 1300,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds4 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey5 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds5 = 1400,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds5 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey6 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds6 = 1500,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds6 = 100,
   [string]$WindowTitle = "Tekken 5"
 )
 
@@ -290,18 +308,19 @@ public static class Tekken5Pcsx2PlayerTraceNative
         string outputPath,
         int durationMilliseconds,
         int sampleRate,
-        byte triggerVirtualKey,
-        int triggerAtMilliseconds,
-        int triggerHoldMilliseconds,
-        byte triggerVirtualKey2,
-        int triggerAtMilliseconds2,
-        int triggerHoldMilliseconds2,
-        byte triggerVirtualKey3,
-        int triggerAtMilliseconds3,
-        int triggerHoldMilliseconds3,
+        byte[] triggerVirtualKeys,
+        int[] triggerAtMilliseconds,
+        int[] triggerHoldMilliseconds,
         string windowTitle
     )
     {
+        if (
+            triggerVirtualKeys.Length != triggerAtMilliseconds.Length
+            || triggerVirtualKeys.Length != triggerHoldMilliseconds.Length
+        )
+        {
+            throw new ArgumentException("Trigger arrays must have matching lengths");
+        }
         const uint player1Address = 0x003bcc30;
         const uint playerSize = 0x8d0;
         const uint player2Address = player1Address + playerSize;
@@ -310,21 +329,20 @@ public static class Tekken5Pcsx2PlayerTraceNative
         long frequency = Stopwatch.Frequency;
         long interval = Math.Max(1, frequency / sampleRate);
         long duration = frequency * durationMilliseconds / 1000;
-        long triggerAt = frequency * triggerAtMilliseconds / 1000;
-        long triggerReleaseAt = frequency * (triggerAtMilliseconds + triggerHoldMilliseconds) / 1000;
-        long triggerAt2 = frequency * triggerAtMilliseconds2 / 1000;
-        long triggerReleaseAt2 = frequency * (triggerAtMilliseconds2 + triggerHoldMilliseconds2) / 1000;
-        long triggerAt3 = frequency * triggerAtMilliseconds3 / 1000;
-        long triggerReleaseAt3 = frequency * (triggerAtMilliseconds3 + triggerHoldMilliseconds3) / 1000;
+        long[] triggerAt = new long[triggerVirtualKeys.Length];
+        long[] triggerReleaseAt = new long[triggerVirtualKeys.Length];
+        bool[] triggerPressed = new bool[triggerVirtualKeys.Length];
+        bool[] triggerReleased = new bool[triggerVirtualKeys.Length];
+        for (int index = 0; index < triggerVirtualKeys.Length; index++)
+        {
+            triggerAt[index] = frequency * triggerAtMilliseconds[index] / 1000;
+            triggerReleaseAt[index] =
+                frequency * (triggerAtMilliseconds[index] + triggerHoldMilliseconds[index]) / 1000;
+            triggerReleased[index] = triggerVirtualKeys[index] == 0;
+        }
         long started = Stopwatch.GetTimestamp();
         long next = started;
         int count = 0;
-        bool triggerPressed = false;
-        bool triggerReleased = triggerVirtualKey == 0;
-        bool triggerPressed2 = false;
-        bool triggerReleased2 = triggerVirtualKey2 == 0;
-        bool triggerPressed3 = false;
-        bool triggerReleased3 = triggerVirtualKey3 == 0;
 
         try
         {
@@ -350,56 +368,33 @@ public static class Tekken5Pcsx2PlayerTraceNative
                     long now = Stopwatch.GetTimestamp();
                     long elapsed = now - started;
                     if (elapsed >= duration) break;
-                    if (!triggerPressed && triggerVirtualKey != 0 && elapsed >= triggerAt)
+                    for (int index = 0; index < triggerVirtualKeys.Length; index++)
                     {
-                        IntPtr window = FindWindow(windowTitle);
-                        if (window == IntPtr.Zero)
+                        if (
+                            !triggerPressed[index]
+                            && triggerVirtualKeys[index] != 0
+                            && elapsed >= triggerAt[index]
+                        )
                         {
-                            throw new InvalidOperationException(
-                                "Could not find window: " + windowTitle
-                            );
+                            IntPtr window = FindWindow(windowTitle);
+                            if (window == IntPtr.Zero)
+                            {
+                                throw new InvalidOperationException(
+                                    "Could not find window: " + windowTitle
+                                );
+                            }
+                            PressKey(window, triggerVirtualKeys[index]);
+                            triggerPressed[index] = true;
                         }
-                        PressKey(window, triggerVirtualKey);
-                        triggerPressed = true;
-                    }
-                    if (triggerPressed && !triggerReleased && elapsed >= triggerReleaseAt)
-                    {
-                        ReleaseKey(triggerVirtualKey);
-                        triggerReleased = true;
-                    }
-                    if (!triggerPressed2 && triggerVirtualKey2 != 0 && elapsed >= triggerAt2)
-                    {
-                        IntPtr window = FindWindow(windowTitle);
-                        if (window == IntPtr.Zero)
+                        if (
+                            triggerPressed[index]
+                            && !triggerReleased[index]
+                            && elapsed >= triggerReleaseAt[index]
+                        )
                         {
-                            throw new InvalidOperationException(
-                                "Could not find window: " + windowTitle
-                            );
+                            ReleaseKey(triggerVirtualKeys[index]);
+                            triggerReleased[index] = true;
                         }
-                        PressKey(window, triggerVirtualKey2);
-                        triggerPressed2 = true;
-                    }
-                    if (triggerPressed2 && !triggerReleased2 && elapsed >= triggerReleaseAt2)
-                    {
-                        ReleaseKey(triggerVirtualKey2);
-                        triggerReleased2 = true;
-                    }
-                    if (!triggerPressed3 && triggerVirtualKey3 != 0 && elapsed >= triggerAt3)
-                    {
-                        IntPtr window = FindWindow(windowTitle);
-                        if (window == IntPtr.Zero)
-                        {
-                            throw new InvalidOperationException(
-                                "Could not find window: " + windowTitle
-                            );
-                        }
-                        PressKey(window, triggerVirtualKey3);
-                        triggerPressed3 = true;
-                    }
-                    if (triggerPressed3 && !triggerReleased3 && elapsed >= triggerReleaseAt3)
-                    {
-                        ReleaseKey(triggerVirtualKey3);
-                        triggerReleased3 = true;
                     }
                     if (now < next)
                     {
@@ -423,17 +418,12 @@ public static class Tekken5Pcsx2PlayerTraceNative
         }
         finally
         {
-            if (triggerPressed && !triggerReleased)
+            for (int index = 0; index < triggerVirtualKeys.Length; index++)
             {
-                ReleaseKey(triggerVirtualKey);
-            }
-            if (triggerPressed2 && !triggerReleased2)
-            {
-                ReleaseKey(triggerVirtualKey2);
-            }
-            if (triggerPressed3 && !triggerReleased3)
-            {
-                ReleaseKey(triggerVirtualKey3);
+                if (triggerPressed[index] && !triggerReleased[index])
+                {
+                    ReleaseKey(triggerVirtualKeys[index]);
+                }
             }
         }
         return count;
@@ -476,15 +466,30 @@ try {
     $absoluteOutput,
     $DurationMilliseconds,
     $SampleRate,
-    [byte]$TriggerVirtualKey,
-    $TriggerAtMilliseconds,
-    $TriggerHoldMilliseconds,
-    [byte]$TriggerVirtualKey2,
-    $TriggerAtMilliseconds2,
-    $TriggerHoldMilliseconds2,
-    [byte]$TriggerVirtualKey3,
-    $TriggerAtMilliseconds3,
-    $TriggerHoldMilliseconds3,
+    [byte[]]@(
+      $TriggerVirtualKey,
+      $TriggerVirtualKey2,
+      $TriggerVirtualKey3,
+      $TriggerVirtualKey4,
+      $TriggerVirtualKey5,
+      $TriggerVirtualKey6
+    ),
+    [int[]]@(
+      $TriggerAtMilliseconds,
+      $TriggerAtMilliseconds2,
+      $TriggerAtMilliseconds3,
+      $TriggerAtMilliseconds4,
+      $TriggerAtMilliseconds5,
+      $TriggerAtMilliseconds6
+    ),
+    [int[]]@(
+      $TriggerHoldMilliseconds,
+      $TriggerHoldMilliseconds2,
+      $TriggerHoldMilliseconds3,
+      $TriggerHoldMilliseconds4,
+      $TriggerHoldMilliseconds5,
+      $TriggerHoldMilliseconds6
+    ),
     $WindowTitle
   )
   Write-Host (

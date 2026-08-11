@@ -41,6 +41,7 @@ import {
   t5JumpIsAirborne,
   t5LocomotionPhase,
   t5LocomotionRootDelta,
+  t5LocomotionRootDeltaBetween,
   t5SidestepAnimationPhase,
   t5SidestepRootDelta,
   t5SidestepRootOffset,
@@ -83,6 +84,7 @@ export interface FighterSnap {
   t5AirTrajectoryFrame: FighterState["t5AirTrajectoryFrame"];
   t5AirTrajectoryOrigin: FighterState["t5AirTrajectoryOrigin"];
   t5JumpMoveId: FighterState["t5JumpMoveId"];
+  t5LocomotionReverse: FighterState["t5LocomotionReverse"];
   t5BackdashMoveId: FighterState["t5BackdashMoveId"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
@@ -419,6 +421,7 @@ export class Sim {
     // T5 enters the jump anticipation on the first up frame. Its own cancel
     // graph arbitrates tap/hold and directional changes through source frame 8.
     if (f.action === "jump") {
+      if (f.t5LocomotionReverse) return;
       if (!this.tryT5JumpAttack(f, inp)) this.decideJumpStartup(f, inp);
       return;
     }
@@ -595,6 +598,7 @@ export class Sim {
   private startT5Jump(f: FighterState, moveId: 21 | 23 | 24): void {
     this.setAction(f, "jump", T5_JUMP_STANDING_HANDOFF);
     f.t5JumpMoveId = moveId;
+    f.t5LocomotionReverse = false;
     this.clearQueuedTransition(f);
     f.vel.x = f.vel.y = f.vel.z = 0;
   }
@@ -602,8 +606,36 @@ export class Sim {
   private startT5JumpAbort(f: FighterState, moveId: 251 | 252 | 253): void {
     this.setAction(f, "jump", 10);
     f.t5JumpMoveId = moveId;
+    f.t5LocomotionReverse = false;
     this.clearQueuedTransition(f);
     f.vel.x = f.vel.y = f.vel.z = 0;
+  }
+
+  private startT5CrouchEntryAbort(
+    f: FighterState,
+    moveId: 251 | 252 | 253,
+    sourceFrame: number,
+  ): void {
+    const targetFrame = sourceFrame - 1;
+    if (targetFrame < 1) {
+      this.finishT5ReverseLocomotion(f, moveId);
+      return;
+    }
+
+    this.setAction(f, "jump", 10);
+    f.t5JumpMoveId = moveId;
+    f.t5LocomotionReverse = true;
+    f.actionFrame = targetFrame;
+    this.clearQueuedTransition(f);
+    f.vel.x = f.vel.y = f.vel.z = 0;
+    this.applyT5LocomotionBetween(f, sourceFrame, targetFrame);
+  }
+
+  private finishT5ReverseLocomotion(f: FighterState, moveId: 251 | 252 | 253): void {
+    const target = moveId === 252 ? "walkF" : moveId === 253 ? "walkB" : "idle";
+    this.setAction(f, target, 0);
+    f.actionFrame = 1;
+    this.applyT5Locomotion(f);
   }
 
   private clearQueuedTransition(f: FighterState): void {
@@ -858,7 +890,10 @@ export class Sim {
       f.t5AirTrajectoryFrame = 0;
       f.t5AirTrajectoryOrigin = [0, 0, 0];
     }
-    if (a !== "jump") f.t5JumpMoveId = 21;
+    if (a !== "jump") {
+      f.t5JumpMoveId = 21;
+      f.t5LocomotionReverse = false;
+    }
     if (a !== "backdash") f.t5BackdashMoveId = 230;
     if (a !== "crouch") f.crouching = false;
   }
@@ -1126,7 +1161,15 @@ export class Sim {
       case "crouch":
         f.crouching = true;
         if (!DIR_HAS_D[inp.dir]) {
-          this.enterRising(f, inp.dir === "f" ? 257 : 256);
+          const sourceFrame = f.actionFrame - 1;
+          const isEntryShell =
+            f.t5CrouchMoveId === 250 || f.t5CrouchMoveId === 254 || f.t5CrouchMoveId === 255;
+          if (isEntryShell && sourceFrame >= 1 && sourceFrame <= 9) {
+            const abortMoveId = inp.dir === "f" ? 252 : inp.dir === "b" ? 253 : 251;
+            this.startT5CrouchEntryAbort(f, abortMoveId, sourceFrame);
+          } else {
+            this.enterRising(f, inp.dir === "f" ? 257 : 256);
+          }
           break;
         }
         this.updateT5CrouchShell(f, inp.dir);
@@ -1226,6 +1269,18 @@ export class Sim {
       }
       case "jump": {
         if (f.t5JumpMoveId >= 251 && f.t5JumpMoveId <= 253) {
+          if (f.t5LocomotionReverse) {
+            const moveId = f.t5JumpMoveId as 251 | 252 | 253;
+            const fromFrame = f.actionFrame - 1;
+            const targetFrame = fromFrame - 1;
+            if (targetFrame < 1) {
+              this.finishT5ReverseLocomotion(f, moveId);
+            } else {
+              f.actionFrame = targetFrame;
+              this.applyT5LocomotionBetween(f, fromFrame, targetFrame);
+            }
+            break;
+          }
           this.applyT5Locomotion(f);
           if (f.actionFrame >= 10) {
             const target =
@@ -2483,6 +2538,25 @@ export class Sim {
       released,
       this.t5NativeLocomotionMoveId(f),
     );
+    this.applyT5LocalRootDelta(f, delta);
+  }
+
+  private applyT5LocomotionBetween(
+    f: FighterState,
+    fromActionFrame: number,
+    toActionFrame: number,
+  ): void {
+    const delta = t5LocomotionRootDeltaBetween(
+      f.action,
+      fromActionFrame,
+      toActionFrame,
+      false,
+      this.t5NativeLocomotionMoveId(f),
+    );
+    this.applyT5LocalRootDelta(f, delta);
+  }
+
+  private applyT5LocalRootDelta(f: FighterState, delta: readonly [number, number, number]): void {
     const fw = this.facingVec(f);
     f.pos.x += fw.x * delta[2] - fw.z * delta[0];
     f.pos.z += fw.z * delta[2] + fw.x * delta[0];
@@ -2750,6 +2824,7 @@ export class Sim {
       t5AirTrajectoryFrame: f.t5AirTrajectoryFrame,
       t5AirTrajectoryOrigin: f.t5AirTrajectoryOrigin,
       t5JumpMoveId: f.t5JumpMoveId,
+      t5LocomotionReverse: f.t5LocomotionReverse,
       t5BackdashMoveId: f.t5BackdashMoveId,
       t5PoseTail: f.t5PoseTail,
     });

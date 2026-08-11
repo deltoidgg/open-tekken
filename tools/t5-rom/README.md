@@ -104,9 +104,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   -TriggerHoldMilliseconds2 60
 ```
 
-A third optional pulse supports directional chords without relying on a second
-input process. For example, capture Jin `d/f+1` with down, the current
-side-relative forward, and button 1 held over the same interval:
+Up to six optional pulses support directional chords and multi-edge movement
+sequences without relying on a second input process. For example, capture Jin
+`d/f+1` with down, the current side-relative forward, and button 1 held over the
+same interval:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -122,7 +123,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
 ```
 
 The example uses `0x44` (`D`) for forward. Swap it for `0x41` (`A`) after a
-side change when Jin's relative forward points toward keyboard left.
+side change when Jin's relative forward points toward keyboard left. Pulses
+four through six use the same `TriggerVirtualKey4..6`,
+`TriggerAtMilliseconds4..6`, and `TriggerHoldMilliseconds4..6` naming pattern.
 
 `0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
 the measured setup. The trace stores monotonic timestamps followed by complete

@@ -1,9 +1,9 @@
 # Tekken 5 PAL Jin crouch and rising runtime
 
-Status: native neutral crouch-entry, crouch-idle, and rising pose slice
-implemented. Evidence comes from the supplied `SCES-53202` version 1.00 disc,
-Jin's read-only live moveset, and the captured EE-memory snapshot. Updated
-2026-08-10.
+Status: native neutral crouch-entry, crouch-idle, early reverse abort, and
+rising pose slice implemented. Evidence comes from the supplied `SCES-53202`
+version 1.00 disc, Jin's read-only live moveset, captured EE memory, and timed
+live player traces. Updated 2026-08-11.
 
 ## Alias resolution
 
@@ -31,6 +31,19 @@ standing --d--> 254 --frame 10--> 234 --release--> 256 --frame 10--> standing
 Forward release selects 257 instead of 256. Diagonal crouch entry has separate
 shells, 250 for `d/f` and 255 for `d/b`.
 
+Release before the entry commits at frame 10 follows a different graph. For a
+published source frame `N` in `1..9`, PAL selects the matching grounded abort
+shell at frame `N - 1` and counts backward:
+
+```text
+250/254/255 fN --neutral--> 251 f(N-1)..f1 --> standing f1
+250/254/255 fN --held f-->  252 f(N-1)..f1 --> forward walk f1
+250/254/255 fN --held b-->  253 f(N-1)..f1 --> back walk f1
+```
+
+Live KBD traces directly confirm the neutral and held-back paths. The forward
+path is the symmetric branch in the recovered `251..253` family.
+
 The implemented held-direction graph continues:
 
 ```text
@@ -56,6 +69,9 @@ needing to flatten their distinct vulnerability words.
 |     243 | `0x016795B8` |     60 |     `0x23029` |            `0x00F3` | crouch-back router     |
 | 244/245 | `0x01679DCC` |     20 |     `0x23029` |            `0x00F3` | crouch-back guard pose |
 |     250 | `0x0167A13A` |     10 |     `0x12821` |            `0x00F1` | `d/f` crouch entry     |
+|     251 | `0x0167A3B2` |     10 |             - |                   - | neutral reverse abort  |
+|     252 | `0x004F437C` |     10 |             - |                   - | forward reverse abort  |
+|     253 | `0x0167A13A` |     10 |     `0x21052` |            `0x00E3` | back reverse abort     |
 |     254 | `0x0167A3B2` |     10 |      `0x3929` |            `0x8002` | neutral crouch entry   |
 |     255 | `0x0167A3B2` |     10 |     `0x23029` |            `0x00F3` | `d/b` crouch entry     |
 |     256 | `0x005ECBEE` |     10 |      `0x1952` |            `0x8001` | neutral rise           |
@@ -127,14 +143,15 @@ incorrectly.
 ## Implemented behavior
 
 Generated payloads provide every frame's composed root, eight body-push
-centres, and 14 hurt-sphere centres for moves 234-245, 250, and 254-257. The sim
+centres, and 14 hurt-sphere centres for moves 234-245 and 250-257. The sim
 uses them for:
 
 1. ten frames of ordinary lowering before cycling crouch alias 234;
-2. direct alias-234 entry after crouch dash or crouch-recovering moves;
-3. neutral move-256 and forward move-257 rising timelines;
-4. source-facing logical transfer for the mapped directional shells; and
-5. native posed strike and body collision throughout crouch and rise.
+2. descending `251..253` early-release bridges before the frame-10 commitment;
+3. direct alias-234 entry after crouch dash or crouch-recovering moves;
+4. neutral move-256 and forward move-257 rising timelines;
+5. source-facing logical transfer for the mapped directional shells; and
+6. native posed strike and body collision throughout crouch and rise.
 
 Direction changes run before root application. Frames 1-9 of 250/254/255 keep
 their current frame while switching shell ID, and the 10-frame entries hand off
@@ -143,10 +160,11 @@ cycles. `d/b` uses the requirement-selected 244/245 payload; both choices are
 currently pose-equivalent, so the sim uses 244 until requirements 68/69 are
 named.
 
-Focused tests protect the shell IDs and one-based frames, root ownership, full
-forward-rise displacement, CD's direct crouch handoff, `d` versus `d/b` low
-guard, and a mapped mid that intersects the standing skeleton but misses move
-234's crouch pose.
+Focused tests protect the shell IDs and one-based frames, descending abort
+frames and roots, repeated KBD handoff, root ownership, full forward-rise
+displacement, CD's direct crouch handoff, `d` versus `d/b` low guard, and a
+mapped mid that intersects the standing skeleton but misses move 234's crouch
+pose.
 
 ## Remaining work
 

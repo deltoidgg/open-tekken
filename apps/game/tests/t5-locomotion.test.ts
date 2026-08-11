@@ -38,6 +38,7 @@ import {
   t5JumpIsAirborne,
   t5LocomotionPhase,
   t5LocomotionRootDelta,
+  t5LocomotionRootDeltaBetween,
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.ts";
@@ -436,6 +437,91 @@ describe("Tekken 5 PAL locomotion roots", () => {
       T5_JIN_LOCOMOTION_255.rootOffsets[0]![2],
       6,
     );
+  });
+
+  it("reverses an early crouch-back release through move 253 into back walk", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackdash(sim);
+    run(sim, 4, { dx: -1, dy: -1 });
+    expect(fighter).toMatchObject({ action: "crouch", actionFrame: 4, t5CrouchMoveId: 255 });
+    const bridgeStart = fighter.pos.x;
+
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter).toMatchObject({
+      action: "jump",
+      actionFrame: 3,
+      t5JumpMoveId: 253,
+      t5LocomotionReverse: true,
+    });
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter.actionFrame).toBe(2);
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter.actionFrame).toBe(1);
+    expect(fighter.pos.x - bridgeStart).toBeCloseTo(
+      T5_JIN_LOCOMOTION_253.rootOffsets[0]![2] - T5_JIN_LOCOMOTION_253.rootOffsets[3]![2],
+      4,
+    );
+
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter).toMatchObject({
+      action: "walkB",
+      actionFrame: 1,
+      t5LocomotionReverse: false,
+    });
+  });
+
+  it("reverses an early crouch-back release through move 251 into standing", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackdash(sim);
+    run(sim, 4, { dx: -1, dy: -1 });
+
+    sim.step(pad(), pad());
+    expect(fighter).toMatchObject({
+      action: "jump",
+      actionFrame: 3,
+      t5JumpMoveId: 251,
+      t5LocomotionReverse: true,
+    });
+    run(sim, 2);
+    expect(fighter).toMatchObject({ action: "jump", actionFrame: 1, t5JumpMoveId: 251 });
+    sim.step(pad(), pad());
+    expect(fighter).toMatchObject({
+      action: "idle",
+      actionFrame: 1,
+      t5LocomotionReverse: false,
+    });
+  });
+
+  it("accepts a fresh far backdash after the measured KBD release bridge", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackdash(sim);
+    run(sim, 4, { dx: -1, dy: -1 });
+    run(sim, 4, { dx: -1 });
+    expect(fighter).toMatchObject({ action: "walkB", actionFrame: 1 });
+
+    sim.step(pad(), pad());
+    expect(fighter).toMatchObject({ action: "walkB", actionFrame: 2, actionTotal: 22 });
+    expect(t5LocomotionPhase(fighter.action, fighter.actionFrame, true)?.animation.romMoveId).toBe(
+      228,
+    );
+
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter).toMatchObject({
+      action: "backdash",
+      actionFrame: 1,
+      t5BackdashMoveId: 232,
+    });
+  });
+
+  it("computes descending native root deltas for reverse locomotion", () => {
+    expect(t5LocomotionRootDeltaBetween("jump", 4, 3, false, 253)).toEqual([
+      T5_JIN_LOCOMOTION_253.rootOffsets[2]![0] - T5_JIN_LOCOMOTION_253.rootOffsets[3]![0],
+      T5_JIN_LOCOMOTION_253.rootOffsets[2]![1] - T5_JIN_LOCOMOTION_253.rootOffsets[3]![1],
+      T5_JIN_LOCOMOTION_253.rootOffsets[2]![2] - T5_JIN_LOCOMOTION_253.rootOffsets[3]![2],
+    ]);
   });
 
   it("enters the native run shell from held dash frame 12", () => {

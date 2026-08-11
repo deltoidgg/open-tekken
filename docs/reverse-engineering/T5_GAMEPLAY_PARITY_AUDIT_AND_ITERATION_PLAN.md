@@ -347,7 +347,15 @@ the source frame, and holding through frame 35 enters back walk `227`. A canonic
 `b,b,d/b` publishes backdash frame 1 followed by crouch-back move `255` frame 1;
 the clone now matches that publication and root-transfer boundary instead of
 waiting until the former provisional frame 8. Repeated-chain and passive-guard
-measurements remain the next scope.
+measurements were the next scope.
+
+Second checkpoint: six-edge live traces recover the repeated chain. Early
+release from `255 fN` selects reverse abort `253` for held back or `251` for
+neutral at frame `N-1`, counts down to frame 1, then publishes back walk `227`
+or standing. Back-walk release preserves its timeline in `228`; the next back
+edge starts a fresh distance-selected `232 f1`. The clone now reproduces this
+graph and its descending native root deltas. Passive guard and button-cancel
+precedence remain the next KBD slice.
 
 ## Rules for future tuning
 
