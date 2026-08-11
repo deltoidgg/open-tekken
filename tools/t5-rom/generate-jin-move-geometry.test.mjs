@@ -7,6 +7,7 @@ import {
   JUMP_MOVE_IDS,
   renderJinMoveGeometryModule,
   selectMoveIds,
+  STOP_MOVE_IDS,
 } from "./generate-jin-move-geometry.mjs";
 
 test("selects the reproducible Jin combat-geometry profile", () => {
@@ -24,6 +25,11 @@ test("selects every directly mapped Jin basic missing from the earlier profiles"
   assert.equal(BASIC_MOVE_IDS.at(-1), 593);
   assert.deepEqual(BASIC_MOVE_IDS.slice(-3), [461, 587, 593]);
   assert.equal(new Set(BASIC_MOVE_IDS).size, BASIC_MOVE_IDS.length);
+});
+
+test("selects the directly mapped sidewalk-stop moves", () => {
+  assert.deepEqual(selectMoveIds(["--profile", "stop"]), STOP_MOVE_IDS);
+  assert.deepEqual(STOP_MOVE_IDS, [437, 534]);
 });
 
 test("selects every front-facing Jin jump-attack shell and strike", () => {
@@ -59,4 +65,21 @@ test("shares pose payloads while keeping move-specific hitboxes", () => {
   assert.match(output, /animationFrame: 3/);
   assert.match(output, /packedLocation: 0x00000008/);
   assert.match(output, /hurtSphereCenters: T5_JIN_MOVE_ANIMATION_123ABC_HURT_SPHERE_CENTERS/);
+});
+
+test("renders an empty native hitbox without formatter drift", () => {
+  const output = renderJinMoveGeometryModule([
+    {
+      romMoveId: 437,
+      animationAddress: "0x123abc",
+      animationLength: 2,
+      rootOffsets: [[0, 0, 0]],
+      bodyPushCenters: [[[0, 1, 0]]],
+      hurtSphereCenters: [[[0, 1.5, 0]]],
+      packedLocation: "0x00000000",
+      hitboxSamples: [],
+    },
+  ]);
+
+  assert.match(output, /samples: \[\],/);
 });

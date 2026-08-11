@@ -1049,6 +1049,66 @@ describe("Tekken 5 PAL locomotion roots", () => {
     });
   });
 
+  it("starts the no-hit PAL taunt from sidewalk stop", () => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ btns: B1 | B3 | B4 }), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      actionTotal: 46,
+      moveId: "jin.taunt",
+    });
+
+    run(sim, 45);
+    expect(sim.gs.fighters[0]).toMatchObject({ action: "idle", buff: "none" });
+  });
+
+  it("starts the PAL u/f+1+2 throw from sidewalk stop", () => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ dx: 1, dy: 1, btns: B1 | B2 }), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "throwStartup",
+      actionFrame: 1,
+      actionTotal: 13,
+      moveId: "jin.throwUf12",
+    });
+  });
+
+  it("starts the 67-frame Lingering Soul shell from sidewalk stop", () => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ dx: -1, btns: B1 | B2 }), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "kiaiCharge",
+      actionFrame: 1,
+      actionTotal: 67,
+    });
+  });
+
+  it("accepts PAL input sequence 105 when b,f+2 completes during sidewalk stop", () => {
+    const sim = fightSim(8);
+    sim.step(pad({ dx: -1 }), pad());
+    sim.step(pad(), pad());
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ dx: 1, btns: B2 }), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      actionTotal: 41,
+      moveId: "jin.bf2",
+    });
+  });
+
   it("opens only neutral group 722 on sidewalk-stop frame 6", () => {
     const early = fightSim(8);
     const accepted = fightSim(8);
@@ -1083,6 +1143,26 @@ describe("Tekken 5 PAL locomotion roots", () => {
       gate: 1,
       target: 1059,
     });
+    expect(t5SidestepStopCommandRoute(1, "f", B1 | B2 | B3 | B4)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(1, "n", B1 | B3 | B4)).toEqual({
+      kind: "move",
+      moveId: "jin.taunt",
+      gate: 1,
+      target: 437,
+    });
+    expect(t5SidestepStopCommandRoute(1, "uf", B1 | B2)).toEqual({
+      kind: "throw",
+      throwId: "jin.throwUf12",
+      gate: 1,
+      target: 686,
+    });
+    expect(t5SidestepStopCommandRoute(1, "f", B2)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(1, "f", B2, true)).toEqual({
+      kind: "move",
+      moveId: "jin.bf2",
+      gate: 1,
+      target: 534,
+    });
     expect(t5SidestepStopCommandRoute(1, "db", B4)).toEqual({
       kind: "move",
       moveId: "jin.ss.db4",
@@ -1101,6 +1181,13 @@ describe("Tekken 5 PAL locomotion roots", () => {
       gate: 1,
       target: 593,
     });
+    expect(t5SidestepStopCommandRoute(1, "b", B1 | B2)).toEqual({
+      kind: "action",
+      action: "kiaiCharge",
+      frames: 67,
+      gate: 1,
+      target: 622,
+    });
     expect(t5SidestepStopCommandRoute(5, "n", B1)).toBeUndefined();
     expect(t5SidestepStopCommandRoute(6, "n", B1)).toEqual({
       kind: "move",
@@ -1109,7 +1196,7 @@ describe("Tekken 5 PAL locomotion roots", () => {
       group: 722,
     });
     expect(t5SidestepStopCommandRoute(6, "n", B1 | B3)).toBeUndefined();
-    expect(t5SidestepStopCommandRoute(6, "b", B1 | B2)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(6, "n", B1 | B2 | B3)).toBeUndefined();
   });
 
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {

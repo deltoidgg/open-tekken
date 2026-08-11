@@ -15,8 +15,14 @@ export type T5SidestepMovementRoute = {
 };
 
 export type T5SidestepStopCommandRoute =
-  | { kind: "move"; moveId: "jin.ss.db4" | "jin.b3" | "jin.f4"; gate: 1; target: 461 | 587 | 593 }
-  | { kind: "action"; action: "kiaiCharge"; frames: 55; gate: 1; target: 1059 }
+  | {
+      kind: "move";
+      moveId: "jin.taunt" | "jin.bf2" | "jin.ss.db4" | "jin.b3" | "jin.f4";
+      gate: 1;
+      target: 437 | 534 | 461 | 587 | 593;
+    }
+  | { kind: "throw"; throwId: "jin.throwUf12"; gate: 1; target: 686 }
+  | { kind: "action"; action: "kiaiCharge"; frames: 55 | 67; gate: 1; target: 622 | 1059 }
   | { kind: "move"; moveId: string; gate: 6; group: 722 };
 
 const GROUP_722 = new Map<number, string>([
@@ -87,16 +93,29 @@ export function t5SidestepStopCommandRoute(
   sourceFrame: number,
   direction: Dir,
   buttons: number,
+  hasBfMotion = false,
 ): T5SidestepStopCommandRoute | undefined {
   if (sourceFrame < 1) return undefined;
-  if (buttons === (B1 | B2 | B3 | B4)) {
+  if (direction === "n" && buttons === (B1 | B2 | B3 | B4)) {
     return { kind: "action", action: "kiaiCharge", frames: 55, gate: 1, target: 1059 };
+  }
+  if (direction === "n" && buttons === (B1 | B3 | B4)) {
+    return { kind: "move", moveId: "jin.taunt", gate: 1, target: 437 };
+  }
+  if (direction === "uf" && buttons === (B1 | B2)) {
+    return { kind: "throw", throwId: "jin.throwUf12", gate: 1, target: 686 };
+  }
+  if (direction === "f" && buttons === B2 && hasBfMotion) {
+    return { kind: "move", moveId: "jin.bf2", gate: 1, target: 534 };
   }
   if (direction === "db" && buttons === B4) {
     return { kind: "move", moveId: "jin.ss.db4", gate: 1, target: 461 };
   }
   if (direction === "f" && buttons === B4) {
     return { kind: "move", moveId: "jin.f4", gate: 1, target: 593 };
+  }
+  if (direction === "b" && buttons === (B1 | B2)) {
+    return { kind: "action", action: "kiaiCharge", frames: 67, gate: 1, target: 622 };
   }
   if (direction === "b" && buttons === B3) {
     return { kind: "move", moveId: "jin.b3", gate: 1, target: 587 };

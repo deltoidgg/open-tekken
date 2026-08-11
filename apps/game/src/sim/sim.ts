@@ -559,11 +559,21 @@ export class Sim {
 
   private tryStartT5SidestepCommand(f: FighterState, inp: FrameInput): boolean {
     if (f.ssPhase === "walkStop") {
-      const route = t5SidestepStopCommandRoute(f.actionFrame + 1, inp.pressedDir, inp.pressed);
+      const route = t5SidestepStopCommandRoute(
+        f.actionFrame + 1,
+        inp.pressedDir,
+        inp.pressed,
+        inp.motions.some((motion) => motion.motion === "bf"),
+      );
       if (!route) return false;
       if (route.kind === "action") {
         this.setAction(f, route.action, route.frames);
         f.kiaiHeld = true;
+      } else if (route.kind === "throw") {
+        const throwDef = JIN_THROWS.find((candidate) => candidate.id === route.throwId);
+        if (!throwDef) throw new Error(`Missing throw route ${route.throwId}`);
+        this.setAction(f, "throwStartup", throwDef.startup + 1);
+        f.moveId = throwDef.id;
       } else {
         this.startAttack(f, moveById(route.moveId));
       }

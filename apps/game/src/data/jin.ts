@@ -4,6 +4,7 @@
  */
 import { B1, B2, B3, B4 } from "../input/pad.ts";
 import * as T5_JIN_BASICS_NATIVE from "./t5-jin-basics-native.ts";
+import * as T5_JIN_STOP_NATIVE from "./t5-jin-stop-native.ts";
 import {
   T5_JIN_1_ANIMATION,
   T5_JIN_1_HITBOX,
@@ -160,6 +161,7 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.db2": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
   "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.ss.db4": outcomes(PB_730, PB_133DF3_CH, PB_BLOCK),
   "jin.133": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.133df3": outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
@@ -202,6 +204,10 @@ const TRACK_R = { left: false, right: true };
 
 export const JIN_MOVES: MoveDef[] = [
   ...T5_JIN_JUMP_MOVES,
+  mv("jin.taunt", "1+3+4", "Taunt", 0, 46, [], {
+    t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_437_ANIMATION,
+    anim: { clip: "t5Taunt" },
+  }),
   // ── 6.2 Standing jabs & basic ────────────────────────────────────────────
   mv(
     "jin.1",
@@ -1353,10 +1359,19 @@ export const JIN_MOVES: MoveDef[] = [
     "b,f+2",
     "Evading Body Punch",
     15,
-    40,
-    [hit("m", 18, 15, -7, +4, +4, { range: 1.75, airReach: 2.0 })],
+    41,
+    [
+      hit("m", 18, 15, -7, +4, +4, {
+        range: 1.75,
+        airReach: 2.0,
+        activeLen: 2,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_534_HITBOX,
+        t5ReactionMoves: { normal: 803, counterHit: 803 },
+      }),
+    ],
     {
       input: { buttons: B2, motion: "bf" },
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_534_ANIMATION,
       anim: { clip: "evadePunchR" },
       followups: [{ moveId: "jin.bf21", buttons: B1, window: [7, 30] }],
     },

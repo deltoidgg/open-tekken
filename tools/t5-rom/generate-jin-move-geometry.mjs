@@ -14,6 +14,7 @@ export const BASIC_MOVE_IDS = Object.freeze([
   395, 397, 404, 418, 423, 399, 469, 494, 496, 502, 563, 456, 458, 462, 455, 526, 592, 460, 461,
   587, 593,
 ]);
+export const STOP_MOVE_IDS = Object.freeze([437, 534]);
 export const JUMP_MOVE_IDS = Object.freeze([
   269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 284, 286, 289, 290, 291, 292, 293,
   294, 295, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
@@ -24,6 +25,7 @@ export const MOVE_ID_PROFILES = Object.freeze({
   launchers: DEFAULT_MOVE_IDS,
   combat: COMBAT_MOVE_IDS,
   basics: BASIC_MOVE_IDS,
+  stop: STOP_MOVE_IDS,
   jump: JUMP_MOVE_IDS,
 });
 
@@ -118,6 +120,8 @@ ${formatPointFrames(move.hurtSphereCenters)}
     .map((move) => {
       const name = moveName(move.romMoveId);
       const payload = payloadName(move.animationAddress);
+      const hitboxSamples = formatHitboxSamples(move.hitboxSamples);
+      const samples = hitboxSamples ? `[\n${hitboxSamples}\n  ]` : "[]";
       return `export const ${name}_ANIMATION = {
   romMoveId: ${move.romMoveId},
   animationLength: ${move.animationLength},
@@ -129,9 +133,7 @@ ${formatPointFrames(move.hurtSphereCenters)}
 
 export const ${name}_HITBOX = {
   packedLocation: ${move.packedLocation},
-  samples: [
-${formatHitboxSamples(move.hitboxSamples)}
-  ],
+  samples: ${samples},
 } as const satisfies T5NativeHitboxDef;`;
     })
     .join("\n\n");
@@ -155,7 +157,7 @@ async function main() {
   if (!snapshotPath || !outputPath || args.includes("--help")) {
     console.log(
       "Usage: node generate-jin-move-geometry.mjs <idle-pcsx2-ee.bin> <output.ts> " +
-        "[--profile launchers|combat|basics|jump | move-id ...]",
+        "[--profile launchers|combat|basics|stop|jump | move-id ...]",
     );
     return;
   }

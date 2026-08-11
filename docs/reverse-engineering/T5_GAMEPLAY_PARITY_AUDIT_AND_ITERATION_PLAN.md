@@ -414,6 +414,17 @@ targets remain closed instead of becoming unrelated clone actions. Native
 targets `450`, `437`, `686`, `534`, and `622` remain the next stop-shell data
 slice.
 
+Fifth checkpoint: four more frame-1 stop records now use their PAL identities.
+The no-hit `1+3+4` taunt is native move `437` and releases on frame 46;
+`u/f+1+2` starts move `686`'s i12 special throw; input sequence `105`
+(`N,b,N,f+2`) starts native move `534` with its i15, 18-damage,
+`-7/+4/+4` record; and `b+1+2` uses move `622`'s frame-67 outer Lingering Soul
+lockout. The taunt and `b,f+2` carry generated PAL pose and collision data.
+Target `450` remains closed because inspection shows an automatic
+`450 -> 451 -> 452 -> 345` multi-hit graph, not one ordinary attack. Native
+throw choreography below `686` and move `623`'s defensive branches are also
+still explicit follow-up work.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

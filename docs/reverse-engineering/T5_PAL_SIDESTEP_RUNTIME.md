@@ -202,20 +202,36 @@ groups. Every direct record detects from source frame 1:
 | Command              | Target | Clone status                                    |
 | -------------------- | -----: | ----------------------------------------------- |
 | `1+2+3+4`            |   1059 | ki charge, exact frame-55 recovery handoff      |
-| `b/f/n+1+2+3`        |    450 | pending                                         |
-| `1+3+4`              |    437 | pending                                         |
-| `uf+1+2`             |    686 | pending                                         |
-| input sequence `105` |    534 | pending                                         |
+| `b/f/n+1+2+3`        |    450 | pending automatic multi-shell chain             |
+| `1+3+4`              |    437 | native no-hit taunt, exact frame-46 handoff     |
+| `uf+1+2`             |    686 | exact i12 throw startup routed                  |
+| input sequence `105` |    534 | native animation, hitbox, frames, and reactions |
 | `db+4`               |    461 | native animation, hitbox, frames, and reactions |
 | `f+4`                |    593 | native animation, hitbox, frames, and reactions |
-| `b+1+2`              |    622 | pending                                         |
+| `b+1+2`              |    622 | frame-67 Lingering Soul handoff                 |
 | `b+3`                |    587 | native animation, hitbox, frames, and reactions |
 
-The stop shell now uses that direct order and group 722's frame-6 neutral
-basics instead of the global actionable parser. Unmapped direct records remain
-closed; they no longer degrade into the clone's unrelated kiai, CDS, throw, or
-parry actions. Moves `461`, `587`, and `593` are reproducibly generated in the
-native basics payload.
+Input sequence `105` is `N,b,N,f+2` with a native window value of `50`; it
+selects move `534`, an i15 mid active through frame 17 for 18 damage, recovering
+on frame 41 at `-7/+4/+4`. Move `437` has no strike, recovers on frame 46, and
+uses a 60-frame animation. Move `686` is the i12 `u/f+1+2` throw startup; its
+contact frame branches into native throw targets `918/920/922/932/934`, which
+the clone's cinematic throw layer does not yet reproduce. Move `622`
+automatically preserves its timeline into `623` at frame 15 and hands off to a
+frame-67 recovery shell after frame 55. The clone now matches that outer lockout
+and buff handoff, while `623`'s native defensive/cancel behavior remains open.
+
+Target `450` cannot be represented as a single i10 attack without losing its
+actual graph. It strikes for 6 damage on frame 10, resets into `451`, preserves
+that animation into `452`, and finally enters recovery move `345`. It remains
+closed until those automatic transitions and all three hit timelines land as a
+unit.
+
+The stop shell now uses this direct order and group 722's frame-6 neutral
+basics instead of the global actionable parser. Any still-unmapped record
+remains closed rather than degrading into an unrelated clone action. Moves
+`437` and `534` are reproducibly generated in the native stop payload; moves
+`461`, `587`, and `593` remain in the native basics payload.
 
 Group 1077 is invoked by every active lateral shell from source frame 9, but it
 contains directional crouch/movement routes rather than attacks:
@@ -281,9 +297,18 @@ Group 722 accepts only its six neutral commands from frame 6; group 647 exposes
 loop diagonals at frame 12; groups 587/627 expose the down family at frame 19;
 and group 680 exposes its forward, back, and neutral set at frame 20. Group
 680's `b+1` and `b+1+2` target move 352 and therefore enter the clone's CDS
-state. Throw, parry, and taunt chords remain in the active lateral shell.
-Sidewalk-stop direct commands are intentionally left on the older path until
-their frame-1 target set is mapped as a unit.
+state. Throw, parry, and taunt chords remain closed in the active lateral shell.
+Sidewalk-stop uses its own ordered frame-1 direct list and does not invoke the
+standing parser.
+
+The two newly recovered native stop moves are reproducible from the private EE
+snapshot:
+
+```sh
+node tools/t5-rom/generate-jin-move-geometry.mjs \
+  /tmp/open-tekken-rom-analysis/pcsx2-ee.bin \
+  apps/game/src/data/t5-jin-stop-native.ts --profile stop
+```
 
 Focused tests verify:
 
@@ -296,6 +321,8 @@ Focused tests verify:
 - group-1077 diagonal crouch entry at source frame 9;
 - source-frame-12, -19, and -20 group selection;
 - stop-shell direct attacks from frame 1 and neutral group 722 from frame 6;
+- the no-hit taunt, special throw startup, `b,f+2` sequence, and 67-frame
+  Lingering Soul route;
 - rejection of generic throws and unmapped stop records;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
@@ -310,11 +337,11 @@ Focused tests verify:
    `0x8004`, including tap/hold/reversal precedence.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
-4. Map sidewalk-stop's frame-1 direct command list and the remaining native
-   chord targets absent from the clone move catalog. Targets `461`, `587`,
-   `593`, and `1059` are now represented; `450`, `437`, `686`, `534`, and `622`
-   remain. Active groups 722, 647, 587/627, and 680 are ordered by their exact
-   source-frame gates.
+4. Implement target `450` as its complete `450 -> 451 -> 452 -> 345` automatic
+   chain. The outer command routes for every other frame-1 target are now
+   represented; native throw choreography under `686` and the internal
+   `622/623` defensive branches remain open. Active groups 722, 647, 587/627,
+   and 680 are ordered by their exact source-frame gates.
 5. Reproduce the remaining compatible-pose blend and any native logical/render
    root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
    destination-shell delta selection are now implemented.

@@ -87,6 +87,32 @@ describe("Tekken 5 PAL ROM parity", () => {
     },
   );
 
+  it("maps the sidewalk-stop taunt to no-hit PAL move 437", () => {
+    const taunt = moveById("jin.taunt");
+
+    expect(taunt.t5Animation?.romMoveId).toBe(437);
+    expect(taunt.startup).toBe(0);
+    expect(taunt.totalFrames).toBe(46);
+    expect(taunt.hits).toEqual([]);
+  });
+
+  it("maps b,f+2 to PAL move 534", () => {
+    const move = moveById("jin.bf2");
+    const attack = move.hits[0]!;
+
+    expect(move.t5Animation?.romMoveId).toBe(534);
+    expect(move.totalFrames).toBe(41);
+    expect(attack).toMatchObject({
+      active: [15, 17],
+      damage: 18,
+      onBlock: -7,
+      onHit: +4,
+      onCH: +4,
+      t5ReactionMoves: { normal: 803, counterHit: 803 },
+    });
+    expect(attack.t5Hitbox).toBeDefined();
+  });
+
   it("stores the recovered outcome-specific pushback envelopes in native units", () => {
     expect(moveById("jin.1").hits[0]?.pushback).toEqual({
       normal: {

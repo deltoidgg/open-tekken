@@ -253,8 +253,8 @@ export class GhostAI {
   private myPunishableAdv(opp: FighterState): number | null {
     if (!opp.moveId) return null;
     const mv = moveById(opp.moveId);
-    const hd = mv.hits[mv.hits.length - 1]!;
-    return hd.onBlock;
+    const hd = mv.hits[mv.hits.length - 1];
+    return hd?.onBlock ?? null;
   }
 
   private idleDrift(dist: number): Pad {
