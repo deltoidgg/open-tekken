@@ -196,11 +196,26 @@ The ordered directional records are later and shell-specific:
 | sidewalk loop                              |   647 |   12 | `df` and `db` attacks only                    |
 | quick step / start / release / loop / stop |   680 |   20 | `f`, `b`, and neutral attacks                 |
 
-Group 1077 is invoked from source frame 9, but it contains directional
-crouch/movement routes rather than attacks. The generic throw/parry group 0 is
-invoked at source frame 57, beyond the effective lifetime of every common
-lateral shell, including the 36-frame self-loop. Throws and parries therefore
-must not leak through the frame-6 basic-attack gate.
+Group 1077 is invoked by every active lateral shell from source frame 9, but it
+contains directional crouch/movement routes rather than attacks:
+
+| Order | Command   |        Target | Requirements                                           |
+| ----: | --------- | ------------: | ------------------------------------------------------ |
+|   0-2 | `df/db/d` | `236/237/235` | incoming high, distance `<= 2000`, active in one frame |
+|     3 | `df`      |           250 | unconditional                                          |
+|     4 | `db`      |           255 | unconditional                                          |
+|   5-8 | `d`       |   `1090/1092` | grounded on the matching side, character-ID split      |
+
+The clone now implements the two unconditional frame-9 diagonal fallbacks and
+enters the native ten-frame crouch shells `250/255`. The incoming-high routes
+remain open until the combat-aware requirement check and their 60-frame wrapper
+targets can be implemented together. The ground-side routes cannot apply to a
+standing lateral shell.
+
+The generic throw/parry group 0 is invoked at source frame 57, beyond the
+effective lifetime of every common lateral shell, including the 36-frame
+self-loop. Throws and parries therefore must not leak through the frame-6
+basic-attack gate.
 
 The source-frame-1 direct `b -> 227` record supplies an immediate route out of
 sidestep into backward walk/guard movement. Cross-move vulnerability values
@@ -257,6 +272,7 @@ Focused tests verify:
 - sidewalk start, one 36-frame loop, release, and 15-frame stop;
 - all six source-frame-6 group-722 attacks with no startup padding;
 - rejection of throw and taunt chords at the group-722 boundary;
+- group-1077 diagonal crouch entry at source frame 9;
 - source-frame-12, -19, and -20 group selection;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
@@ -285,8 +301,8 @@ Focused tests verify:
 8. Capture controlled PCSX2 traces of logical root, render root, current move,
    player frame, direction requirements, and guard result when stateful window
    automation is available again.
-9. Implement group 1077's source-frame-9 crouch/movement arbitration separately
-   from attack routing.
+9. Implement group 1077's three incoming-high routes. Its unconditional
+   source-frame-9 `df/db` fallbacks are now separate from attack routing.
 
 The Computer connector selected and observed the PCSX2 window during this pass,
 but PCSX2 raw input did not register its generated key pulses; two read-only

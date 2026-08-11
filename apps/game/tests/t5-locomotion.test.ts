@@ -42,7 +42,10 @@ import {
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.ts";
-import { t5ActiveSidestepAttackRoute } from "../src/sim/t5-sidestep.ts";
+import {
+  t5ActiveSidestepAttackRoute,
+  t5ActiveSidestepMovementRoute,
+} from "../src/sim/t5-sidestep.ts";
 
 function accumulatedForward(
   action: "walkF" | "dash" | "backdash" | "CD",
@@ -921,6 +924,25 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(fighter).toMatchObject({ action: "attack", actionFrame: 1, moveId: "jin.d3" });
   });
 
+  it.each([
+    [{ dx: 1 as const, dy: -1 as const }, 250],
+    [{ dx: -1 as const, dy: -1 as const }, 255],
+  ] as const)("enters PAL group-1077 crouch fallback %# on frame 9", (direction, moveId) => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dy: 1 }), pad());
+    sim.step(pad(), pad());
+    run(sim, 7);
+    sim.step(pad(direction), pad());
+
+    expect(fighter).toMatchObject({
+      action: "crouch",
+      actionFrame: 1,
+      t5CrouchMoveId: moveId,
+    });
+  });
+
   it("starts group-680 CDS entry on sidestep frame 20 without opening throws", () => {
     const stance = fightSim(8);
     const rejectedThrow = fightSim(8);
@@ -971,6 +993,23 @@ describe("Tekken 5 PAL locomotion roots", () => {
       group: 680,
     });
     expect(t5ActiveSidestepAttackRoute("step", 20, "n", B1 | B3)).toBeUndefined();
+  });
+
+  it("resolves only group-1077's unconditional diagonal fallbacks from frame 9", () => {
+    expect(t5ActiveSidestepMovementRoute(8, "df")).toBeUndefined();
+    expect(t5ActiveSidestepMovementRoute(9, "d")).toBeUndefined();
+    expect(t5ActiveSidestepMovementRoute(9, "df")).toEqual({
+      kind: "crouch",
+      moveId: 250,
+      gate: 9,
+      group: 1077,
+    });
+    expect(t5ActiveSidestepMovementRoute(9, "db")).toEqual({
+      kind: "crouch",
+      moveId: 255,
+      gate: 9,
+      group: 1077,
+    });
   });
 
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {

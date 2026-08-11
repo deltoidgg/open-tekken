@@ -395,6 +395,15 @@ global actionable parser: neutral group `722` at frame 6, loop-diagonal group
 unmapped chord targets, and group-1077 movement requirements remain the next
 ordered slices.
 
+Third checkpoint: every active lateral shell invokes group `1077` at source
+frame 9. Its ordered records first test close-range incoming-high requirements,
+then fall back unconditionally from `df` to crouch-entry move `250` and from
+`db` to move `255`. Those two exact fallbacks now bypass the clone's generic
+movement parser and start the native crouch shell on the accepted tick. The
+remaining `d -> 1090/1092` rows require a grounded side and are inapplicable to
+standing sidestep; the earlier `235..237` rows remain pending a combat-aware
+incoming-high requirement evaluator.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

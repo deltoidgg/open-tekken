@@ -7,6 +7,13 @@ export type T5SidestepAttackRoute =
   | { kind: "move"; moveId: string; gate: number; group: 587 | 627 | 647 | 680 | 722 }
   | { kind: "stance"; action: "CDS"; gate: 20; group: 680 };
 
+export type T5SidestepMovementRoute = {
+  kind: "crouch";
+  moveId: 250 | 255;
+  gate: 9;
+  group: 1077;
+};
+
 const GROUP_722 = new Map<number, string>([
   [B1, "jin.1"],
   [B2, "jin.2"],
@@ -58,6 +65,17 @@ const GROUP_680 = {
   ]),
   n: GROUP_722,
 } as const;
+
+/** Resolve group 1077's unconditional diagonal fallbacks for active lateral shells. */
+export function t5ActiveSidestepMovementRoute(
+  sourceFrame: number,
+  direction: Dir,
+): T5SidestepMovementRoute | undefined {
+  if (sourceFrame < 9) return undefined;
+  if (direction === "df") return { kind: "crouch", moveId: 250, gate: 9, group: 1077 };
+  if (direction === "db") return { kind: "crouch", moveId: 255, gate: 9, group: 1077 };
+  return undefined;
+}
 
 /** Resolve the ordered attack groups invoked by PAL moves 1062..1073. */
 export function t5ActiveSidestepAttackRoute(

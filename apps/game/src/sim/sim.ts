@@ -48,7 +48,7 @@ import {
   t5SidestepRootOffset,
 } from "./t5-locomotion.ts";
 import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orientation.ts";
-import { t5ActiveSidestepAttackRoute } from "./t5-sidestep.ts";
+import { t5ActiveSidestepAttackRoute, t5ActiveSidestepMovementRoute } from "./t5-sidestep.ts";
 
 // Unmapped ballistic states still use the clone's original per-frame tuning.
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
@@ -433,6 +433,11 @@ export class Sim {
 
     if (f.action === "ss" && f.ssPhase !== "walkStop") {
       if (inp.pressed && this.tryStartT5SidestepCommand(f, inp)) return;
+      const movementRoute = t5ActiveSidestepMovementRoute(f.actionFrame + 1, inp.dir);
+      if (movementRoute) {
+        this.enterCrouch(f, movementRoute.moveId);
+        return;
+      }
       if (isActionable(f)) this.decideMovement(f, inp);
       return;
     }
