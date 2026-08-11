@@ -9,8 +9,8 @@ import { JinPoseDeriver } from "./derive-jin-posed-geometry.mjs";
 import { parseMove } from "./inspect-ee-snapshot.mjs";
 
 export const DEFAULT_REACTION_MOVE_IDS = Object.freeze([
-  159, 160, 161, 162, 163, 370, 401, 463, 499, 505, 583, 585, 776, 780, 783, 790, 794, 797, 800,
-  802, 803, 806, 811, 842, 854, 870, 893, 896, 898,
+  159, 160, 161, 162, 163, 336, 370, 401, 463, 499, 505, 583, 585, 776, 780, 783, 790, 794, 797,
+  800, 802, 803, 806, 811, 842, 854, 870, 893, 896, 898,
 ]);
 const AIRBORNE_REACTION_MOVE_IDS = new Set([159, 160, 161, 162, 163, 870]);
 

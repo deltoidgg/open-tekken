@@ -19,9 +19,11 @@ import {
   createGameState,
   isActionable,
   resetFighterForRound,
+  t5PoseState,
   type FighterState,
   type GameState,
   type SimEvent,
+  type T5PoseTail,
 } from "./state.ts";
 import { selectMove, selectThrow, stanceOf } from "./select.ts";
 import {
@@ -49,6 +51,7 @@ import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orien
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
+const T5_MEASURED_REACTION_TAILS = new Set([336, 780, 783]);
 
 export interface ReplaySnap {
   fighters: [FighterSnap, FighterSnap];
@@ -72,6 +75,7 @@ export interface FighterSnap {
   t5AirTrajectoryFrame: FighterState["t5AirTrajectoryFrame"];
   t5AirTrajectoryOrigin: FighterState["t5AirTrajectoryOrigin"];
   t5JumpMoveId: FighterState["t5JumpMoveId"];
+  t5PoseTail: FighterState["t5PoseTail"];
 }
 
 interface PendingContact {
@@ -806,7 +810,13 @@ export class Sim {
 
   // ── per-fighter action update ────────────────────────────────────────────
 
-  private setAction(f: FighterState, a: FighterState["action"], total: number): void {
+  private setAction(
+    f: FighterState,
+    a: FighterState["action"],
+    total: number,
+    preserveT5PoseTail = false,
+  ): void {
+    if (!preserveT5PoseTail) f.t5PoseTail = null;
     f.action = a;
     f.actionFrame = 0;
     f.actionTotal = total;
@@ -829,6 +839,47 @@ export class Sim {
     }
     if (a !== "jump") f.t5JumpMoveId = 21;
     if (a !== "crouch") f.crouching = false;
+  }
+
+  private captureT5PoseTail(fighter: FighterState, actionTotal: number): T5PoseTail {
+    return {
+      action: fighter.action as T5PoseTail["action"],
+      actionFrame: fighter.actionFrame,
+      actionTotal,
+      moveId: fighter.moveId,
+      startupOffset: fighter.startupOffset,
+      face: fighter.face,
+      t5RootFace: fighter.t5RootFace,
+      t5PreviousFace: fighter.t5PreviousFace,
+      crouching: fighter.crouching,
+      t5AnimationOrigin: fighter.t5AnimationOrigin,
+      t5ReactionMoveId: fighter.t5ReactionMoveId,
+      t5ReactionOrigin: fighter.t5ReactionOrigin,
+    };
+  }
+
+  private preserveT5AttackPoseTail(fighter: FighterState, move: MoveDef): boolean {
+    const animationLength = move.t5Animation?.animationLength;
+    if (move.id !== "jin.1" || animationLength === undefined) return false;
+    if (fighter.actionFrame >= animationLength) return false;
+    fighter.t5PoseTail = this.captureT5PoseTail(fighter, animationLength);
+    return true;
+  }
+
+  private preserveT5ReactionPoseTail(fighter: FighterState): boolean {
+    const moveId = fighter.t5ReactionMoveId;
+    const animation = t5JinReactionAnimation(moveId);
+    if (moveId === null || !T5_MEASURED_REACTION_TAILS.has(moveId) || !animation) return false;
+    if (fighter.actionFrame >= animation.animationLength) return false;
+    fighter.t5PoseTail = this.captureT5PoseTail(fighter, animation.animationLength);
+    return true;
+  }
+
+  private advanceT5PoseTail(fighter: FighterState): void {
+    const tail = fighter.t5PoseTail;
+    if (!tail) return;
+    const actionFrame = tail.actionFrame + 1;
+    fighter.t5PoseTail = actionFrame > tail.actionTotal ? null : { ...tail, actionFrame };
   }
 
   private t5CrouchEntryMoveId(dir: FrameInput["dir"]): number {
@@ -1007,6 +1058,7 @@ export class Sim {
       f.hitstop--;
       return;
     }
+    this.advanceT5PoseTail(f);
     f.actionFrame++;
     if (
       f.action === "crouch" ||
@@ -1253,8 +1305,9 @@ export class Sim {
       case "hitstun":
         this.applySlide(f);
         if (f.actionFrame >= f.actionTotal) {
+          const preservePoseTail = this.preserveT5ReactionPoseTail(f);
           if (f.crouching) this.enterCrouch(f);
-          else this.setAction(f, "idle", 0);
+          else this.setAction(f, "idle", 0, preservePoseTail);
           f.stunKind = "none";
         }
         break;
@@ -1449,6 +1502,8 @@ export class Sim {
 
   private finishAttack(fighter: FighterState, move: MoveDef): void {
     const recoversState = move.recoversState ?? "stand";
+    const preservePoseTail =
+      recoversState === "stand" && this.preserveT5AttackPoseTail(fighter, move);
     if (recoversState === "crouch") {
       this.enterCrouch(fighter);
     } else if (recoversState === "grounded") {
@@ -1458,7 +1513,7 @@ export class Sim {
     } else if (recoversState === "CDS") {
       this.setAction(fighter, "CDS", 40);
     } else {
-      this.setAction(fighter, "idle", 0);
+      this.setAction(fighter, "idle", 0, preservePoseTail);
     }
     fighter.moveId = null;
   }
@@ -1475,19 +1530,25 @@ export class Sim {
     if (this.gs.activeThrow) return false;
 
     const defenderFrame = Math.max(0, def.actionFrame - 1);
-    const nativeReactionAnimation = t5JinReactionAnimation(def.t5ReactionMoveId);
-    const released = (def.action === "walkF" || def.action === "walkB") && def.actionTotal > 0;
+    const defenderPose = t5PoseState(def);
+    const defenderPoseFrame = Math.max(0, defenderPose.actionFrame - 1);
+    const nativeReactionAnimation = t5JinReactionAnimation(defenderPose.t5ReactionMoveId);
+    const released =
+      (defenderPose.action === "walkF" || defenderPose.action === "walkB") &&
+      defenderPose.actionTotal > 0;
     const nativeLocomotion =
-      def.action === "ss"
-        ? t5SidestepAnimationPhase(def.ssDir, def.ssPhase, defenderFrame)
+      defenderPose.action === "ss"
+        ? t5SidestepAnimationPhase(defenderPose.ssDir, defenderPose.ssPhase, defenderPoseFrame)
         : t5LocomotionPhase(
-            def.action,
-            defenderFrame,
+            defenderPose.action,
+            defenderPoseFrame,
             released,
-            this.t5NativeLocomotionMoveId(def),
+            this.t5NativeLocomotionMoveId(defenderPose),
           );
     const nativeAttackAnimation =
-      def.action === "attack" && def.moveId ? moveById(def.moveId).t5Animation : undefined;
+      defenderPose.action === "attack" && defenderPose.moveId
+        ? moveById(defenderPose.moveId).t5Animation
+        : undefined;
     const nativeStandingPose =
       !!hd.t5Hitbox &&
       nativeReactionAnimation === undefined &&
@@ -1499,27 +1560,27 @@ export class Sim {
     const testedNativeGeometry = nativeStandingPose || nativeReactionPose;
     if (testedNativeGeometry) {
       const locomotionRoot =
-        def.action === "ss"
-          ? t5SidestepRootOffset(def.ssDir, def.ssPhase, defenderFrame)
+        defenderPose.action === "ss"
+          ? t5SidestepRootOffset(defenderPose.ssDir, defenderPose.ssPhase, defenderPoseFrame)
           : nativeLocomotion?.transfersRoot
             ? sampleT5RootOffset(nativeLocomotion.animation, nativeLocomotion.actionFrame)
             : undefined;
       const defenderPlacement = {
         pos: nativeReactionPose ? { ...def.pos, y: 0 } : def.pos,
-        face: def.face,
-        t5RootFace: def.t5RootFace,
-        t5PreviousFace: def.t5PreviousFace,
+        face: defenderPose.face,
+        t5RootFace: defenderPose.t5RootFace,
+        t5PreviousFace: defenderPose.t5PreviousFace,
         t5AnimationOrigin: nativeReactionPose
-          ? def.t5ReactionOrigin
+          ? defenderPose.t5ReactionOrigin
           : locomotionRoot
             ? ([-locomotionRoot[0], -locomotionRoot[1], -locomotionRoot[2]] as const)
             : nativeAttackAnimation
-              ? def.t5AnimationOrigin
-              : def.t5ReactionOrigin,
+              ? defenderPose.t5AnimationOrigin
+              : defenderPose.t5ReactionOrigin,
         animation: nativeReactionAnimation ?? nativeLocomotion?.animation ?? nativeAttackAnimation,
         actionFrame: nativeReactionPose
-          ? defenderFrame
-          : (nativeLocomotion?.actionFrame ?? defenderFrame),
+          ? defenderPoseFrame
+          : (nativeLocomotion?.actionFrame ?? defenderPoseFrame),
       };
       const attackerPlacement = {
         pos: atk.pos,
@@ -1753,6 +1814,7 @@ export class Sim {
     ) {
       const stun = hd.blockstun ?? Math.max(1, rem + hd.onBlock);
       this.setAction(def, "blockstun", stun);
+      this.setT5Reaction(def, c.move.id === "jin.1" ? 336 : undefined);
       def.actionFrame = 1;
       def.crouching = guard === "crouch"; // after setAction — it resets the flag
       def.stunKind = "none";
@@ -2427,28 +2489,40 @@ export class Sim {
     if (skip(a) || skip(b) || this.gs.activeThrow) return;
     const d = dist2D(a.pos.x, a.pos.z, b.pos.x, b.pos.z);
     const bodyPlacement = (f: FighterState) => {
-      const released = (f.action === "walkF" || f.action === "walkB") && f.actionTotal > 0;
+      const pose = t5PoseState(f);
+      const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
       const locomotion =
-        f.action === "ss"
-          ? t5SidestepAnimationPhase(f.ssDir, f.ssPhase, f.actionFrame)
-          : t5LocomotionPhase(f.action, f.actionFrame, released, this.t5NativeLocomotionMoveId(f));
-      const animation =
-        f.action === "attack" && f.moveId ? moveById(f.moveId).t5Animation : locomotion?.animation;
+        pose.action === "ss"
+          ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, pose.actionFrame)
+          : t5LocomotionPhase(
+              pose.action,
+              pose.actionFrame,
+              released,
+              this.t5NativeLocomotionMoveId(pose),
+            );
+      const reaction = t5JinReactionAnimation(pose.t5ReactionMoveId);
+      const attack =
+        pose.action === "attack" && pose.moveId ? moveById(pose.moveId).t5Animation : undefined;
+      const animation = reaction ?? attack ?? locomotion?.animation;
       const root =
-        f.action === "ss"
-          ? t5SidestepRootOffset(f.ssDir, f.ssPhase, f.actionFrame)
+        pose.action === "ss"
+          ? t5SidestepRootOffset(pose.ssDir, pose.ssPhase, pose.actionFrame)
           : locomotion?.transfersRoot
             ? sampleT5RootOffset(locomotion.animation, locomotion.actionFrame)
             : undefined;
       return {
         pos: f.pos,
-        face: f.face,
-        t5RootFace: f.t5RootFace,
-        t5PreviousFace: f.t5PreviousFace,
+        face: pose.face,
+        t5RootFace: pose.t5RootFace,
+        t5PreviousFace: pose.t5PreviousFace,
         animation,
-        actionFrame: locomotion?.actionFrame ?? f.actionFrame,
-        attacking: f.action === "attack",
-        t5AnimationOrigin: root ? ([-root[0], -root[1], -root[2]] as const) : f.t5AnimationOrigin,
+        actionFrame: reaction ? pose.actionFrame : (locomotion?.actionFrame ?? pose.actionFrame),
+        attacking: pose.action === "attack",
+        t5AnimationOrigin: reaction
+          ? pose.t5ReactionOrigin
+          : root
+            ? ([-root[0], -root[1], -root[2]] as const)
+            : pose.t5AnimationOrigin,
       };
     };
     const penetration = t5BodyPushPenetration(bodyPlacement(a), bodyPlacement(b));
@@ -2527,34 +2601,32 @@ export class Sim {
 
   /** PAL targeting reads the fighter world position at player+0x750/+0x758. */
   private t5FacingRoot(fighter: FighterState): { x: number; y: number; z: number } {
-    const reaction = t5JinReactionAnimation(fighter.t5ReactionMoveId);
-    const released =
-      (fighter.action === "walkF" || fighter.action === "walkB") && fighter.actionTotal > 0;
+    const pose = t5PoseState(fighter);
+    const reaction = t5JinReactionAnimation(pose.t5ReactionMoveId);
+    const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
     const locomotion =
-      fighter.action === "ss"
-        ? t5SidestepAnimationPhase(fighter.ssDir, fighter.ssPhase, fighter.actionFrame)
+      pose.action === "ss"
+        ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, pose.actionFrame)
         : t5LocomotionPhase(
-            fighter.action,
-            fighter.actionFrame,
+            pose.action,
+            pose.actionFrame,
             released,
-            this.t5NativeLocomotionMoveId(fighter),
+            this.t5NativeLocomotionMoveId(pose),
           );
     const attack =
-      fighter.action === "attack" && fighter.moveId
-        ? moveById(fighter.moveId).t5Animation
-        : undefined;
+      pose.action === "attack" && pose.moveId ? moveById(pose.moveId).t5Animation : undefined;
     const animation = reaction ?? attack ?? locomotion?.animation;
     if (!animation) return { ...fighter.pos };
 
     const actionFrame = reaction
-      ? fighter.actionFrame
+      ? pose.actionFrame
       : attack
-        ? fighter.actionFrame
+        ? pose.actionFrame
         : locomotion!.actionFrame;
     let origin = reaction
-      ? fighter.t5ReactionOrigin
+      ? pose.t5ReactionOrigin
       : attack
-        ? fighter.t5AnimationOrigin
+        ? pose.t5AnimationOrigin
         : ([0, 0, 0] as const);
     if (!reaction && !attack && locomotion?.transfersRoot) {
       const root = sampleT5RootOffset(locomotion.animation, locomotion.actionFrame);
@@ -2564,7 +2636,7 @@ export class Sim {
     return t5LocalPointToWorld(
       {
         pos: fighter.pos,
-        face: fighter.t5RootFace,
+        face: pose.t5RootFace,
         t5AnimationOrigin: origin,
       },
       poseRoot,
@@ -2646,6 +2718,7 @@ export class Sim {
       t5AirTrajectoryFrame: f.t5AirTrajectoryFrame,
       t5AirTrajectoryOrigin: f.t5AirTrajectoryOrigin,
       t5JumpMoveId: f.t5JumpMoveId,
+      t5PoseTail: f.t5PoseTail,
     });
     this.replay.push({ fighters: [snap(this.gs.fighters[0]), snap(this.gs.fighters[1])] });
     if (this.replay.length > T.replaySeconds * T5_SIM_HZ) this.replay.shift();

@@ -72,6 +72,22 @@ export interface ActivePushback {
   directionZ: number;
 }
 
+/** Native pose state that can outlive the logical action's control lock. */
+export interface T5PoseTail {
+  action: "attack" | "blockstun" | "hitstun";
+  actionFrame: number;
+  actionTotal: number;
+  moveId: string | null;
+  startupOffset: number;
+  face: number;
+  t5RootFace: number;
+  t5PreviousFace: number;
+  crouching: boolean;
+  t5AnimationOrigin: T5LocalPoint;
+  t5ReactionMoveId: number | null;
+  t5ReactionOrigin: T5LocalPoint;
+}
+
 export interface FighterState {
   id: 0 | 1;
   pos: Vec3;
@@ -90,6 +106,8 @@ export interface FighterState {
   hitstop: number;
   /** Live player+0x2B6 impact counter; it does not freeze the action timeline. */
   t5ImpactCounter: number;
+  /** Native pose shell retained after the fighter becomes logically actionable. */
+  t5PoseTail: T5PoseTail | null;
   /** Exact per-frame T5 pushback envelope currently being consumed. */
   pushback: ActivePushback | null;
 
@@ -247,6 +265,7 @@ export function createFighter(id: 0 | 1): FighterState {
     actionTotal: 0,
     hitstop: 0,
     t5ImpactCounter: 0,
+    t5PoseTail: null,
     pushback: null,
     moveId: null,
     startupOffset: 0,
@@ -296,6 +315,11 @@ export function createFighter(id: 0 | 1): FighterState {
     tookDamageThisRound: false,
     lastContact: null,
   };
+}
+
+/** Resolve the authoritative native pose without changing logical actionability. */
+export function t5PoseState(f: FighterState): FighterState {
+  return f.t5PoseTail ? { ...f, ...f.t5PoseTail } : f;
 }
 
 export function resetFighterForRound(f: FighterState): void {

@@ -6,6 +6,7 @@
  */
 import { clamp, lerp } from "../core/math.ts";
 import { moveById } from "../data/jin.ts";
+import { t5JinReactionAnimation } from "../data/t5-jin-reactions-native.ts";
 import type { FighterState } from "../sim/state.ts";
 import type { Pose } from "./rig.ts";
 
@@ -354,7 +355,11 @@ function launchedPose(f: FighterState, t: number): Pose {
 // ── main entry ───────────────────────────────────────────────────────────────
 
 export function poseFor(f: FighterState, t: number): Pose {
-  const n = f.actionTotal > 0 ? clamp(f.actionFrame / f.actionTotal, 0, 1) : 0;
+  const move = f.action === "attack" && f.moveId ? moveById(f.moveId) : undefined;
+  const reaction = t5JinReactionAnimation(f.t5ReactionMoveId);
+  const visualTotal =
+    move?.t5Animation?.animationLength ?? reaction?.animationLength ?? f.actionTotal;
+  const n = visualTotal > 0 ? clamp(f.actionFrame / visualTotal, 0, 1) : 0;
 
   switch (f.action) {
     case "idle":
@@ -471,7 +476,7 @@ export function poseFor(f: FighterState, t: number): Pose {
       const params = f.moveId ? CLIPS[moveById(f.moveId).anim.clip] : undefined;
       const mv = f.moveId ? moveById(f.moveId) : null;
       if (!params || !mv) return kamae(t);
-      const total = f.actionTotal || mv.totalFrames;
+      const total = mv.t5Animation?.animationLength ?? (f.actionTotal || mv.totalFrames);
       const impact = clamp((mv.startup + f.startupOffset) / total, 0.05, 0.92);
       const lastActive = clamp(
         (mv.hits[mv.hits.length - 1]!.active[1] + f.startupOffset) / total,

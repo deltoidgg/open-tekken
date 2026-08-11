@@ -72,6 +72,7 @@ describe("Tekken 5 PAL live jab trace", () => {
       action: "blockstun",
       actionFrame: 1,
       actionTotal: 19,
+      t5ReactionMoveId: 336,
       t5ImpactCounter: 0,
       hitstop: 0,
       hp: 145,

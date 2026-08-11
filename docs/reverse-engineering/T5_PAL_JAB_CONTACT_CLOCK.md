@@ -122,10 +122,25 @@ normal hit: 25 - (26 - 10) = +9
 block:      19 - (26 - 10) = +3
 ```
 
-The clone now matches those control boundaries and contact states. Preserving
-the visual attack/reaction tail after control returns is the next implementation
-slice; extending `actionTotal` to the animation length would incorrectly delay
-player control.
+The clone now keeps those clocks separate. `FighterState.action` and
+`actionTotal` remain the control lock, while `t5PoseTail` retains the measured
+native shell after the transition back to an actionable state. The resolved
+`t5PoseState()` feeds rendering, native hurt geometry, body push, and facing-root
+queries without delaying input.
+
+The first measured slice covers:
+
+- jab move `334`, preserving frames `26..39`;
+- normal reaction `0x30F`, preserving frames `25..30`;
+- block reaction `0x150`, preserving frames `19..30`; and
+- counter reaction `0x30C`, preserving the current provisional recovery boundary
+  through visual frame `30` pending direct cancel-table confirmation.
+
+Any new command or movement state replaces the retained shell on its first
+actionable step. Neutral play presents the final native frame for one complete
+player tick before clearing it. Move `0x150` is now included in the generated
+Jin reaction module, so the block tail and contacts against it use recovered PAL
+root and hurt-sphere samples.
 
 ## Golden-trace contract
 
@@ -139,3 +154,7 @@ player control.
 - the impact counter begins at 6 or 7 and decays while timelines advance;
 - normal and block advantage remain `+9` and `+3`; and
 - recovered pushback still consumes one native sample per gameplay frame.
+
+`apps/game/tests/t5-pose-tail.test.ts` additionally fixes the independent pose
+clock, last-frame presentation, native block reaction selection, and immediate
+replacement by first-actionable commands or movement.

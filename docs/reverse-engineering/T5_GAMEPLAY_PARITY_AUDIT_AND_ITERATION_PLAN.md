@@ -46,20 +46,21 @@ unstable: one native subsystem exposes the error in the next provisional one.
 
 The following slices are measured from the PAL executable and documented:
 
-| Area              | Recovered foundation                                                    | Detailed note                             |
-| ----------------- | ----------------------------------------------------------------------- | ----------------------------------------- |
-| clock/input edge  | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
-| animation decoder | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
-| pose builder      | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
-| world placement   | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
-| hurt/body writer  | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`            |
-| movement roots    | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`            |
-| crouch states     | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`     |
-| crouch dash       | `222 -> 672 -> 673 -> 524`, fresh restart, root and pose curve          | `T5_PAL_CROUCH_DASH_RUNTIME.md`           |
-| lateral movement  | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`              |
-| guard/orientation | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md` |
-| combat data       | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                  |
-| launch/collision  | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md` |
+| Area               | Recovered foundation                                                    | Detailed note                             |
+| ------------------ | ----------------------------------------------------------------------- | ----------------------------------------- |
+| clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
+| pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
+| animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
+| pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
+| world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
+| hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`            |
+| movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`            |
+| crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`     |
+| crouch dash        | `222 -> 672 -> 673 -> 524`, fresh restart, root and pose curve          | `T5_PAL_CROUCH_DASH_RUNTIME.md`           |
+| lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`              |
+| guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md` |
+| combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                  |
+| launch/collision   | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md` |
 
 This foundation should be treated as executable specification, not as a pool of
 values to average into the original tuning constants.
@@ -100,12 +101,13 @@ priority, just-frame routing, and state-specific command groups are not yet one
 recovered model. Input leniency should not be widened to hide a state-transition
 error.
 
-### 5. Contact cadence needs an end-to-end oracle
+### 5. Contact cadence needs a broader end-to-end oracle
 
-Startup alone is insufficient. A faithful jab exchange requires exact contact
-pose, impact-state ownership, stun start, pushback envelope, recovery end, guard
-return, camera response, and audio/VFX timing. Those events need one golden trace
-rather than separate unit assertions.
+Startup alone is insufficient. Jin's neutral `1` now has one golden state trace
+through contact publication, impact-state ownership, stun, pushback, actionable
+recovery, and the native pose tail. Camera response and audio/VFX timing remain
+open, and the same complete contract must expand to `1,2`, `d/f+1`, and one low
+instead of becoming a collection of unrelated timing assertions.
 
 ### 6. Defense and lateral evasion are incomplete
 
@@ -283,6 +285,11 @@ that contaminates attacks, hurt volumes, body push, and visible animation.
 Scope: neutral `1` on whiff, block, hit, and counter hit. Include input edge,
 contact pose, impact counter, pushback, stun, recovery, guard return, camera, and effect
 events. This establishes the canonical combat cadence.
+
+Implementation checkpoint: the 60 Hz player clock, frame-11 contact publication,
+impact counter, native pushback, actionable recovery, reaction selection, and
+independent attack/reaction pose tails are locked by golden tests. Camera and
+effect/audio onset remain before this iteration's exit gate is complete.
 
 ### Iteration C: Backdash/KBD
 

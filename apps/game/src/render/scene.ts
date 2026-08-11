@@ -5,9 +5,10 @@
  */
 import * as THREE from "three";
 import { moveById } from "../data/jin.ts";
+import { t5JinReactionAnimation } from "../data/t5-jin-reactions-native.ts";
 import { TUNING as T } from "../data/tuning.ts";
 import type { Sim } from "../sim/sim.ts";
-import type { FighterState, GameState } from "../sim/state.ts";
+import { t5PoseState, type FighterState, type GameState } from "../sim/state.ts";
 import { sampleT5RootOffset } from "../sim/t5-geometry.ts";
 import { t5LocomotionPhase } from "../sim/t5-locomotion.ts";
 import { poseFor } from "./animator.ts";
@@ -28,26 +29,31 @@ interface FighterSnapshot {
 }
 
 function nativeRootOffset(fighter: FighterState): readonly [number, number, number] {
-  if (fighter.action === "jump") {
-    const phase = t5LocomotionPhase(
-      fighter.action,
-      fighter.actionFrame,
-      false,
-      fighter.t5JumpMoveId,
-    );
+  const pose = t5PoseState(fighter);
+  if (pose.action === "jump") {
+    const phase = t5LocomotionPhase(pose.action, pose.actionFrame, false, pose.t5JumpMoveId);
     if (phase) {
       const root = sampleT5RootOffset(phase.animation, phase.actionFrame);
       return phase.transfersRoot ? [0, root[1], 0] : root;
     }
   }
+  const reaction = t5JinReactionAnimation(pose.t5ReactionMoveId);
+  if (reaction) {
+    const sampled = sampleT5RootOffset(reaction, pose.actionFrame);
+    return [
+      pose.t5ReactionOrigin[0] + sampled[0],
+      pose.t5ReactionOrigin[1] + sampled[1],
+      pose.t5ReactionOrigin[2] + sampled[2],
+    ];
+  }
   const sampled =
-    fighter.action === "attack" && fighter.moveId
-      ? sampleT5RootOffset(moveById(fighter.moveId).t5Animation, fighter.actionFrame)
+    pose.action === "attack" && pose.moveId
+      ? sampleT5RootOffset(moveById(pose.moveId).t5Animation, pose.actionFrame)
       : ([0, 0, 0] as const);
   return [
-    fighter.t5AnimationOrigin[0] + sampled[0],
-    fighter.t5AnimationOrigin[1] + sampled[1],
-    fighter.t5AnimationOrigin[2] + sampled[2],
+    pose.t5AnimationOrigin[0] + sampled[0],
+    pose.t5AnimationOrigin[1] + sampled[1],
+    pose.t5AnimationOrigin[2] + sampled[2],
   ];
 }
 
@@ -142,14 +148,15 @@ export class SceneRenderer {
   snapshot(gs: GameState): void {
     for (const i of [0, 1] as const) {
       const f = gs.fighters[i];
-      const [rootSide, rootUp, rootForward] = nativeRootOffset(f);
+      const pose = t5PoseState(f);
+      const [rootSide, rootUp, rootForward] = nativeRootOffset(pose);
       this.prev[i] = this.curr[i];
       this.curr[i] = {
         x: f.pos.x,
         y: f.pos.y,
         z: f.pos.z,
-        face: f.face,
-        rootFace: f.t5RootFace,
+        face: pose.face,
+        rootFace: pose.t5RootFace,
         rootSide,
         rootUp,
         rootForward,
@@ -205,9 +212,13 @@ export class SceneRenderer {
           t5AirTrajectoryFrame: s.t5AirTrajectoryFrame,
           t5AirTrajectoryOrigin: s.t5AirTrajectoryOrigin,
           t5JumpMoveId: s.t5JumpMoveId,
+          t5PoseTail: s.t5PoseTail,
           t5RootFace: s.t5RootFace,
           pos: { x: s.x, y: s.y, z: s.z },
         };
+        poseSrc = t5PoseState(poseSrc);
+        face = poseSrc.face;
+        rootFace = poseSrc.t5RootFace;
         [rootSide, rootUp, rootForward] = nativeRootOffset(poseSrc);
       } else {
         const p = this.prev[i];
@@ -220,7 +231,7 @@ export class SceneRenderer {
         rootSide = p.rootSide + (c.rootSide - p.rootSide) * alpha;
         rootUp = p.rootUp + (c.rootUp - p.rootUp) * alpha;
         rootForward = p.rootForward + (c.rootForward - p.rootForward) * alpha;
-        poseSrc = f;
+        poseSrc = t5PoseState(f);
       }
       const forwardX = Math.cos(rootFace);
       const forwardZ = Math.sin(rootFace);
