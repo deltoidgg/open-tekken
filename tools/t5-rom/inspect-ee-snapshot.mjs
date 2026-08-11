@@ -439,23 +439,41 @@ export function inspectMoveFrameData(data, moveset, moveId) {
   };
 }
 
+function describeCancelCommand(moveset, cancel, provenance) {
+  return {
+    ...provenance,
+    cancelAddress: cancel.address,
+    command: cancel.command,
+    commandLabel: decodeT5Command(cancel.command),
+    rawMoveId: cancel.moveId,
+    moveId: resolveMoveAlias(moveset, cancel.moveId),
+    requirementsAddress: cancel.requirementsAddress,
+    extradataAddress: cancel.extradataAddress,
+    extradataValue: cancel.extradataValue,
+    timelineMode: cancel.timelineMode,
+    detectionStart: cancel.detectionStart,
+    detectionEnd: cancel.detectionEnd,
+    startingFrame: cancel.startingFrame,
+    option: cancel.option,
+  };
+}
+
 export function findNeutralBasics(data, moveset) {
-  const standingMoveId = resolveMoveAlias(moveset, 0x8001);
-  const standingMove = parseMove(data, moveset, standingMoveId);
   const candidates = new Map();
-  for (const cancel of standingMove.cancels) {
-    if (cancel.command !== 0x8005) continue;
-    const groupAddress = moveset.table.groupCancels.address + cancel.moveId * CANCEL_SIZE;
-    for (const groupCancel of parseCancelList(data, groupAddress, 0x8006)) {
-      const direction = groupCancel.command & 0xffff;
-      const buttons = (groupCancel.command >>> 16) & 0xff;
-      const flags = groupCancel.command >>> 24;
-      if (direction === 0x20 && flags === 0x20 && [1, 2, 4, 8].includes(buttons)) {
-        candidates.set(buttons, {
-          command: decodeT5Command(groupCancel.command),
-          move: parseMove(data, moveset, groupCancel.moveId),
-        });
-      }
+  for (const cancel of listStandingCommands(data, moveset)) {
+    const direction = cancel.command & 0xffff;
+    const buttons = (cancel.command >>> 16) & 0xff;
+    const flags = cancel.command >>> 24;
+    if (
+      direction === 0x20 &&
+      flags === 0x20 &&
+      [1, 2, 4, 8].includes(buttons) &&
+      !candidates.has(buttons)
+    ) {
+      candidates.set(buttons, {
+        command: cancel.commandLabel,
+        move: parseMove(data, moveset, cancel.moveId),
+      });
     }
   }
   return [1, 2, 4, 8].map((button) => {
@@ -471,13 +489,29 @@ export function listStandingCommands(data, moveset) {
   const standingMove = parseMove(data, moveset, standingMoveId);
   const commands = [];
 
-  for (const groupInvocation of standingMove.cancels) {
-    if (groupInvocation.command !== 0x8005) continue;
-    const groupIndex = groupInvocation.moveId;
+  for (const [standingCancelIndex, standingCancel] of standingMove.cancels.entries()) {
+    if (standingCancel.command === 0x8000) continue;
+    if (standingCancel.command !== 0x8005) {
+      commands.push(
+        describeCancelCommand(moveset, standingCancel, {
+          source: "direct",
+          schedulerOrder: commands.length,
+          standingCancelIndex,
+          groupIndex: null,
+          groupCancelIndex: null,
+          groupRequirementsAddress: null,
+        }),
+      );
+      continue;
+    }
+
+    const groupIndex = standingCancel.moveId;
     for (const command of listCancelGroup(data, moveset, groupIndex)) {
       commands.push({
-        groupRequirementsAddress: groupInvocation.requirementsAddress,
         ...command,
+        schedulerOrder: commands.length,
+        standingCancelIndex,
+        groupRequirementsAddress: standingCancel.requirementsAddress,
       });
     }
   }
@@ -490,23 +524,17 @@ export function listCancelGroup(data, moveset, groupIndex) {
     throw new Error(`Invalid cancel-group index: ${groupIndex}`);
   }
   const groupAddress = moveset.table.groupCancels.address + groupIndex * CANCEL_SIZE;
-  return parseCancelList(data, groupAddress, 0x8006)
-    .filter((cancel) => cancel.command !== 0x8006)
-    .map((cancel) => ({
-      groupIndex,
-      command: cancel.command,
-      commandLabel: decodeT5Command(cancel.command),
-      rawMoveId: cancel.moveId,
-      moveId: resolveMoveAlias(moveset, cancel.moveId),
-      requirementsAddress: cancel.requirementsAddress,
-      extradataAddress: cancel.extradataAddress,
-      extradataValue: cancel.extradataValue,
-      timelineMode: cancel.timelineMode,
-      detectionStart: cancel.detectionStart,
-      detectionEnd: cancel.detectionEnd,
-      startingFrame: cancel.startingFrame,
-      option: cancel.option,
-    }));
+  return parseCancelList(data, groupAddress, 0x8006).flatMap((cancel, groupCancelIndex) =>
+    cancel.command === 0x8006
+      ? []
+      : [
+          describeCancelCommand(moveset, cancel, {
+            source: "group",
+            groupIndex,
+            groupCancelIndex,
+          }),
+        ],
+  );
 }
 
 function optionValue(args, name) {
@@ -536,7 +564,11 @@ function compactMove(command, move) {
 
 function compactCommand(command) {
   return {
+    order: command.schedulerOrder ?? null,
+    source: command.source,
+    standing: command.standingCancelIndex ?? null,
     group: command.groupIndex,
+    groupEntry: command.groupCancelIndex,
     command: command.commandLabel,
     encoded: `0x${command.command.toString(16).padStart(8, "0")}`,
     move: command.moveId,
@@ -545,6 +577,10 @@ function compactCommand(command) {
     startFrame: command.startingFrame,
     option: `0x${command.option.toString(16)}`,
     requirements: `0x${command.requirementsAddress.toString(16)}`,
+    parentRequirements:
+      command.groupRequirementsAddress == null
+        ? null
+        : `0x${command.groupRequirementsAddress.toString(16)}`,
     extra:
       command.extradataValue === null
         ? null

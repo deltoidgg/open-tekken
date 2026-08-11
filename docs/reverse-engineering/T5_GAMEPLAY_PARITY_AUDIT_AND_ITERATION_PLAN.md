@@ -53,6 +53,7 @@ The following slices are measured from the PAL executable and documented:
 | jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`         |
 | d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`             |
 | d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`              |
+| command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`         | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`     |
 | animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
 | pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
 | world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
@@ -98,11 +99,13 @@ and wavedash feel crisp even when total displacement is already correct.
 
 ### 4. Command priority is only partially proven
 
-The first-frame singleton/chord contract and core sequences are covered, but the
-full PAL cancel scheduler, held/released requirements, simultaneous command
-priority, just-frame routing, and state-specific command groups are not yet one
-recovered model. Input leniency should not be widened to hide a state-transition
-error.
+The first-frame singleton/chord contract and core sequences are covered. One
+live shadow pair now proves that a direct move-220 cancel wins over the matching
+command in a later group-587 invocation, and the snapshot report preserves that
+order. The full PAL requirement evaluator, held/released requirements,
+simultaneous command priority, just-frame routing, and state-specific command
+groups are not yet one recovered model. Input leniency should not be widened to
+hide a state-transition error.
 
 ### 5. Contact cadence needs a broader end-to-end oracle
 
@@ -325,12 +328,12 @@ instead of retaining the reaction's 30-frame animation payload. Hit is exactly
 neutral; attacker control returns at frame 45 while its native pose continues
 through frame 55.
 
-Command-priority checkpoint: direct cancels on the current move must be audited
-before inherited group entries. Live neutral `d/b+4` uses the direct move-220
-route to move `461`; group `587` also advertises `d/b+4 -> 460`, but that lower
-priority route is shadowed. The command-report helper currently omits direct
-cancels, so its standing-command output is incomplete until that traversal and
-ordering are corrected.
+Command-priority checkpoint: live neutral `d/b+4` uses the direct move-220 route
+to move `461`; group `587` also advertises `d/b+4 -> 460`, but that later route
+is shadowed. The command report now flattens direct cancels and invoked groups
+in native move order, records source indices and provenance, and protects the
+duplicate-command order with a synthetic regression fixture. Full requirement
+evaluation remains open.
 
 ### Iteration C: Backdash/KBD
 

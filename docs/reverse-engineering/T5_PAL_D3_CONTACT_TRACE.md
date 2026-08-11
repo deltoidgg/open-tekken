@@ -108,12 +108,12 @@ Standing alias move `220` has a direct cancel with raw command `0x20080002` that
 routes neutral `d/b+4` to move `461`. Inherited group `587` also contains a
 `d/b+4` entry to move `460`, but the direct cancel wins in the live scheduler.
 
-The current command-report helper walks invoked groups and therefore omitted
-the higher-priority direct entry. Move `460` must not be treated as the live
-neutral `d/b+4` route. Direct and inherited cancel enumeration, ordering, and
-priority need a separate correction before that move becomes a parity slice.
-Unambiguous `d+3` was selected here so the first low exchange did not encode a
-known routing error.
+The command-report helper originally walked invoked groups and therefore
+omitted the higher-priority direct entry. It now emits direct and inherited
+cancels in native move order with explicit provenance; the paired live and
+static result is documented in `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`. Move `460`
+must not be treated as the live neutral `d/b+4` route. Unambiguous `d+3` was
+selected here so the first low exchange did not encode a known routing error.
 
 ## Implementation contract
 

@@ -161,7 +161,7 @@ test("decodes cancel extra-data timeline modes", () => {
   assert.equal(decodeCancelTimelineMode(0x060f), "preserve-if-compatible");
 });
 
-test("lists standing group-cancel commands and timing fields", () => {
+test("preserves direct-before-group standing cancel order and timing fields", () => {
   const data = Buffer.alloc(0x3000);
   const player = 0x20;
   const movesetAddress = 0x100;
@@ -183,13 +183,19 @@ test("lists standing group-cancel commands and timing fields", () => {
 
   data.writeUInt32LE(cancelAddress, moveAddress + 0x14);
   data.writeUInt32LE(hitAddress, moveAddress + 0x20);
-  data.writeUInt32LE(0x8005, cancelAddress);
+  data.writeUInt32LE(0x20080002, cancelAddress);
   data.writeUInt32LE(1, cancelAddress + 8);
-  data.writeUInt32LE(0x8000, cancelAddress + CANCEL_SIZE);
+  data.writeUInt16LE(1, cancelAddress + 16);
+  data.writeUInt16LE(255, cancelAddress + 18);
+  data.writeUInt16LE(1, cancelAddress + 20);
+  data.writeUInt16LE(0x50, cancelAddress + 22);
+  data.writeUInt32LE(0x8005, cancelAddress + CANCEL_SIZE);
+  data.writeUInt32LE(1, cancelAddress + CANCEL_SIZE + 8);
+  data.writeUInt32LE(0x8000, cancelAddress + CANCEL_SIZE * 2);
 
   const group = groupCancelAddress + CANCEL_SIZE;
-  data.writeUInt32LE(0x20010020, group);
-  data.writeUInt32LE(1, group + 8);
+  data.writeUInt32LE(0x20080002, group);
+  data.writeUInt32LE(0, group + 8);
   data.writeUInt16LE(2, group + 16);
   data.writeUInt16LE(14, group + 18);
   data.writeUInt16LE(10, group + 20);
@@ -199,12 +205,38 @@ test("lists standing group-cancel commands and timing fields", () => {
   const commands = listStandingCommands(data, parseMoveset(data, player));
 
   assert.deepEqual(commands[0], {
-    groupIndex: 1,
-    groupRequirementsAddress: 0,
-    command: 0x20010020,
-    commandLabel: "n+1",
+    source: "direct",
+    schedulerOrder: 0,
+    standingCancelIndex: 0,
+    groupIndex: null,
+    groupCancelIndex: null,
+    groupRequirementsAddress: null,
+    cancelAddress,
+    command: 0x20080002,
+    commandLabel: "db+4",
     rawMoveId: 1,
     moveId: 1,
+    requirementsAddress: 0,
+    extradataAddress: 0,
+    extradataValue: null,
+    timelineMode: null,
+    detectionStart: 1,
+    detectionEnd: 255,
+    startingFrame: 1,
+    option: 0x50,
+  });
+  assert.deepEqual(commands[1], {
+    source: "group",
+    groupIndex: 1,
+    groupCancelIndex: 0,
+    cancelAddress: group,
+    schedulerOrder: 1,
+    standingCancelIndex: 1,
+    groupRequirementsAddress: 0,
+    command: 0x20080002,
+    commandLabel: "db+4",
+    rawMoveId: 0,
+    moveId: 0,
     requirementsAddress: 0,
     extradataAddress: 0,
     extradataValue: null,
@@ -214,7 +246,7 @@ test("lists standing group-cancel commands and timing fields", () => {
     startingFrame: 10,
     option: 0x50,
   });
-  assert.equal(listCancelGroup(data, parseMoveset(data, player), 1)[0].commandLabel, "n+1");
+  assert.equal(listCancelGroup(data, parseMoveset(data, player), 1)[0].commandLabel, "db+4");
 });
 
 test("parses hit reactions and derives grounded frame advantage", () => {
