@@ -70,6 +70,46 @@ RAM mirror. Inspect the live Jin neutral basics with:
 node tools/t5-rom/inspect-ee-snapshot.mjs /path/to/pcsx2-ee.bin --neutral
 ```
 
+## Trace live player timelines
+
+Capture both `0x8D0`-byte player structs at high frequency while PCSX2 is
+running. The optional trigger is generated inside the capture process so its
+timing is not serialized behind a separate shell command:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  tools/t5-rom/trace-pcsx2-players.ps1 `
+  -OutputPath C:\temp\t5-jab.bin `
+  -DurationMilliseconds 5000 `
+  -SampleRate 1000 `
+  -TriggerVirtualKey 0x55 `
+  -TriggerAtMilliseconds 1000 `
+  -TriggerHoldMilliseconds 100
+```
+
+`0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
+the measured setup. The trace stores monotonic timestamps followed by complete
+P1 and P2 snapshots; it never writes to emulated memory. Inspect player-frame,
+move-ID, and `player+0x2B6` transitions with:
+
+```sh
+node tools/t5-rom/inspect-player-trace.mjs /path/to/t5-jab.bin
+```
+
+Add `--json` for machine-readable transition records. Use the standalone pulse
+helper when a polled pad input must span several PCSX2 input polls without a
+trace:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  tools/t5-rom/pulse-pcsx2-key.ps1 `
+  -VirtualKey 0x55 `
+  -HoldMilliseconds 100
+```
+
+`-ReleaseOnly` sends a repair key-up if a debugger pause interrupted a pulse.
+Both helpers guarantee key release through a `finally` path.
+
 Dump every command reachable through the standing group-cancel graph, including
 its input-detection window and child starting frame, with:
 
