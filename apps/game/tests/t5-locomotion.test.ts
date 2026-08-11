@@ -6,6 +6,9 @@ import {
   T5_JIN_LOCOMOTION_223,
   T5_JIN_LOCOMOTION_224,
   T5_JIN_LOCOMOTION_230,
+  T5_JIN_LOCOMOTION_231,
+  T5_JIN_LOCOMOTION_232,
+  T5_JIN_LOCOMOTION_233,
   T5_JIN_LOCOMOTION_234,
   T5_JIN_LOCOMOTION_241,
   T5_JIN_LOCOMOTION_242,
@@ -62,6 +65,12 @@ function accumulatedSide(
     total += t5SidestepRootDelta(direction, phase, frame)[0];
   }
   return total;
+}
+
+function startBackdash(sim: ReturnType<typeof fightSim>): void {
+  sim.step(pad({ dx: -1 }), pad());
+  sim.step(pad(), pad());
+  sim.step(pad({ dx: -1 }), pad());
 }
 
 describe("Tekken 5 PAL locomotion roots", () => {
@@ -166,6 +175,22 @@ describe("Tekken 5 PAL locomotion roots", () => {
       T5_JIN_LOCOMOTION_230.rootOffsets.at(-1)![2],
       9,
     );
+  });
+
+  it("resolves all four PAL backdash shells without changing the shared root curve", () => {
+    for (const animation of [
+      T5_JIN_LOCOMOTION_230,
+      T5_JIN_LOCOMOTION_231,
+      T5_JIN_LOCOMOTION_232,
+      T5_JIN_LOCOMOTION_233,
+    ]) {
+      expect(t5LocomotionPhase("backdash", 1, false, animation.romMoveId)).toMatchObject({
+        animation: { romMoveId: animation.romMoveId },
+        actionFrame: 1,
+        transfersRoot: true,
+      });
+      expect(animation.rootOffsets.at(-1)).toEqual(T5_JIN_LOCOMOTION_230.rootOffsets.at(-1));
+    }
   });
 
   it("uses PAL move 524 for the complete crouch-dash curve", () => {
@@ -333,14 +358,84 @@ describe("Tekken 5 PAL locomotion roots", () => {
   it("plays the complete 35-frame backdash curve", () => {
     const sim = fightSim(8);
     const fighter = sim.gs.fighters[0];
-    sim.step(pad({ dx: -1 }), pad());
-    sim.step(pad(), pad());
-    sim.step(pad({ dx: -1 }), pad());
+    startBackdash(sim);
     const startX = fighter.pos.x;
-    run(sim, 34);
+    sim.step(pad(), pad());
+
+    expect(fighter).toMatchObject({
+      action: "backdash",
+      actionFrame: 2,
+      t5BackdashMoveId: 233,
+    });
+
+    run(sim, 33);
 
     expect(fighter.action).toBe("idle");
-    expect(fighter.pos.x - startX).toBeCloseTo(T5_JIN_LOCOMOTION_230.rootOffsets.at(-1)![2], 6);
+    expect(fighter.pos.x - startX).toBeCloseTo(
+      T5_JIN_LOCOMOTION_230.rootOffsets.at(-1)![2] - T5_JIN_LOCOMOTION_230.rootOffsets[0]![2],
+      6,
+    );
+  });
+
+  it("selects PAL close and far backdash branches from fighter distance", () => {
+    const close = fightSim(1);
+    const far = fightSim(4);
+
+    startBackdash(close);
+    startBackdash(far);
+
+    expect(close.gs.fighters[0]).toMatchObject({
+      action: "backdash",
+      actionFrame: 1,
+      t5BackdashMoveId: 230,
+    });
+    expect(far.gs.fighters[0]).toMatchObject({
+      action: "backdash",
+      actionFrame: 1,
+      t5BackdashMoveId: 232,
+    });
+  });
+
+  it("preserves the source frame when close and far backdashes are released", () => {
+    const close = fightSim(1);
+    const far = fightSim(4);
+
+    startBackdash(close);
+    startBackdash(far);
+    close.step(pad(), pad());
+    run(far, 6, { dx: -1 });
+    far.step(pad(), pad());
+
+    expect(close.gs.fighters[0]).toMatchObject({ actionFrame: 2, t5BackdashMoveId: 231 });
+    expect(far.gs.fighters[0]).toMatchObject({ actionFrame: 8, t5BackdashMoveId: 233 });
+  });
+
+  it("hands a completed held backdash to native back walk", () => {
+    const sim = fightSim(4);
+    startBackdash(sim);
+
+    run(sim, 34, { dx: -1 });
+
+    expect(sim.gs.fighters[0]).toMatchObject({ action: "walkB", actionFrame: 0 });
+  });
+
+  it("cancels b,b into crouch-back on the frame after backdash frame 1", () => {
+    const sim = fightSim(4);
+    const fighter = sim.gs.fighters[0];
+    startBackdash(sim);
+    const xAtBackdashFrame1 = fighter.pos.x;
+
+    sim.step(pad({ dx: -1, dy: -1 }), pad());
+
+    expect(fighter).toMatchObject({
+      action: "crouch",
+      actionFrame: 1,
+      t5CrouchMoveId: 255,
+    });
+    expect(fighter.pos.x - xAtBackdashFrame1).toBeCloseTo(
+      T5_JIN_LOCOMOTION_255.rootOffsets[0]![2],
+      6,
+    );
   });
 
   it("enters the native run shell from held dash frame 12", () => {

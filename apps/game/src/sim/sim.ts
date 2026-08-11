@@ -83,6 +83,7 @@ export interface FighterSnap {
   t5AirTrajectoryFrame: FighterState["t5AirTrajectoryFrame"];
   t5AirTrajectoryOrigin: FighterState["t5AirTrajectoryOrigin"];
   t5JumpMoveId: FighterState["t5JumpMoveId"];
+  t5BackdashMoveId: FighterState["t5BackdashMoveId"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
 
@@ -526,6 +527,11 @@ export class Sim {
         return;
     }
 
+    if (f.action === "backdash" && f.actionFrame >= T.backdashCancelFrame && inp.dir === "db") {
+      this.enterCrouch(f, 255);
+      return;
+    }
+
     const motions = inp.motions.filter((m) => inp.frame - m.frame <= 2);
     for (const m of motions) {
       if (m.motion === "cd" && (f.action !== "CD" || m.frame === inp.frame)) {
@@ -540,7 +546,14 @@ export class Sim {
         return;
       }
       if (m.motion === "bb" && f.action !== "backdash") {
+        const distance = dist2D(
+          f.pos.x,
+          f.pos.z,
+          this.gs.fighters[f.id === 0 ? 1 : 0].pos.x,
+          this.gs.fighters[f.id === 0 ? 1 : 0].pos.z,
+        );
         this.setAction(f, "backdash", T.backdashFrames);
+        f.t5BackdashMoveId = distance <= T.backdashCloseDistance ? 230 : 232;
         this.emit({ type: "backdash", pos: { ...f.pos }, fighter: f.id });
         return;
       }
@@ -846,6 +859,7 @@ export class Sim {
       f.t5AirTrajectoryOrigin = [0, 0, 0];
     }
     if (a !== "jump") f.t5JumpMoveId = 21;
+    if (a !== "backdash") f.t5BackdashMoveId = 230;
     if (a !== "crouch") f.crouching = false;
   }
 
@@ -1154,12 +1168,15 @@ export class Sim {
         break;
       }
       case "backdash": {
-        this.applyT5Locomotion(f);
-        if (f.actionFrame >= T.backdashCancelFrame && inp.dir === "db") {
-          this.enterCrouch(f, 255);
-          break;
+        const holdingBack = DIR_HAS_B[inp.dir];
+        if (!holdingBack) {
+          if (f.t5BackdashMoveId === 230) f.t5BackdashMoveId = 231;
+          if (f.t5BackdashMoveId === 232) f.t5BackdashMoveId = 233;
         }
-        if (f.actionFrame >= T.backdashFrames) this.setAction(f, "idle", 0);
+        this.applyT5Locomotion(f);
+        if (f.actionFrame >= T.backdashFrames) {
+          this.setAction(f, holdingBack ? "walkB" : "idle", 0);
+        }
         break;
       }
       case "ss": {
@@ -2455,6 +2472,7 @@ export class Sim {
   }
 
   private t5NativeLocomotionMoveId(f: FighterState): number {
+    if (f.action === "backdash") return f.t5BackdashMoveId;
     return f.action === "jump" ? f.t5JumpMoveId : f.t5CrouchMoveId;
   }
 
@@ -2732,6 +2750,7 @@ export class Sim {
       t5AirTrajectoryFrame: f.t5AirTrajectoryFrame,
       t5AirTrajectoryOrigin: f.t5AirTrajectoryOrigin,
       t5JumpMoveId: f.t5JumpMoveId,
+      t5BackdashMoveId: f.t5BackdashMoveId,
       t5PoseTail: f.t5PoseTail,
     });
     this.replay.push({ fighters: [snap(this.gs.fighters[0]), snap(this.gs.fighters[1])] });

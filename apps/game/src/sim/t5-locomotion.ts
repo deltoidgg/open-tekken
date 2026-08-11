@@ -87,8 +87,15 @@ export function t5LocomotionPhase(
     }
     case "dash":
       return { animation: t5JinLocomotionAnimation(224), actionFrame, transfersRoot: true };
-    case "backdash":
-      return { animation: t5JinLocomotionAnimation(230), actionFrame, transfersRoot: true };
+    case "backdash": {
+      const moveId =
+        nativeMoveId === 230 || nativeMoveId === 231 || nativeMoveId === 232 || nativeMoveId === 233
+          ? nativeMoveId
+          : released
+            ? 231
+            : 230;
+      return { animation: t5JinLocomotionAnimation(moveId), actionFrame, transfersRoot: true };
+    }
     case "crouch": {
       const moveId = nativeMoveId ?? 254;
       const animation = t5JinLocomotionAnimation(moveId);

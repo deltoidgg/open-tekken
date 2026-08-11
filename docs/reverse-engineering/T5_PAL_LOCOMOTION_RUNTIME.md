@@ -1,7 +1,7 @@
 # Tekken 5 PAL locomotion runtime
 
-Status: first idle, walk, dash, backdash, run, crouch, rising, crouch-dash,
-sidestep, and sidewalk slice implemented. Updated 2026-08-10.
+Status: first idle, walk, dash, backdash/KBD, run, crouch, rising, crouch-dash,
+sidestep, and sidewalk slice implemented. Updated 2026-08-11.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3.
@@ -16,18 +16,19 @@ Surface refresh rate: 59.997 hz
 UpdateVSyncRate: Mode Changed to PAL
 ```
 
-The active PCSX2 configuration sets `FrameratePAL = 50`. The reference game
-therefore advances one gameplay frame every 20 ms even though the host surface
-refreshes near 60 Hz.
+The active PCSX2 configuration sets `FrameratePAL = 50`, but direct player
+traces show the player-frame counter advancing six times per five VBlanks. The
+reference therefore consumes authored gameplay frames at 60 Hz while presenting
+PAL video at 50 Hz.
 
-The clone now uses a fixed 50 Hz gameplay accumulator and interpolates rendering
-at the host refresh rate. Its round timer, intro gates, and replay duration use
-the same clock. Frame-authored move data is not rescaled: i10 still means ten
-integer gameplay ticks, now matching the reference wall-clock duration.
+The clone uses a fixed 60 Hz gameplay accumulator and interpolates rendering at
+the host refresh rate. Its round timer, intro gates, and replay duration use the
+same player clock. Frame-authored move data is not rescaled: i10 remains ten
+integer player ticks.
 
 Unmapped clone ballistics retain their old per-frame integration temporarily.
 Native reactions and locomotion bypass that fallback and consume one generated
-sample per PAL tick.
+sample per player tick.
 
 ## Standing movement graph
 
@@ -42,10 +43,12 @@ contains the universal movement entries below:
 | special `0x8002` | 230 or 232 |   `0x020F` | double back    |
 
 The two double-back entries are requirement branches. Old requirement `32`
-maps to the known distance-`<=` predicate with parameter 1,800 native units.
-Old requirement `33` maps to distance-`>=`; that branch also checks requirement
-`163` with parameter 1. Moves `230` and `232` share the same animation, so this
-unresolved branch does not change the root curve in the current slice.
+maps to the known distance-`<=` predicate with parameter 1,800 native units and
+selects move `230`. Old requirement `33` maps to distance-`>=`; that branch also
+checks requirement `163` with parameter 1 and selects move `232`. Live close/far
+captures confirm both shell routes. Moves `230` and `232` share the same
+animation, so the branch changes state ownership without changing the root
+curve.
 
 Extra data `0x020F` enters the executable path that enables animation-root
 transfer. This differs from the `0x0184` standing-attack transition, whose large
@@ -91,21 +94,21 @@ forward. That vertical value shapes the posed collision body; it is not applied
 as stage-plane movement. The complete curve and its input-state provenance are
 recorded in `T5_PAL_CROUCH_DASH_RUNTIME.md`.
 
-At the PAL clock, complete-cycle average speeds are approximately:
+At the 60 Hz player clock, complete-cycle average speeds are approximately:
 
 | Cycle                          | Average speed |
 | ------------------------------ | ------------: |
-| forward start                  |     1.663 m/s |
-| forward continuation           |     1.452 m/s |
-| backward start                 |     0.723 m/s |
-| backward continuation          |     0.635 m/s |
-| crouch dash                    |     3.418 m/s |
-| crouch-forward start           |     0.641 m/s |
-| crouch-forward continuation    |     0.616 m/s |
-| run entry                      |     4.890 m/s |
-| run continuation               |     5.585 m/s |
-| positive sidewalk continuation |     1.560 m/s |
-| negative sidewalk continuation |     1.554 m/s |
+| forward start                  |     1.996 m/s |
+| forward continuation           |     1.743 m/s |
+| backward start                 |     0.868 m/s |
+| backward continuation          |     0.762 m/s |
+| crouch dash                    |     4.101 m/s |
+| crouch-forward start           |     0.769 m/s |
+| crouch-forward continuation    |     0.739 m/s |
+| run entry                      |     5.868 m/s |
+| run continuation               |     6.702 m/s |
+| positive sidewalk continuation |     1.872 m/s |
+| negative sidewalk continuation |     1.865 m/s |
 
 Dash and backdash averages are less useful because their direction changes and
 cancels occur before the full animation ends.
@@ -124,6 +127,11 @@ back release:    227 -> 228 -> stand
 
 dash release:    224 -> 225 -> stand
 dash held:       224 frame 12 -> 17
+
+close backdash:  230 -N, preserve frame-> 231 -> stand
+far backdash:    232 -N, preserve frame-> 233 -> stand
+held backdash:   230/232 frame 35 -> 227
+KBD cancel:      230/232 frame 1 -db-> 255 frame 1
 
 run:             17 -> 18 -> 19 -> 20 -> 19 -> 20 ...
 
@@ -144,8 +152,11 @@ loop release:                                -> 1078/1079 -> stand
 
 The first walk release uses the target shell at the preserved local frame and
 finishes the cycle instead of snapping to idle. Releasing after the continuation
-loop has begun follows its direct stand transition. Backdash always completes
-its 35-frame root curve in this first slice.
+loop has begun follows its direct stand transition. Backdash release likewise
+preserves the source timeline in paired close/far shells. Holding back through
+frame 35 enters move `227`; `d/b` after source frame 1 truncates the backdash and
+publishes move `255` frame 1 on the next player tick. The complete evidence is in
+`T5_PAL_BACKDASH_KBD_RUNTIME.md`.
 
 The crouch alias, neutral lowering/rising poses, directional variants, and root
 ownership are recorded in `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`.
@@ -206,7 +217,9 @@ Focused tests verify:
 - the `17 -> 18 -> 19 -> 20` run graph;
 - logical-root transfer in the full simulation;
 - forward release through move `672`;
-- the complete 35-frame backdash;
+- all four close/far and held/released backdash shells;
+- the complete 35-frame backdash root and held-back walk handoff;
+- first-frame `d/b` cancellation into move `255` without stale root transfer;
 - held dash entering run at frame 12;
 - the complete move-524 crouch-dash curve and crouch handoff;
 - a fresh wavedash input restarting move 524 without stale-event resets;
@@ -221,13 +234,13 @@ Focused tests verify:
 ## Remaining uncertainties
 
 1. Decode requirement `97` and reproduce the conditional dash self-branch.
-2. Decode requirement `163` and the behavioral difference between backdash
-   shells `230` and `232`, if any beyond flags/recovery ownership.
+2. Decode requirement `163` and any behavioral difference between backdash
+   shells `230` and `232` beyond the confirmed distance branch and state flags.
 3. Verify the remaining attack, guard, and crouch cancel frames during each
    shell. Sidestep's generic attack gate is recovered at source frame 6, but
    passive guard collision order and character-specific directional cancels
-   remain incomplete. The clone's backdash attack-cancel frame 8 is still
-   provisional.
+   remain incomplete. Backdash movement and ordinary attack arbitration now
+   begin at source frame 1; passive guard and route precedence remain open.
 4. Recover move-524 tech-crouch, guard, and cancel precedence, plus exact
    repeated-wavedash blend/root compensation.
 5. Decode sidestep requirements `111/112/115/116/172`, special input commands
@@ -240,7 +253,6 @@ Focused tests verify:
    collision, and logical displacement share one source. Jump root height is
    already rendered, but its limb pose remains procedural.
 
-Controlled live traces should record input edge, current move, player frame,
-logical root, render root, root-transfer flag, and all eight body-sphere centres.
-The Computer connector could not retain its interaction context during this
-pass, so no unsupported UI-input fallback was used.
+Future controlled traces should add logical root, render root, root-transfer
+flag, and all eight body-sphere centres to the input edge, current move, and
+player frame already captured in the backdash/KBD slice.

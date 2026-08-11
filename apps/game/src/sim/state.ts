@@ -169,6 +169,10 @@ export interface FighterState {
   /** PAL jump, jump-abort, or directional jump move supplying the current shell. */
   t5JumpMoveId: number;
 
+  // backdash
+  /** PAL close/far backdash or paired neutral-release move supplying the current shell. */
+  t5BackdashMoveId: 230 | 231 | 232 | 233;
+
   // ground
   groundState: GroundState;
   downFrames: number;
@@ -299,6 +303,7 @@ export function createFighter(id: 0 | 1): FighterState {
     t5CrouchMoveId: 234,
     risingLeft: 0,
     t5JumpMoveId: 21,
+    t5BackdashMoveId: 230,
     groundState: "FUFA",
     downFrames: 0,
     comboHits: 0,

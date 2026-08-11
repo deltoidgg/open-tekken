@@ -212,6 +212,7 @@ export class SceneRenderer {
           t5AirTrajectoryFrame: s.t5AirTrajectoryFrame,
           t5AirTrajectoryOrigin: s.t5AirTrajectoryOrigin,
           t5JumpMoveId: s.t5JumpMoveId,
+          t5BackdashMoveId: s.t5BackdashMoveId,
           t5PoseTail: s.t5PoseTail,
           t5RootFace: s.t5RootFace,
           pos: { x: s.x, y: s.y, z: s.z },

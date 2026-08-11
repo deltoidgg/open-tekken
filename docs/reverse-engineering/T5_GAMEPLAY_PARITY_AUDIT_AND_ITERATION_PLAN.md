@@ -341,6 +341,14 @@ Scope: `b,b`, early `db` cancel, guard windows, repeated chain, native root tail
 and body push. This targets the movement signature an experienced Tekken player
 will notice immediately.
 
+First checkpoint: live close/far traces confirm the 1.8 m branch into moves
+`230` and `232`, neutral swaps to paired shells `231` and `233` without resetting
+the source frame, and holding through frame 35 enters back walk `227`. A canonical
+`b,b,d/b` publishes backdash frame 1 followed by crouch-back move `255` frame 1;
+the clone now matches that publication and root-transfer boundary instead of
+waiting until the former provisional frame 8. Repeated-chain and passive-guard
+measurements remain the next scope.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing
