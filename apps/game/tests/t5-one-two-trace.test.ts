@@ -116,7 +116,7 @@ describe("Tekken 5 PAL live Jin 1,2 trace", () => {
     expect(defender.t5PoseTail).toBeNull();
   });
 
-  it("restarts standing block reaction 336 and recovers at listed zero", () => {
+  it("switches from parent block reaction 336 to child reaction 371 at listed zero", () => {
     const sim = runToOneTwoSecondPublication({ dx: -1 });
     const [attacker, defender] = sim.gs.fighters;
 
@@ -126,7 +126,7 @@ describe("Tekken 5 PAL live Jin 1,2 trace", () => {
       action: "blockstun",
       actionFrame: 1,
       actionTotal: 19,
-      t5ReactionMoveId: 336,
+      t5ReactionMoveId: 371,
       t5ImpactCounter: 0,
       hitstop: 0,
       hp: 145,
@@ -141,17 +141,60 @@ describe("Tekken 5 PAL live Jin 1,2 trace", () => {
     expect(defender.t5PoseTail).toMatchObject({
       actionFrame: 19,
       actionTotal: 30,
-      t5ReactionMoveId: 336,
+      t5ReactionMoveId: 371,
     });
   });
 
-  it("has native 30-frame normal and counter-hit reaction shells", () => {
+  it("publishes a second-punch counter hit as reaction 790 without freezing", () => {
+    // Reproduce the live capture's retained spacing: jab whiffs, longer right punch connects.
+    const sim = fightSim(2.5);
+    const defender = sim.gs.fighters[1];
+    Object.assign(defender, {
+      action: "attack",
+      actionFrame: 0,
+      actionTotal: 47,
+      moveId: "jin.123",
+      hitResolved: [false],
+    });
+
+    sim.step(pad({ btns: B1 }), pad());
+    sim.step(pad({ btns: B2 }), pad());
+    run(sim, 8);
+    sim.step(pad(), pad());
+    expect(defender).toMatchObject({ action: "attack", hp: 145 });
+
+    run(sim, 9);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.12", actionFrame: 10 });
+    sim.step(pad(), pad());
+
+    expect(sim.gs.events.map((event) => event.type)).toEqual(["ch"]);
+    expect(sim.gs.fighters[0]).toMatchObject({ actionFrame: 11, hitstop: 0 });
+    expect(defender).toMatchObject({
+      action: "hitstun",
+      actionFrame: 1,
+      actionTotal: 28,
+      t5ReactionMoveId: 790,
+      t5ImpactCounter: 13,
+      hitstop: 0,
+      hp: 131,
+    });
+
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0].actionFrame).toBe(12);
+    expect(defender).toMatchObject({ actionFrame: 2, t5ImpactCounter: 12 });
+  });
+
+  it("has native 30-frame normal, block, and counter-hit reaction shells", () => {
     expect(t5JinReactionAnimation(370)).toMatchObject({
       romMoveId: 370,
       animationLength: 30,
     });
     expect(t5JinReactionAnimation(790)).toMatchObject({
       romMoveId: 790,
+      animationLength: 30,
+    });
+    expect(t5JinReactionAnimation(371)).toMatchObject({
+      romMoveId: 371,
       animationLength: 30,
     });
   });

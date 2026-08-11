@@ -18397,6 +18397,13 @@ export const T5_JIN_REACTION_370 = {
   hurtSphereCenters: T5_JIN_REACTION_ANIMATION_60C08E_HURT_SPHERE_CENTERS,
 } as const satisfies T5NativeReactionAnimationDef;
 
+export const T5_JIN_REACTION_371 = {
+  romMoveId: 371,
+  animationLength: 30,
+  rootOffsets: T5_JIN_REACTION_ANIMATION_602BC6_ROOT_OFFSETS,
+  hurtSphereCenters: T5_JIN_REACTION_ANIMATION_602BC6_HURT_SPHERE_CENTERS,
+} as const satisfies T5NativeReactionAnimationDef;
+
 export const T5_JIN_REACTION_401 = {
   romMoveId: 401,
   animationLength: 45,
@@ -18567,6 +18574,7 @@ export const T5_JIN_REACTION_ANIMATIONS = {
   163: T5_JIN_REACTION_163,
   336: T5_JIN_REACTION_336,
   370: T5_JIN_REACTION_370,
+  371: T5_JIN_REACTION_371,
   401: T5_JIN_REACTION_401,
   463: T5_JIN_REACTION_463,
   499: T5_JIN_REACTION_499,

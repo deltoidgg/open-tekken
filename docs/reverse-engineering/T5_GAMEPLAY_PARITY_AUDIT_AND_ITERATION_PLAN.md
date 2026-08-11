@@ -106,11 +106,12 @@ error.
 
 Startup alone is insufficient. Jin's neutral `1` now has one golden state trace
 through contact publication, impact-state ownership, stun, pushback, actionable
-recovery, and the native pose tail. The normal-hit `1,2` transition now also has
-a live golden trace through both contacts, reaction replacement, recovery, and
-native tails. Direct `1,2` block/CH traces, camera response, and audio/VFX timing
-remain open, and the same complete contract must expand to `d/f+1` and one low
-instead of becoming a collection of unrelated timing assertions.
+recovery, and the native pose tail. The `1,2` transition now also has live normal,
+stand-guard, and child-counter traces through contact publication, reaction
+replacement, and native tails. Direct actionable probes, camera response, and
+audio/VFX timing remain open, and the same complete contract must expand to
+`d/f+1` and one low instead of becoming a collection of unrelated timing
+assertions.
 
 ### 6. Defense and lateral evasion are incomplete
 
@@ -298,8 +299,10 @@ Phase-3 checkpoint: Jin `1,2` now settles move `334` before handing ownership to
 move `368`, publishes both active-frame-10 contacts on their following player
 states, replaces reaction `783` with `370`, and preserves the move-368 and
 reaction pose tails independently of the `+8`/`0` control boundaries. Normal hit
-is live-measured. Block and counter-hit details retain inferred/ROM provenance
-until dedicated captures close those cells.
+and stand guard are live-measured, including the move-specific child block shell
+`371`. A second-hit-only counter trace confirms reaction `790`, 14 damage, impact
+counter 13, and continuous timelines. Actionable boundaries retain ROM
+provenance until live interruption probes close that layer.
 
 ### Iteration C: Backdash/KBD
 
