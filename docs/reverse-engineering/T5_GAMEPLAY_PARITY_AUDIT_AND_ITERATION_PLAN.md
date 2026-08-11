@@ -51,6 +51,7 @@ The following slices are measured from the PAL executable and documented:
 | clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
 | pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
 | jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`         |
+| d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`             |
 | animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
 | pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
 | world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
@@ -108,10 +109,11 @@ Startup alone is insufficient. Jin's neutral `1` now has one golden state trace
 through contact publication, impact-state ownership, stun, pushback, actionable
 recovery, and the native pose tail. The `1,2` transition now also has live normal,
 stand-guard, and child-counter traces through contact publication, reaction
-replacement, and native tails. Direct actionable probes, camera response, and
-audio/VFX timing remain open, and the same complete contract must expand to
-`d/f+1` and one low instead of becoming a collection of unrelated timing
-assertions.
+replacement, and native tails. Jin `d/f+1` now has the same whiff, stand-guard,
+normal, and counter-hit coverage, including its no-freeze cadence, `693` / `803`
+/ `806` reactions, and 48-frame attack shell. Direct actionable probes, the
+shared pre-contact guard prime, camera response, audio/VFX timing, and one low
+remain open.
 
 ### 6. Defense and lateral evasion are incomplete
 
@@ -303,6 +305,15 @@ and stand guard are live-measured, including the move-specific child block shell
 `371`. A second-hit-only counter trace confirms reaction `790`, 14 damage, impact
 counter 13, and continuous timelines. Actionable boundaries retain ROM
 provenance until live interruption probes close that layer.
+
+Phase-3 checkpoint: Jin `d/f+1` publishes active frame 13 on move `469` frame
+14 for block, normal hit, and counter hit without freezing either timeline.
+The outcomes select reactions `693`, `806`, and `803` respectively; normal and
+counter damage produce impact counters 11 and 13. Control returns at recovery
+34 while the attacker pose continues through native frame 48. Defender control
+and pose ownership reproduce `-2` block and `+9` hit/CH with 19- and 30-frame
+recovery shells. The one-frame generic guard shell `227` observed before a
+published block remains part of the shared guard-prime follow-up.
 
 ### Iteration C: Backdash/KBD
 

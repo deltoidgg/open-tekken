@@ -51,12 +51,13 @@ import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orien
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
-const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12"]);
-const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12"]);
-const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 371, 780, 783, 790]);
+const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1"]);
+const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12", "jin.df1"]);
+const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 371, 693, 780, 783, 790, 803, 806]);
 const T5_STANDING_BLOCK_REACTIONS = new Map([
   ["jin.1", 336],
   ["jin.12", 371],
+  ["jin.df1", 693],
 ]);
 
 export interface ReplaySnap {
@@ -876,7 +877,7 @@ export class Sim {
     const moveId = fighter.t5ReactionMoveId;
     const animation = t5JinReactionAnimation(moveId);
     if (moveId === null || !T5_MEASURED_REACTION_TAILS.has(moveId) || !animation) return false;
-    if (fighter.actionFrame >= animation.animationLength) return false;
+    if (fighter.actionFrame > animation.animationLength) return false;
     fighter.t5PoseTail = this.captureT5PoseTail(fighter, animation.animationLength);
     return true;
   }

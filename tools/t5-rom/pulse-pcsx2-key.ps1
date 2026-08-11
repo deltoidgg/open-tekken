@@ -32,6 +32,9 @@ public static class Tekken5Pcsx2KeyPulseNative
     private static extern bool SetForegroundWindow(IntPtr window);
 
     [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
     private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
 
     private static IntPtr FindWindow(string title)
@@ -60,7 +63,7 @@ public static class Tekken5Pcsx2KeyPulseNative
         {
             throw new InvalidOperationException("Could not find window: " + title);
         }
-        if (!SetForegroundWindow(window))
+        if (GetForegroundWindow() != window && !SetForegroundWindow(window))
         {
             throw new InvalidOperationException("Could not activate window: " + title);
         }
