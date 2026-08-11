@@ -27,6 +27,9 @@ export const JIN_HURT_SPHERE_NODES = Object.freeze([
 
 const OBJECT_POINTER_OFFSET = 0x894;
 const OBJECT_SKELETON_POINTER_OFFSET = 0x20;
+const OBJECT_STATIC_CORRECTION_POINTER_OFFSET = 0x3c;
+const STATIC_CORRECTION_RECORD_COUNT = 27;
+const STATIC_CORRECTION_RECORD_SIZE = 0x40;
 const ANIMATION_FRAME_OFFSET = 0x96;
 const CURRENT_MOVE_OFFSET = 0x158;
 const LOCAL_MATRIX_OFFSET = 0;
@@ -123,6 +126,33 @@ function crossVectors(a, b) {
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
+/** Applies the PAL node-local correction and row orthonormalization. */
+export function applyT5StaticCorrection(localRotation, correctionBasis, weight) {
+  if (!Number.isFinite(weight)) throw new Error("T5 static correction weight must be finite");
+  const first = normalizeVector(
+    addVectors(localRotation[0], scaleVector(correctionBasis[0], weight)),
+  );
+  const secondInput = addVectors(localRotation[1], scaleVector(correctionBasis[1], weight));
+  const second = normalizeVector(rejectVector(secondInput, first));
+  return [first, second, crossVectors(first, second)];
+}
+
+/** The native pass leaves node 0 untouched and conditionally corrects nodes 1..21. */
+export function applyT5StaticCorrectionPass(localRotations, correctionBasis, gate, weight) {
+  const corrected = localRotations.map((matrix) => matrix.map((row) => [...row]));
+  if (gate === 0) return corrected;
+  if (corrected.length < JIN_SKELETON_NODE_COUNT) {
+    throw new Error(`T5 static correction requires ${JIN_SKELETON_NODE_COUNT} local matrices`);
+  }
+  if (correctionBasis.length < JIN_SKELETON_NODE_COUNT) {
+    throw new Error(`T5 static correction requires ${JIN_SKELETON_NODE_COUNT} basis records`);
+  }
+  for (let node = 1; node < JIN_SKELETON_NODE_COUNT; node++) {
+    corrected[node] = applyT5StaticCorrection(corrected[node], correctionBasis[node], weight);
+  }
+  return corrected;
+}
+
 function rejectVector(vector, axis) {
   return subtractVectors(vector, scaleVector(axis, dotVectors(vector, axis)));
 }
@@ -181,22 +211,17 @@ export function deriveJinTorsoRetarget(
   return { node1LocalRotation, node2LocalRotation };
 }
 
-function quaternionToRowMatrix(quaternion) {
+export function t5QuaternionToRuntimeLocalMatrix(quaternion) {
   const [x, y, z, w] = quaternion;
-  const columnMatrix = [
+  return [
     [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
   ];
-  return transposeMatrix3(columnMatrix);
 }
 
-function tripletToRowMatrix(triplet) {
-  return quaternionToRowMatrix(t5RotationTripletToQuaternion(triplet));
-}
-
-function tripletToRuntimeLocalMatrix(triplet) {
-  return transposeMatrix3(tripletToRowMatrix(triplet));
+export function t5RotationTripletToRuntimeLocalMatrix(triplet) {
+  return t5QuaternionToRuntimeLocalMatrix(t5RotationTripletToQuaternion(triplet));
 }
 
 function readRotationMatrix(data, address) {
@@ -277,6 +302,29 @@ export class JinPoseDeriver {
       JIN_SKELETON_NODE_COUNT * JIN_SKELETON_NODE_SIZE,
       "Jin skeleton",
     );
+    assertRange(
+      data,
+      objectAddress + OBJECT_STATIC_CORRECTION_POINTER_OFFSET,
+      4,
+      "player correction pointer",
+    );
+    this.staticCorrectionAddress = data.readUInt32LE(
+      objectAddress + OBJECT_STATIC_CORRECTION_POINTER_OFFSET,
+    );
+    assertRange(
+      data,
+      this.staticCorrectionAddress,
+      STATIC_CORRECTION_RECORD_COUNT * STATIC_CORRECTION_RECORD_SIZE,
+      "Jin static correction basis",
+    );
+    this.staticCorrectionRotations = Array.from(
+      { length: STATIC_CORRECTION_RECORD_COUNT },
+      (_, node) =>
+        readRotationMatrix(
+          data,
+          this.staticCorrectionAddress + node * STATIC_CORRECTION_RECORD_SIZE,
+        ),
+    );
 
     const idleMove = parseMove(data, this.moveset, JIN_STANDING_MOVE_ID);
     this.idleBones = decodeT5Animation64Frame(
@@ -296,19 +344,7 @@ export class JinPoseDeriver {
     }
   }
 
-  upperDelta(currentBones, channel) {
-    const idle = tripletToRowMatrix(this.idleBones[channel]);
-    const current = tripletToRowMatrix(currentBones[channel]);
-    return multiplyMatrix3(idle, transposeMatrix3(current));
-  }
-
-  lowerDelta(currentBones, channel) {
-    const idle = tripletToRowMatrix(this.idleBones[channel]);
-    const current = tripletToRowMatrix(currentBones[channel]);
-    return multiplyMatrix3(transposeMatrix3(current), idle);
-  }
-
-  pose(moveId, frame) {
+  pose(moveId, frame, options = {}) {
     const move = parseMove(this.data, this.moveset, moveId);
     const sample = decodeT5Animation64Frame(
       this.data,
@@ -317,38 +353,39 @@ export class JinPoseDeriver {
       ANIMATION64_BONE_COUNT,
     );
     const bones = sample.bones;
-    const rotations = Array(JIN_SKELETON_NODE_COUNT);
-    const positions = Array(JIN_SKELETON_NODE_COUNT);
-    const rootPosition = composeT5RootTranslation(bones);
+    let localRotations = this.localRotations.map((matrix) => matrix.map((row) => [...row]));
+    for (let node = 0; node < JIN_SKELETON_NODE_COUNT; node++) {
+      const channel = JIN_ANIMATION_CHANNEL_BY_NODE[node];
+      if (channel !== null) {
+        localRotations[node] = t5RotationTripletToRuntimeLocalMatrix(bones[channel]);
+      }
+    }
 
-    rotations[0] = this.upperDelta(bones, JIN_ANIMATION_CHANNEL_BY_NODE[0]);
-    positions[0] = rootPosition;
-    positions[1] = rootPosition;
     const torso = deriveJinTorsoRetarget(
-      tripletToRuntimeLocalMatrix(bones[4]),
-      tripletToRuntimeLocalMatrix(bones[5]),
+      t5RotationTripletToRuntimeLocalMatrix(bones[4]),
+      t5RotationTripletToRuntimeLocalMatrix(bones[5]),
       this.localTranslations[1],
       this.localTranslations[13],
       bones[6][0],
     );
-    rotations[1] = composeT5WorldRotation(torso.node1LocalRotation, rotations[0]);
-    positions[2] = addVectors(
-      positions[1],
-      rotateRowVector(this.localTranslations[2], rotations[1]),
+    localRotations[1] = torso.node1LocalRotation;
+    localRotations[2] = torso.node2LocalRotation;
+    localRotations = applyT5StaticCorrectionPass(
+      localRotations,
+      this.staticCorrectionRotations,
+      options.correctionGate ?? 0,
+      options.correctionWeight ?? 0,
     );
-    rotations[2] = composeT5WorldRotation(torso.node2LocalRotation, rotations[1]);
 
-    for (let node = 3; node < JIN_SKELETON_NODE_COUNT; node++) {
+    const rotations = Array(JIN_SKELETON_NODE_COUNT);
+    const positions = Array(JIN_SKELETON_NODE_COUNT);
+    const rootPosition = composeT5RootTranslation(bones);
+
+    rotations[0] = localRotations[0];
+    positions[0] = rootPosition;
+    for (let node = 1; node < JIN_SKELETON_NODE_COUNT; node++) {
       const parent = JIN_SKELETON_PARENTS[node];
-      const channel = JIN_ANIMATION_CHANNEL_BY_NODE[node];
-      let localRotation = this.localRotations[node];
-      if (channel !== null) {
-        localRotation =
-          node >= 13
-            ? multiplyMatrix3(this.lowerDelta(bones, channel), localRotation)
-            : multiplyMatrix3(localRotation, this.upperDelta(bones, channel));
-      }
-      rotations[node] = composeT5WorldRotation(localRotation, rotations[parent]);
+      rotations[node] = composeT5WorldRotation(localRotations[node], rotations[parent]);
       positions[node] = addVectors(
         positions[parent],
         rotateRowVector(this.localTranslations[node], rotations[parent]),
@@ -364,9 +401,15 @@ export class JinPoseDeriver {
     if (!Number.isInteger(finalFrame) || finalFrame < 0) {
       throw new Error("finalFrame must be a non-negative integer");
     }
-    const poses = Array.from({ length: finalFrame + 1 }, (_, frame) => this.pose(moveId, frame));
+    const poseOptions = {
+      correctionGate: options.correctionGate,
+      correctionWeight: options.correctionWeight,
+    };
+    const poses = Array.from({ length: finalFrame + 1 }, (_, frame) =>
+      this.pose(moveId, frame, poseOptions),
+    );
     const baseRoot = poses[0].positions[0];
-    const standingRoot = this.pose(JIN_STANDING_MOVE_ID, 0).positions[0];
+    const standingRoot = this.pose(JIN_STANDING_MOVE_ID, 0, poseOptions).positions[0];
     const locations = decodePackedHitboxLocations(move.hitboxLocation);
     for (const location of locations) {
       if (
@@ -382,8 +425,8 @@ export class JinPoseDeriver {
 
     const hitboxSamples = [];
     for (let frame = Math.max(0, move.activeStart - 1); frame <= move.activeEnd - 1; frame++) {
-      const pose = this.pose(moveId, frame);
-      const previousPose = this.pose(moveId, Math.max(0, frame - 1));
+      const pose = this.pose(moveId, frame, poseOptions);
+      const previousPose = this.pose(moveId, Math.max(0, frame - 1), poseOptions);
       hitboxSamples.push({
         animationFrame: frame,
         capsules: locations.map(({ startNode, endNode, sweepsPreviousPose }) =>
@@ -428,7 +471,8 @@ async function main() {
   if (!snapshotPath || args.includes("--help") || (!moveText && !movesText)) {
     console.log(
       "Usage: node derive-jin-posed-geometry.mjs <idle-pcsx2-ee.bin> " +
-        "(--move ID | --moves ID,...) [--idle-frame N] [--final-frame N] [--player 1|2]",
+        "(--move ID | --moves ID,...) [--idle-frame N] [--final-frame N] [--player 1|2] " +
+        "[--correction-gate N --correction-weight W]",
     );
     return;
   }
@@ -437,13 +481,23 @@ async function main() {
   if (playerNumber !== 1 && playerNumber !== 2) throw new Error("--player must be 1 or 2");
   const idleFrameText = optionValue(args, "--idle-frame");
   const finalFrameText = optionValue(args, "--final-frame");
+  const correctionGateText = optionValue(args, "--correction-gate");
+  const correctionWeightText = optionValue(args, "--correction-weight");
   const idleFrame = idleFrameText === undefined ? undefined : Number(idleFrameText);
   const finalFrame = finalFrameText === undefined ? undefined : Number(finalFrameText);
+  const correctionGate = correctionGateText === undefined ? 0 : Number(correctionGateText);
+  const correctionWeight = correctionWeightText === undefined ? 0 : Number(correctionWeightText);
   if (idleFrame !== undefined && (!Number.isInteger(idleFrame) || idleFrame < 0)) {
     throw new Error("--idle-frame must be a non-negative integer");
   }
   if (finalFrame !== undefined && (!Number.isInteger(finalFrame) || finalFrame < 0)) {
     throw new Error("--final-frame must be a non-negative integer");
+  }
+  if (!Number.isInteger(correctionGate) || correctionGate < 0) {
+    throw new Error("--correction-gate must be a non-negative integer");
+  }
+  if (!Number.isFinite(correctionWeight)) {
+    throw new Error("--correction-weight must be finite");
   }
 
   const data = readFileSync(snapshotPath);
@@ -454,7 +508,9 @@ async function main() {
   const moveIds = movesText
     ? parseIntegerList(movesText, "--moves")
     : parseIntegerList(moveText, "--move");
-  const moves = moveIds.map((moveId) => deriver.deriveMove(moveId, { finalFrame }));
+  const moves = moveIds.map((moveId) =>
+    deriver.deriveMove(moveId, { finalFrame, correctionGate, correctionWeight }),
+  );
   console.log(
     JSON.stringify(
       {

@@ -46,8 +46,8 @@ describe("Tekken 5 posed geometry", () => {
       animationFrame: 14,
       capsules: [
         {
-          start: [0.562787, 1.00894, 1.061451],
-          end: [0.725257, 1.009737, 1.455428],
+          start: [0.562787, 1.008939, 1.061451],
+          end: [0.725257, 1.009736, 1.455428],
         },
       ],
     });
@@ -138,7 +138,7 @@ describe("Tekken 5 posed geometry", () => {
     const frameZero = sampleT5HurtSphereCenters(T5_JIN_REACTION_160, 1);
 
     expect(frameZero).toHaveLength(14);
-    expect(frameZero[0]).toEqual([0.128548, 0.469418, 0.316055]);
+    expect(frameZero[0]).toEqual([0.12552, 0.469093, 0.316724]);
     expect(frameZero[8]![0]).toBeCloseTo(-0.000015, 6);
     expect(frameZero[8]![1]).toBeCloseTo(1.908428, 6);
     expect(frameZero[8]![2]).toBeCloseTo(0.002224, 6);

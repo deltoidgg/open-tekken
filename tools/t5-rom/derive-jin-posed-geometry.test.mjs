@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applyT5StaticCorrection,
+  applyT5StaticCorrectionPass,
   composeT5WorldRotation,
   composeT5RootTranslation,
   decodePackedHitboxLocations,
   deriveJinTorsoRetarget,
   JIN_ANIMATION_CHANNEL_BY_NODE,
   JIN_HURT_SPHERE_NODES,
+  t5QuaternionToRuntimeLocalMatrix,
 } from "./derive-jin-posed-geometry.mjs";
 
 function assertMatrixClose(actual, expected, tolerance = 2e-6) {
@@ -55,9 +58,71 @@ test("keeps Jin's native hurt-sphere location order", () => {
 });
 
 test("maps the native root, upper-body, and lower-body animation channels", () => {
-  assert.equal(JIN_ANIMATION_CHANNEL_BY_NODE[0], 3);
-  assert.equal(JIN_ANIMATION_CHANNEL_BY_NODE[1], 4);
-  assert.equal(JIN_ANIMATION_CHANNEL_BY_NODE[13], 5);
+  assert.deepEqual(JIN_ANIMATION_CHANNEL_BY_NODE, [
+    3,
+    4,
+    null,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    5,
+    17,
+    18,
+    19,
+    null,
+    20,
+    21,
+    22,
+    null,
+  ]);
+});
+
+test("writes the direct PAL runtime quaternion matrix", () => {
+  const w = Math.sqrt(0.86);
+  assertMatrixClose(
+    t5QuaternionToRuntimeLocalMatrix([0.2, -0.3, 0.1, w]),
+    [
+      [0.8, -0.12 - 0.2 * w, 0.04 - 0.6 * w],
+      [-0.12 + 0.2 * w, 0.9, -0.06 - 0.4 * w],
+      [0.04 + 0.6 * w, -0.06 + 0.4 * w, 0.74],
+    ],
+    1e-12,
+  );
+});
+
+test("replays the gated static correction while leaving node zero untouched", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const basis = [
+    [0, 1, 0],
+    [0, 0, 1],
+    [100, 100, 100],
+  ];
+  const expected = [
+    [1 / Math.sqrt(2), 1 / Math.sqrt(2), 0],
+    [-1 / Math.sqrt(6), 1 / Math.sqrt(6), Math.sqrt(2 / 3)],
+    [1 / Math.sqrt(3), -1 / Math.sqrt(3), 1 / Math.sqrt(3)],
+  ];
+  assertMatrixClose(applyT5StaticCorrection(identity, basis, 1), expected, 1e-12);
+
+  const locals = Array.from({ length: 22 }, () => identity);
+  const bases = Array.from({ length: 22 }, () => basis);
+  const skipped = applyT5StaticCorrectionPass(locals, bases, 0, 1);
+  assert.deepEqual(skipped, locals);
+
+  const corrected = applyT5StaticCorrectionPass(locals, bases, 3, 1);
+  assert.deepEqual(corrected[0], identity);
+  assertMatrixClose(corrected[1], expected, 1e-12);
 });
 
 test("reproduces PAL's idle torso postprocess", () => {
