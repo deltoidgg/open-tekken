@@ -104,6 +104,26 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   -TriggerHoldMilliseconds2 60
 ```
 
+A third optional pulse supports directional chords without relying on a second
+input process. For example, capture Jin `d/f+1` with down, the current
+side-relative forward, and button 1 held over the same interval:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  tools/t5-rom/trace-pcsx2-players.ps1 `
+  -OutputPath C:\temp\t5-df1.bin `
+  -DurationMilliseconds 3000 `
+  -TriggerVirtualKey 0x53 `
+  -TriggerAtMilliseconds 1000 `
+  -TriggerVirtualKey2 0x44 `
+  -TriggerAtMilliseconds2 1000 `
+  -TriggerVirtualKey3 0x55 `
+  -TriggerAtMilliseconds3 1000
+```
+
+The example uses `0x44` (`D`) for forward. Swap it for `0x41` (`A`) after a
+side change when Jin's relative forward points toward keyboard left.
+
 `0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
 the measured setup. The trace stores monotonic timestamps followed by complete
 P1 and P2 snapshots; it never writes to emulated memory. Inspect player-frame,

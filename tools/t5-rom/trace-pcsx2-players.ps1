@@ -20,6 +20,12 @@ param(
   [int]$TriggerAtMilliseconds2 = 1100,
   [ValidateRange(1, 2000)]
   [int]$TriggerHoldMilliseconds2 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey3 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds3 = 1200,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds3 = 100,
   [string]$WindowTitle = "Tekken 5"
 )
 
@@ -256,6 +262,7 @@ public static class Tekken5Pcsx2PlayerTraceNative
 
     private static bool ActivateWindow(IntPtr window)
     {
+        if (GetForegroundWindow() == window) return true;
         const int Restore = 9;
         ShowWindow(window, Restore);
         SwitchToThisWindow(window, true);
@@ -289,6 +296,9 @@ public static class Tekken5Pcsx2PlayerTraceNative
         byte triggerVirtualKey2,
         int triggerAtMilliseconds2,
         int triggerHoldMilliseconds2,
+        byte triggerVirtualKey3,
+        int triggerAtMilliseconds3,
+        int triggerHoldMilliseconds3,
         string windowTitle
     )
     {
@@ -304,6 +314,8 @@ public static class Tekken5Pcsx2PlayerTraceNative
         long triggerReleaseAt = frequency * (triggerAtMilliseconds + triggerHoldMilliseconds) / 1000;
         long triggerAt2 = frequency * triggerAtMilliseconds2 / 1000;
         long triggerReleaseAt2 = frequency * (triggerAtMilliseconds2 + triggerHoldMilliseconds2) / 1000;
+        long triggerAt3 = frequency * triggerAtMilliseconds3 / 1000;
+        long triggerReleaseAt3 = frequency * (triggerAtMilliseconds3 + triggerHoldMilliseconds3) / 1000;
         long started = Stopwatch.GetTimestamp();
         long next = started;
         int count = 0;
@@ -311,6 +323,8 @@ public static class Tekken5Pcsx2PlayerTraceNative
         bool triggerReleased = triggerVirtualKey == 0;
         bool triggerPressed2 = false;
         bool triggerReleased2 = triggerVirtualKey2 == 0;
+        bool triggerPressed3 = false;
+        bool triggerReleased3 = triggerVirtualKey3 == 0;
 
         try
         {
@@ -370,6 +384,23 @@ public static class Tekken5Pcsx2PlayerTraceNative
                         ReleaseKey(triggerVirtualKey2);
                         triggerReleased2 = true;
                     }
+                    if (!triggerPressed3 && triggerVirtualKey3 != 0 && elapsed >= triggerAt3)
+                    {
+                        IntPtr window = FindWindow(windowTitle);
+                        if (window == IntPtr.Zero)
+                        {
+                            throw new InvalidOperationException(
+                                "Could not find window: " + windowTitle
+                            );
+                        }
+                        PressKey(window, triggerVirtualKey3);
+                        triggerPressed3 = true;
+                    }
+                    if (triggerPressed3 && !triggerReleased3 && elapsed >= triggerReleaseAt3)
+                    {
+                        ReleaseKey(triggerVirtualKey3);
+                        triggerReleased3 = true;
+                    }
                     if (now < next)
                     {
                         Thread.SpinWait(64);
@@ -399,6 +430,10 @@ public static class Tekken5Pcsx2PlayerTraceNative
             if (triggerPressed2 && !triggerReleased2)
             {
                 ReleaseKey(triggerVirtualKey2);
+            }
+            if (triggerPressed3 && !triggerReleased3)
+            {
+                ReleaseKey(triggerVirtualKey3);
             }
         }
         return count;
@@ -447,6 +482,9 @@ try {
     [byte]$TriggerVirtualKey2,
     $TriggerAtMilliseconds2,
     $TriggerHoldMilliseconds2,
+    [byte]$TriggerVirtualKey3,
+    $TriggerAtMilliseconds3,
+    $TriggerHoldMilliseconds3,
     $WindowTitle
   )
   Write-Host (
