@@ -87,6 +87,23 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   -TriggerHoldMilliseconds 100
 ```
 
+Capture a two-button string on the same monotonic clock with the optional
+second pulse. In the measured PCSX2 profile, `0x49` is Triangle / Tekken button
+2:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  tools/t5-rom/trace-pcsx2-players.ps1 `
+  -OutputPath C:\temp\t5-one-two.bin `
+  -DurationMilliseconds 5000 `
+  -TriggerVirtualKey 0x55 `
+  -TriggerAtMilliseconds 1000 `
+  -TriggerHoldMilliseconds 60 `
+  -TriggerVirtualKey2 0x49 `
+  -TriggerAtMilliseconds2 1080 `
+  -TriggerHoldMilliseconds2 60
+```
+
 `0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
 the measured setup. The trace stores monotonic timestamps followed by complete
 P1 and P2 snapshots; it never writes to emulated memory. Inspect player-frame,

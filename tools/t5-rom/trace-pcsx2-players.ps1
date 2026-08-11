@@ -14,6 +14,12 @@ param(
   [int]$TriggerAtMilliseconds = 1000,
   [ValidateRange(1, 2000)]
   [int]$TriggerHoldMilliseconds = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey2 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds2 = 1100,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds2 = 100,
   [string]$WindowTitle = "Tekken 5"
 )
 
@@ -81,6 +87,15 @@ public static class Tekken5Pcsx2PlayerTraceNative
 
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern void SwitchToThisWindow(IntPtr window, bool altTab);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
     private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
@@ -239,6 +254,29 @@ public static class Tekken5Pcsx2PlayerTraceNative
         return match;
     }
 
+    private static bool ActivateWindow(IntPtr window)
+    {
+        const int Restore = 9;
+        ShowWindow(window, Restore);
+        SwitchToThisWindow(window, true);
+        Thread.Sleep(40);
+        return GetForegroundWindow() == window || SetForegroundWindow(window);
+    }
+
+    private static void PressKey(IntPtr window, byte virtualKey)
+    {
+        if (!ActivateWindow(window))
+        {
+            throw new InvalidOperationException("Could not activate trigger window");
+        }
+        keybd_event(virtualKey, 0, 0, UIntPtr.Zero);
+    }
+
+    private static void ReleaseKey(byte virtualKey)
+    {
+        keybd_event(virtualKey, 0, 0x0002, UIntPtr.Zero);
+    }
+
     public static int TracePlayers(
         IntPtr process,
         ulong eeBase,
@@ -248,6 +286,9 @@ public static class Tekken5Pcsx2PlayerTraceNative
         byte triggerVirtualKey,
         int triggerAtMilliseconds,
         int triggerHoldMilliseconds,
+        byte triggerVirtualKey2,
+        int triggerAtMilliseconds2,
+        int triggerHoldMilliseconds2,
         string windowTitle
     )
     {
@@ -261,11 +302,15 @@ public static class Tekken5Pcsx2PlayerTraceNative
         long duration = frequency * durationMilliseconds / 1000;
         long triggerAt = frequency * triggerAtMilliseconds / 1000;
         long triggerReleaseAt = frequency * (triggerAtMilliseconds + triggerHoldMilliseconds) / 1000;
+        long triggerAt2 = frequency * triggerAtMilliseconds2 / 1000;
+        long triggerReleaseAt2 = frequency * (triggerAtMilliseconds2 + triggerHoldMilliseconds2) / 1000;
         long started = Stopwatch.GetTimestamp();
         long next = started;
         int count = 0;
         bool triggerPressed = false;
         bool triggerReleased = triggerVirtualKey == 0;
+        bool triggerPressed2 = false;
+        bool triggerReleased2 = triggerVirtualKey2 == 0;
 
         try
         {
@@ -294,19 +339,36 @@ public static class Tekken5Pcsx2PlayerTraceNative
                     if (!triggerPressed && triggerVirtualKey != 0 && elapsed >= triggerAt)
                     {
                         IntPtr window = FindWindow(windowTitle);
-                        if (window == IntPtr.Zero || !SetForegroundWindow(window))
+                        if (window == IntPtr.Zero)
                         {
                             throw new InvalidOperationException(
-                                "Could not activate window: " + windowTitle
+                                "Could not find window: " + windowTitle
                             );
                         }
-                        keybd_event(triggerVirtualKey, 0, 0, UIntPtr.Zero);
+                        PressKey(window, triggerVirtualKey);
                         triggerPressed = true;
                     }
                     if (triggerPressed && !triggerReleased && elapsed >= triggerReleaseAt)
                     {
-                        keybd_event(triggerVirtualKey, 0, 0x0002, UIntPtr.Zero);
+                        ReleaseKey(triggerVirtualKey);
                         triggerReleased = true;
+                    }
+                    if (!triggerPressed2 && triggerVirtualKey2 != 0 && elapsed >= triggerAt2)
+                    {
+                        IntPtr window = FindWindow(windowTitle);
+                        if (window == IntPtr.Zero)
+                        {
+                            throw new InvalidOperationException(
+                                "Could not find window: " + windowTitle
+                            );
+                        }
+                        PressKey(window, triggerVirtualKey2);
+                        triggerPressed2 = true;
+                    }
+                    if (triggerPressed2 && !triggerReleased2 && elapsed >= triggerReleaseAt2)
+                    {
+                        ReleaseKey(triggerVirtualKey2);
+                        triggerReleased2 = true;
                     }
                     if (now < next)
                     {
@@ -332,7 +394,11 @@ public static class Tekken5Pcsx2PlayerTraceNative
         {
             if (triggerPressed && !triggerReleased)
             {
-                keybd_event(triggerVirtualKey, 0, 0x0002, UIntPtr.Zero);
+                ReleaseKey(triggerVirtualKey);
+            }
+            if (triggerPressed2 && !triggerReleased2)
+            {
+                ReleaseKey(triggerVirtualKey2);
             }
         }
         return count;
@@ -378,6 +444,9 @@ try {
     [byte]$TriggerVirtualKey,
     $TriggerAtMilliseconds,
     $TriggerHoldMilliseconds,
+    [byte]$TriggerVirtualKey2,
+    $TriggerAtMilliseconds2,
+    $TriggerHoldMilliseconds2,
     $WindowTitle
   )
   Write-Host (
