@@ -52,6 +52,7 @@ The following slices are measured from the PAL executable and documented:
 | pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
 | jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`         |
 | d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`             |
+| d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`              |
 | animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
 | pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
 | world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
@@ -314,6 +315,22 @@ counter damage produce impact counters 11 and 13. Control returns at recovery
 and pose ownership reproduce `-2` block and `+9` hit/CH with 19- and 30-frame
 recovery shells. The one-frame generic guard shell `227` observed before a
 published block remains part of the shared guard-prime follow-up.
+
+Phase-3 checkpoint: Jin `d+3` publishes active frame 15 on move `458` frame 16
+for crouch block, normal hit, and counter hit without freezing either timeline.
+Hit and counter hit both select reaction `811`, with seven and eight damage and
+impact counters 6 and 7. Crouch block selects reaction `701`, reproduces `-11`,
+and returns directly to full-crouch guard move `243` at its 19-frame boundary
+instead of retaining the reaction's 30-frame animation payload. Hit is exactly
+neutral; attacker control returns at frame 45 while its native pose continues
+through frame 55.
+
+Command-priority checkpoint: direct cancels on the current move must be audited
+before inherited group entries. Live neutral `d/b+4` uses the direct move-220
+route to move `461`; group `587` also advertises `d/b+4 -> 460`, but that lower
+priority route is shadowed. The command-report helper currently omits direct
+cancels, so its standing-command output is incomplete until that traversal and
+ordering are corrected.
 
 ### Iteration C: Backdash/KBD
 

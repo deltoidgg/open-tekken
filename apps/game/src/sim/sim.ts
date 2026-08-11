@@ -51,14 +51,15 @@ import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orien
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
-const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1"]);
-const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12", "jin.df1"]);
-const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 371, 693, 780, 783, 790, 803, 806]);
+const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3"]);
+const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3"]);
+const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 371, 693, 780, 783, 790, 803, 806, 811]);
 const T5_STANDING_BLOCK_REACTIONS = new Map([
   ["jin.1", 336],
   ["jin.12", 371],
   ["jin.df1", 693],
 ]);
+const T5_CROUCH_BLOCK_REACTIONS = new Map([["jin.d3", 701]]);
 
 export interface ReplaySnap {
   fighters: [FighterSnap, FighterSnap];
@@ -1313,7 +1314,9 @@ export class Sim {
         this.applySlide(f);
         if (f.actionFrame >= f.actionTotal) {
           const preservePoseTail = this.preserveT5ReactionPoseTail(f);
-          if (f.crouching) this.enterCrouch(f);
+          const returnToMeasuredCrouchGuard =
+            f.action === "blockstun" && f.t5ReactionMoveId === 701 && inp.dir === "db";
+          if (f.crouching) this.enterCrouch(f, returnToMeasuredCrouchGuard ? 243 : 234);
           else this.setAction(f, "idle", 0, preservePoseTail);
           f.stunKind = "none";
         }
@@ -1821,7 +1824,11 @@ export class Sim {
     ) {
       const stun = hd.blockstun ?? Math.max(1, rem + hd.onBlock);
       this.setAction(def, "blockstun", stun);
-      this.setT5Reaction(def, T5_STANDING_BLOCK_REACTIONS.get(c.move.id));
+      const blockReaction =
+        guard === "crouch"
+          ? T5_CROUCH_BLOCK_REACTIONS.get(c.move.id)
+          : T5_STANDING_BLOCK_REACTIONS.get(c.move.id);
+      this.setT5Reaction(def, blockReaction);
       def.actionFrame = 1;
       def.crouching = guard === "crouch"; // after setAction — it resets the flag
       def.stunKind = "none";
