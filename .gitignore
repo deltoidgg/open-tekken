@@ -25,3 +25,9 @@ dist-ssr
 
 # AI agent worktrees
 .claude/worktrees/
+
+# User-supplied game media and live emulator captures
+rom/*.iso
+rom/*.bin
+rom/*.elf
+rom/*.img

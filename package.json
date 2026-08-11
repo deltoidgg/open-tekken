@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ready": "vp check && vp run -r test && vp run -r build",
+    "ready": "vp check && vp test && vp run test:tools && vp run -r build",
     "dev": "vp run website#dev",
+    "test:tools": "node --test tools/t5-rom/*.test.mjs",
     "prepare": "vp config"
   },
   "devDependencies": {
