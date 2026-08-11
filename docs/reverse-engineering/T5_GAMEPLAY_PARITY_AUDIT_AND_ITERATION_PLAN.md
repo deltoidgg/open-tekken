@@ -367,6 +367,23 @@ commands frames 1..5, then falls through to its all-frame WS/FC entries. The
 clone now derives guard and command stance from those native shells and removes
 the provisional frame-count guard constant.
 
+### Iteration D: Sidestep/sidewalk
+
+Scope: quick-step entry, compatible sidewalk transitions, stop, attack gates,
+guard ownership, native lateral root, and body push.
+
+First checkpoint: PAL quick-step records use `0x04AB` to enter the compatible
+sidewalk-start payload through source frame 12, while sidewalk-start uses
+`0x0491` to return to quick step through source frame 10. The clone previously
+reset both transitions to destination frame 1. It now preserves the current
+one-based frame, so the common positive route publishes quick-step frame 1,
+sidewalk-start frame 2 on the re-press, and quick-step frame 3 on an immediate
+release. Focused tests also prove that each transition consumes the preserved
+destination shell's native root delta. Automatic loop and stop records still
+reset as their PAL records require. Exact compatible-pose blending, native root
+compensation, side-requirement evaluation, and the full selective command list
+remain open for the next lateral slice.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

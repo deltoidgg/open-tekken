@@ -817,11 +817,11 @@ describe("Tekken 5 PAL locomotion roots", () => {
     sim.step(pad({ dy: 1 }), pad());
     expect(fighter).toMatchObject({
       action: "ss",
-      actionFrame: 1,
+      actionFrame: 2,
       ssPhase: "walkStart",
     });
 
-    run(sim, 31, { dy: 1 });
+    run(sim, 30, { dy: 1 });
     expect(fighter).toMatchObject({ action: "ss", actionFrame: 0, ssPhase: "walkLoop" });
 
     run(sim, 36, { dy: 1 });
@@ -839,6 +839,34 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(Math.hypot(fighter.pos.x - startX, fighter.pos.z - startZ)).toBeGreaterThan(
       expected - 0.1,
     );
+  });
+
+  it("preserves compatible local frames and root deltas across sidewalk transitions", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dy: 1 }), pad());
+    sim.step(pad(), pad());
+
+    const beforeWalkStart = { ...fighter.pos };
+    sim.step(pad({ dy: 1 }), pad());
+    const walkStartDelta = t5SidestepRootDelta(1, "walkStart", 2);
+    expect(fighter).toMatchObject({
+      action: "ss",
+      actionFrame: 2,
+      ssPhase: "walkStart",
+    });
+    expect(
+      Math.hypot(fighter.pos.x - beforeWalkStart.x, fighter.pos.z - beforeWalkStart.z),
+    ).toBeCloseTo(Math.hypot(walkStartDelta[0], walkStartDelta[2]), 9);
+
+    const beforeQuickStep = { ...fighter.pos };
+    sim.step(pad(), pad());
+    const quickStepDelta = t5SidestepRootDelta(1, "step", 3);
+    expect(fighter).toMatchObject({ action: "ss", actionFrame: 3, ssPhase: "step" });
+    expect(
+      Math.hypot(fighter.pos.x - beforeQuickStep.x, fighter.pos.z - beforeQuickStep.z),
+    ).toBeCloseTo(Math.hypot(quickStepDelta[0], quickStepDelta[2]), 9);
   });
 
   it("accepts a basic attack on native sidestep frame 6 without startup padding", () => {

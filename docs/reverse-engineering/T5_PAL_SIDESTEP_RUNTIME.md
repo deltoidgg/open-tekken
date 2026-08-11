@@ -1,8 +1,9 @@
 # Tekken 5 PAL sidestep and sidewalk runtime
 
 Status: Jin's first ROM-backed sidestep and sidewalk slice is implemented.
-Executable root composition, move shells, root curves, and major cancel gates
-were recovered from the supplied PAL build on 2026-08-10.
+Executable root composition, move shells, root curves, major cancel gates, and
+compatible source-frame transitions were recovered from the supplied PAL build
+on 2026-08-10 and implemented through 2026-08-11.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running at
 50 gameplay frames per second.
@@ -219,10 +220,19 @@ spheres. As with forward locomotion, the current root is subtracted from the
 animation-local body and hurt poses after logical transfer so collision is not
 moved twice.
 
+The `0x04AB` quick-step-to-sidewalk transition and the `0x0491` early-neutral
+return now retain the current one-based source frame. For the common positive
+route, a tap publishes quick-step frame 1, the re-press consumes sidewalk-start
+frame 2, and an immediate release consumes quick-step frame 3. Automatic
+start-to-loop and loop-to-stop transitions remain reset transitions. Each
+compatible transition tick transfers the destination shell's delta at that
+preserved frame rather than replaying destination frame 1.
+
 Focused tests verify:
 
 - both complete 27-frame quick-step curves;
 - logical-root displacement through a full quick step;
+- compatible source-frame and root-delta preservation in both directions;
 - sidewalk start, one 36-frame loop, release, and 15-frame stop;
 - source-frame-6 basic attack acceptance with no startup padding; and
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
@@ -240,9 +250,9 @@ Focused tests verify:
    backward cancel is exact; same-tick autoblock remains an inference.
 4. Implement the full character-specific attack and directional-cancel lists,
    including their source-frame-9 gates and exceptions.
-5. Reproduce compatible-pose transition blending and logical-root
-   compensation for `0x0491` and `0x04AB` instead of only preserving phase
-   timing.
+5. Reproduce the remaining compatible-pose blend and any native logical/render
+   root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
+   destination-shell delta selection are now implemented.
 6. Map moves `1074..1077` and determine the state requirements that select
    those side-dependent intermediates.
 7. Drive rendering from the recovered skeleton and test attack tracking,
@@ -252,6 +262,8 @@ Focused tests verify:
    player frame, direction requirements, and guard result when stateful window
    automation is available again.
 
-The Computer connector could not retain its interaction context during this
-pass, so no unsupported UI-input fallback was used and no unobserved live
-behavior is presented as measured fact.
+The Computer connector selected and observed the PCSX2 window during this pass,
+but PCSX2 raw input did not register its generated key pulses; two read-only
+player traces remained on standing move `32769`. No unsupported UI-input
+fallback was used and no unobserved live behavior is presented as measured
+fact.

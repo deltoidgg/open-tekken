@@ -1261,12 +1261,10 @@ export class Sim {
 
         if (f.ssPhase === "step" && holding && f.actionFrame <= T.sidewalkEntryUntil) {
           f.ssPhase = "walkStart";
-          f.actionFrame = 1;
           f.actionTotal = T.sidewalkStartFrames;
         } else if (f.ssPhase === "walkStart" && !holding) {
           if (f.actionFrame <= 10) {
             f.ssPhase = "step";
-            f.actionFrame = 1;
             f.actionTotal = T.sidestepFrames;
           } else {
             f.ssPhase = "walkRelease";
