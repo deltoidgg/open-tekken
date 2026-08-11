@@ -187,9 +187,20 @@ The first ROM-backed generic attack-cancel frame is therefore source frame 6.
 There is no extra startup frame after the cancel: an i10 jab begins at attack
 frame 1 on that same accepted transition.
 
-Character-specific directional groups are commonly invoked from source frame
-9, with individual direct-record exceptions. Those paths are not yet fully
-represented by the clone's sidestep action scheduler.
+The ordered directional records are later and shell-specific:
+
+| Source shell                               | Group | Gate | Commands                                      |
+| ------------------------------------------ | ----: | ---: | --------------------------------------------- |
+| quick step / release / stop                |   587 |   19 | `df`, `db`, and `d` attacks                   |
+| sidewalk start                             |   627 |   19 | same command set with side-state requirements |
+| sidewalk loop                              |   647 |   12 | `df` and `db` attacks only                    |
+| quick step / start / release / loop / stop |   680 |   20 | `f`, `b`, and neutral attacks                 |
+
+Group 1077 is invoked from source frame 9, but it contains directional
+crouch/movement routes rather than attacks. The generic throw/parry group 0 is
+invoked at source frame 57, beyond the effective lifetime of every common
+lateral shell, including the 36-frame self-loop. Throws and parries therefore
+must not leak through the frame-6 basic-attack gate.
 
 The source-frame-1 direct `b -> 227` record supplies an immediate route out of
 sidestep into backward walk/guard movement. Cross-move vulnerability values
@@ -228,13 +239,25 @@ start-to-loop and loop-to-stop transitions remain reset transitions. Each
 compatible transition tick transfers the destination shell's delta at that
 preserved frame rather than replaying destination frame 1.
 
+Active quick-step, sidewalk-start, release, and loop commands now bypass the
+clone's generic actionable-state parser and use the PAL group order directly.
+Group 722 accepts only its six neutral commands from frame 6; group 647 exposes
+loop diagonals at frame 12; groups 587/627 expose the down family at frame 19;
+and group 680 exposes its forward, back, and neutral set at frame 20. Group
+680's `b+1` and `b+1+2` target move 352 and therefore enter the clone's CDS
+state. Throw, parry, and taunt chords remain in the active lateral shell.
+Sidewalk-stop direct commands are intentionally left on the older path until
+their frame-1 target set is mapped as a unit.
+
 Focused tests verify:
 
 - both complete 27-frame quick-step curves;
 - logical-root displacement through a full quick step;
 - compatible source-frame and root-delta preservation in both directions;
 - sidewalk start, one 36-frame loop, release, and 15-frame stop;
-- source-frame-6 basic attack acceptance with no startup padding; and
+- all six source-frame-6 group-722 attacks with no startup padding;
+- rejection of throw and taunt chords at the group-722 boundary;
+- source-frame-12, -19, and -20 group selection;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
 - the split channel-0-plus-channel-1 root formula.
@@ -248,8 +271,9 @@ Focused tests verify:
    `0x8004`, including tap/hold/reversal precedence.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
-4. Implement the full character-specific attack and directional-cancel lists,
-   including their source-frame-9 gates and exceptions.
+4. Map sidewalk-stop's frame-1 direct command list and the remaining native
+   chord targets absent from the clone move catalog. Active groups 722, 647,
+   587/627, and 680 are now ordered by their exact source-frame gates.
 5. Reproduce the remaining compatible-pose blend and any native logical/render
    root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
    destination-shell delta selection are now implemented.
@@ -261,6 +285,8 @@ Focused tests verify:
 8. Capture controlled PCSX2 traces of logical root, render root, current move,
    player frame, direction requirements, and guard result when stateful window
    automation is available again.
+9. Implement group 1077's source-frame-9 crouch/movement arbitration separately
+   from attack routing.
 
 The Computer connector selected and observed the PCSX2 window during this pass,
 but PCSX2 raw input did not register its generated key pulses; two read-only

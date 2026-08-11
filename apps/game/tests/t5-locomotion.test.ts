@@ -41,7 +41,8 @@ import {
   t5LocomotionRootDeltaBetween,
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
-import { B1, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.ts";
+import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.ts";
+import { t5ActiveSidestepAttackRoute } from "../src/sim/t5-sidestep.ts";
 
 function accumulatedForward(
   action: "walkF" | "dash" | "backdash" | "CD",
@@ -869,21 +870,107 @@ describe("Tekken 5 PAL locomotion roots", () => {
     ).toBeCloseTo(Math.hypot(quickStepDelta[0], quickStepDelta[2]), 9);
   });
 
-  it("accepts a basic attack on native sidestep frame 6 without startup padding", () => {
+  it.each([
+    [B1, "jin.1"],
+    [B2, "jin.2"],
+    [B3, "jin.3"],
+    [B4, "jin.4"],
+    [B1 | B2, "jin.m12"],
+    [B3 | B4, "jin.3"],
+  ] as const)("accepts PAL group-722 buttons %# on native sidestep frame 6", (btns, moveId) => {
     const sim = fightSim(8);
     const fighter = sim.gs.fighters[0];
 
     sim.step(pad({ dy: 1 }), pad());
     sim.step(pad(), pad());
     run(sim, 4);
-    sim.step(pad({ btns: B1 }), pad());
+    sim.step(pad({ btns }), pad());
 
     expect(fighter).toMatchObject({
       action: "attack",
       actionFrame: 1,
-      moveId: "jin.1",
+      moveId,
       startupOffset: 0,
     });
+  });
+
+  it.each([B1 | B3, B1 | B3 | B4])(
+    "rejects non-group-722 chord %# on active sidestep frame 6",
+    (btns) => {
+      const sim = fightSim(8);
+      const fighter = sim.gs.fighters[0];
+
+      sim.step(pad({ dy: 1 }), pad());
+      sim.step(pad(), pad());
+      run(sim, 4);
+      sim.step(pad({ btns }), pad());
+
+      expect(fighter).toMatchObject({ action: "ss", actionFrame: 6, ssPhase: "step" });
+    },
+  );
+
+  it("starts the down-family attack group on sidestep frame 19", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dy: 1 }), pad());
+    sim.step(pad(), pad());
+    run(sim, 17);
+    sim.step(pad({ dy: -1, btns: B3 }), pad());
+
+    expect(fighter).toMatchObject({ action: "attack", actionFrame: 1, moveId: "jin.d3" });
+  });
+
+  it("starts group-680 CDS entry on sidestep frame 20 without opening throws", () => {
+    const stance = fightSim(8);
+    const rejectedThrow = fightSim(8);
+
+    for (const sim of [stance, rejectedThrow]) {
+      sim.step(pad({ dy: 1 }), pad());
+      sim.step(pad(), pad());
+      run(sim, 18);
+    }
+    stance.step(pad({ dx: -1, btns: B1 }), pad());
+    rejectedThrow.step(pad({ btns: B1 | B3 }), pad());
+
+    expect(stance.gs.fighters[0]).toMatchObject({ action: "CDS", actionFrame: 1 });
+    expect(rejectedThrow.gs.fighters[0]).toMatchObject({
+      action: "ss",
+      actionFrame: 20,
+      ssPhase: "step",
+    });
+  });
+
+  it("resolves each active-shell attack group at its exact source-frame gate", () => {
+    expect(t5ActiveSidestepAttackRoute("walkLoop", 11, "df", B1)).toBeUndefined();
+    expect(t5ActiveSidestepAttackRoute("walkLoop", 12, "d", B3)).toBeUndefined();
+    expect(t5ActiveSidestepAttackRoute("walkLoop", 12, "df", B1)).toEqual({
+      kind: "move",
+      moveId: "jin.df1",
+      gate: 12,
+      group: 647,
+    });
+    expect(t5ActiveSidestepAttackRoute("step", 18, "d", B3)).toBeUndefined();
+    expect(t5ActiveSidestepAttackRoute("step", 19, "d", B3)).toEqual({
+      kind: "move",
+      moveId: "jin.d3",
+      gate: 19,
+      group: 587,
+    });
+    expect(t5ActiveSidestepAttackRoute("walkStart", 19, "d", B3)).toEqual({
+      kind: "move",
+      moveId: "jin.d3",
+      gate: 19,
+      group: 627,
+    });
+    expect(t5ActiveSidestepAttackRoute("step", 19, "f", B4)).toBeUndefined();
+    expect(t5ActiveSidestepAttackRoute("step", 20, "f", B4)).toEqual({
+      kind: "move",
+      moveId: "jin.4",
+      gate: 20,
+      group: 680,
+    });
+    expect(t5ActiveSidestepAttackRoute("step", 20, "n", B1 | B3)).toBeUndefined();
   });
 
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {

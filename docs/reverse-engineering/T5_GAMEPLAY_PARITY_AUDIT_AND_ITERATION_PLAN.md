@@ -384,6 +384,17 @@ reset as their PAL records require. Exact compatible-pose blending, native root
 compensation, side-requirement evaluation, and the full selective command list
 remain open for the next lateral slice.
 
+Second checkpoint: the earlier frame-9 attack interpretation was incorrect.
+Group `1077` at frame 9 owns crouch/movement routing. Active lateral shells now
+dispatch buttons through their ordered PAL attack groups instead of the clone's
+global actionable parser: neutral group `722` at frame 6, loop-diagonal group
+`647` at frame 12, down-family groups `587/627` at frame 19, and cardinal group
+`680` at frame 20. The frame-6 gate accepts only `1`, `2`, `3`, `4`, `1+2`, and
+`3+4`; throws, parries, and taunts no longer leak into it. Group `680` routes
+`b+1` and `b+1+2` to CDS move `352`. Sidewalk-stop's frame-1 direct specials,
+unmapped chord targets, and group-1077 movement requirements remain the next
+ordered slices.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

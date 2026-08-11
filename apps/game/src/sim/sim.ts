@@ -48,6 +48,7 @@ import {
   t5SidestepRootOffset,
 } from "./t5-locomotion.ts";
 import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orientation.ts";
+import { t5ActiveSidestepAttackRoute } from "./t5-sidestep.ts";
 
 // Unmapped ballistic states still use the clone's original per-frame tuning.
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
@@ -430,6 +431,12 @@ export class Sim {
       return;
     }
 
+    if (f.action === "ss" && f.ssPhase !== "walkStop") {
+      if (inp.pressed && this.tryStartT5SidestepCommand(f, inp)) return;
+      if (isActionable(f)) this.decideMovement(f, inp);
+      return;
+    }
+
     // buffered move during recovery: executes on the first actionable frame (spec 5.1)
     if (!isActionable(f)) {
       const bufferable =
@@ -538,6 +545,23 @@ export class Sim {
             ? "WS"
             : null;
     return this.tryStartCommand(f, opp, inp, moveStance, true);
+  }
+
+  private tryStartT5SidestepCommand(f: FighterState, inp: FrameInput): boolean {
+    if (f.ssPhase === "walkStop") return false;
+    const route = t5ActiveSidestepAttackRoute(
+      f.ssPhase,
+      f.actionFrame + 1,
+      inp.pressedDir,
+      inp.pressed,
+    );
+    if (!route) return false;
+    if (route.kind === "stance") {
+      this.setAction(f, route.action, 40);
+    } else {
+      this.startAttack(f, moveById(route.moveId));
+    }
+    return true;
   }
 
   private decideMovement(f: FighterState, inp: FrameInput): void {
