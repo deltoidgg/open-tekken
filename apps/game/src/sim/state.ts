@@ -88,6 +88,8 @@ export interface FighterState {
   actionFrame: number;
   actionTotal: number;
   hitstop: number;
+  /** Live player+0x2B6 impact counter; it does not freeze the action timeline. */
+  t5ImpactCounter: number;
   /** Exact per-frame T5 pushback envelope currently being consumed. */
   pushback: ActivePushback | null;
 
@@ -244,6 +246,7 @@ export function createFighter(id: 0 | 1): FighterState {
     actionFrame: 0,
     actionTotal: 0,
     hitstop: 0,
+    t5ImpactCounter: 0,
     pushback: null,
     moveId: null,
     startupOffset: 0,

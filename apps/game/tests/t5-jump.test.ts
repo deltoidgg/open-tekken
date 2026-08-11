@@ -117,7 +117,7 @@ describe("Tekken 5 PAL jump attacks", () => {
     });
   });
 
-  it("contacts on the native integrated simultaneous-up geometry frames", () => {
+  it("publishes native simultaneous-up contacts after their completed active frames", () => {
     const contactFrame = (buttons: number): number | undefined => {
       const sim = fightSim(1.35);
       const attacker = sim.gs.fighters[0];
@@ -129,12 +129,12 @@ describe("Tekken 5 PAL jump attacks", () => {
       return attacker.lastContact ? attacker.lastContact.frame - commandFrame + 1 : undefined;
     };
 
-    expect(contactFrame(B1)).toBe(18);
-    expect(contactFrame(B2)).toBe(43);
+    expect(contactFrame(B1)).toBe(19);
+    expect(contactFrame(B2)).toBe(44);
     // Move 602 becomes active on command frame 21 and its first swept segment
-    // already intersects the native idle pose at this spacing.
-    expect(contactFrame(B3)).toBe(21);
-    expect(contactFrame(B4)).toBe(15);
+    // already intersects the native idle pose at this spacing; publication is 22.
+    expect(contactFrame(B3)).toBe(22);
+    expect(contactFrame(B4)).toBe(16);
   });
 
   it("turns Torso Thrust around its fixed animation-root orientation", () => {
@@ -146,7 +146,7 @@ describe("Tekken 5 PAL jump attacks", () => {
     run(sim, 16);
 
     expect(attacker.lastContact).toBeDefined();
-    expect(attacker.lastContact!.frame - commandFrame + 1).toBe(15);
+    expect(attacker.lastContact!.frame - commandFrame + 1).toBe(16);
     expect(attacker.face).toBeLessThan((-35 * Math.PI) / 180);
     expect(attacker.t5RootFace).toBe(0);
   });

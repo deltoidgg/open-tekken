@@ -583,13 +583,13 @@ describe("Tekken 5 PAL locomotion roots", () => {
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {
     const attacker = sim.gs.fighters[0];
     attacker.action = "attack";
-    attacker.actionFrame = 9;
+    attacker.actionFrame = 10;
     attacker.actionTotal = 26;
     attacker.moveId = "jin.1";
     attacker.hitResolved = [false];
     attacker.t5CancelOrientationMode = 4;
     attacker.t5OrientationTurn = 0;
-    attacker.t5OrientationLastFrame = 9;
+    attacker.t5OrientationLastFrame = 10;
   }
 
   it("does not passively autoblock during an active sidestep shell", () => {

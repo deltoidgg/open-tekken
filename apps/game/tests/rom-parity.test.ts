@@ -92,7 +92,7 @@ describe("Tekken 5 PAL ROM parity", () => {
     expect(moveById("jin.d4").hits[0]?.pushback?.block.samples[0]).toBe(-3);
   });
 
-  it("consumes jab pushback one ROM sample per frame, including hitstop", () => {
+  it("consumes jab pushback one ROM sample per advancing player frame", () => {
     const sim = fightSim(1.0);
     const attacker = sim.gs.fighters[0];
     const defender = sim.gs.fighters[1];
@@ -128,7 +128,9 @@ describe("Tekken 5 PAL ROM parity", () => {
     const contactDeltaZ = defender.pos.z - contactStartZ;
     expect(contactDeltaX * directionX + contactDeltaZ * directionZ).toBeCloseTo(0.2, 8);
     expect(contactDeltaX * -directionZ + contactDeltaZ * directionX).toBeCloseTo(0, 8);
-    expect(defender.hitstop).toBeGreaterThan(0);
+    expect(attacker.hitstop).toBe(0);
+    expect(defender.hitstop).toBe(0);
+    expect(defender.t5ImpactCounter).toBe(7);
 
     const deltas: number[] = [];
     let previousX = defender.pos.x;

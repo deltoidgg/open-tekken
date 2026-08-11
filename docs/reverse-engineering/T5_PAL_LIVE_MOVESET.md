@@ -122,8 +122,8 @@ visual clip's duration produces sluggish controls.
 
 ## Advantage derivation
 
-For a simple standing hit, hitstop freezes both players and cancels out of the
-relative calculation:
+Direct player traces show that a simple standing jab does not freeze either
+timeline. Its relative calculation is therefore:
 
 ```text
 advantage = victim reaction recovery - (attacker recovery - contact frame)
@@ -247,8 +247,8 @@ belongs to another dispatch mode and is not the normal jab-string behavior.
 Hit evaluation at `0x0020A9E4` reads the committed move at `player + 0xC4` and
 compares its active range directly with `player + 0x96`. A parent active on the
 transition boundary therefore resolves before the pending child takes over.
-Hitstop freezes both timelines, but a reset child still has to travel from frame
-1 to its own active frame afterward.
+The parent active frame resolves before the pending child takes over. A reset
+child then has to travel from frame 1 to its own active frame.
 
 Jin's jab cancel records demonstrate the model:
 
@@ -321,9 +321,8 @@ Static analysis establishes the complete open-ground application path:
   world-displacement envelope, not an impulse with velocity decay.
 
 The combat/physics call order around `0x0020B174` supports consuming the first
-sample on the contact frame and continuing the envelope while hitstop freezes
-the move timelines. This ordering is an inference from static control flow;
-the clone locks it down with a focused per-frame simulation test.
+sample on the contact frame. Direct 1,000 Hz traces confirm that the envelope
+then advances on each logical player update while both move timelines continue.
 
 When `player + 0x2C0 >= 4`, the executable adds a combo/wall-state term of
 `40 * (state - 3) + 10`. The mapped implementation intentionally covers the
@@ -422,8 +421,8 @@ transition enters move `467`, whose second kick launches with reaction `161`.
 `WS+2` is `-2` on block in this PAL build, replacing the provisional T5DR
 `-12` value.
 
-All recovered pushback envelopes begin on contact and continue during hitstop.
-A new hit replaces the previous envelope. Native reaction poses replace the
+All recovered pushback envelopes begin on contact and continue on the native
+player-frame clock. A new hit replaces the previous envelope. Native reaction poses replace the
 standing hurt spheres while active, including during an animation-owned launch.
 Unmapped attacks and reactions deliberately retain the older scalar/gravity
 fallback and must not be treated as parity-complete.
@@ -460,8 +459,9 @@ limitations are in `T5_PAL_SIDESTEP_RUNTIME.md`.
 5. Join native airborne horizontal displacement to wall impact; the current
    legacy wall path still expects velocity while recovered pushback writes
    world position directly.
-6. Capture controlled PAL input traces once window automation is available, so
-   frame-domain data can be compared with wall-clock feel at 50 Hz.
+6. Extend the controlled player-struct traces beyond Jin `1`; the first capture
+   proved 60 Hz player frames over 50 Hz PAL output and separated `+0x2B6` from
+   timeline freeze.
 
 The supplied reference remains Tekken 5 PAL, while `T5DR_CLONE_SPEC.md` targets
 T5DR at 60 Hz. ROM-backed T5 values are authoritative for the current user goal;

@@ -1,4 +1,5 @@
 import { B1, B2, B3, B4, emptyPad, type Pad } from "../src/input/pad.ts";
+import { T5_SIM_HZ } from "../src/data/tuning.ts";
 import { Sim, type SimOptions } from "../src/sim/sim.ts";
 import { isActionable, type FighterState } from "../src/sim/state.ts";
 
@@ -13,7 +14,7 @@ export function fightSim(separation = 1.0, opts: SimOptions = {}): Sim {
   const sim = new Sim(opts);
   // skip intro/round intro
   sim.step(pad({ btns: B1 }), pad());
-  for (let i = 0; i < 70; i++) sim.step(pad(), pad());
+  for (let i = 0; i < T5_SIM_HZ + 20; i++) sim.step(pad(), pad());
   if (sim.gs.phase !== "fight") throw new Error(`expected fight phase, got ${sim.gs.phase}`);
   setSeparation(sim, separation);
   return sim;

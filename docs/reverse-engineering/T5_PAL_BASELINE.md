@@ -1,7 +1,7 @@
 # Tekken 5 PAL Reverse-Engineering Baseline
 
 Date: 2026-08-09
-Updated: 2026-08-10
+Updated: 2026-08-11
 
 ## Reference identity
 
@@ -15,12 +15,12 @@ not Tekken 5: Dark Resurrection:
 - Video mode: PAL
 - PCSX2: `2.6.3`
 
-PCSX2's emulator log confirms that the game switches to PAL VSync. The host
-surface refreshes at approximately 60 Hz, but the reference game itself uses
-PAL timing; its active configuration reports `FrameratePAL = 50`. The clone now
-simulates at a fixed 50 Hz and interpolates rendering at the host display rate.
-One recovered PAL gameplay frame is therefore 20 ms in both the reference and
-clone.
+PCSX2's emulator log confirms that the game switches to PAL VSync and its active
+configuration reports `FrameratePAL = 50`. Direct 1,000 Hz player-struct traces
+refine that output-level observation: `player + 0x96` advances six gameplay
+frames per five PAL VBlanks, or 60 authored frames per second on average. The
+clone therefore simulates gameplay at a fixed 60 Hz while rendering remains
+independent. See `T5_PAL_JAB_CONTACT_CLOCK.md` for the trace evidence.
 
 `T5DR_CLONE_SPEC.md` remains the authored mechanics contract, but it describes
 T5DR while the executable reference is PS2 Tekken 5. Any value supported only
@@ -84,8 +84,8 @@ measurements are recorded in
 Static analysis of the main executable further establishes that pushback is a
 signed per-frame world-displacement envelope, not a velocity impulse. The clone
 now consumes the recovered normal, counter-hit, and block envelopes for 22 Jin
-move IDs, including during hitstop, at an evidence-backed scale of 1,000 native
-units per metre. Side/back/downed selection, wall-state additions, and
+move IDs on the native player-frame clock, at an evidence-backed scale of 1,000
+native units per metre. Side/back/downed selection, wall-state additions, and
 unmapped moves remain provisional.
 The measured neutral and directional-basic baselines and reproducible commands
 are recorded in
@@ -101,12 +101,11 @@ validation, and remaining boundary are recorded in
 
 ## Clone timing baseline
 
-`T5_SIM_HZ` is fixed at 50 from the live PAL reference. The browser accumulator,
-round timer, intro gates, and replay duration all use that rate. Native
-animations, pushback, hitstop, cancels, and reactions still advance exactly one
-integer frame per simulation tick. Unmapped legacy ballistics retain their old
-per-frame integration until a ROM-backed trajectory replaces them; changing
-the wall-clock rate must not silently retune their frame counts.
+`T5_SIM_HZ` is fixed at the measured 60 Hz player-frame rate. The browser
+accumulator, round timer, intro gates, and replay duration all use that rate.
+Native animations, pushback, cancels, and reactions advance exactly one integer
+frame per simulation tick. Unmapped legacy ballistics retain 60 Hz integration
+until a ROM-backed trajectory replaces them.
 
 Before the input correction, `CommandParser` held every new button for one
 frame while waiting for a possible chord partner. As a result, an authored i10
@@ -121,11 +120,11 @@ The corrected contract is:
 3. If a second chord button arrives on the next frame, the completed chord
    replaces the provisional first-frame action before either move can become
    active.
-4. An authored i10 jab contacts on the 10th simulation frame including the
-   input frame.
+4. An authored i10 jab evaluates active frame 10, then publishes hit/block on
+   the observable attacker-frame-11 / defender-reaction-frame-1 state.
 
 Focused tests cover singleton emission, one-frame chord completion, provisional
-action replacement, and inclusive i10 contact timing.
+action replacement, and the measured i10 contact-publication phase.
 
 ## Other high-impact parity risks
 

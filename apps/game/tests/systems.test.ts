@@ -263,7 +263,7 @@ describe("counter hit reactions", () => {
 });
 
 describe("match flow", () => {
-  it("uses the live PAL 50 Hz game clock", () => {
+  it("uses the live 60 Hz player clock", () => {
     const sim = fightSim(1.0);
     sim.gs.timer = 60;
     sim.gs.timerAcc = 0;

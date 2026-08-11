@@ -1,8 +1,8 @@
 # Tekken 5 gameplay parity audit and iteration plan
 
-Status: analysis-only planning document, updated 2026-08-11. It consolidates the
-live PAL reference work into an implementation order. No gameplay code was
-changed during this audit.
+Status: active implementation plan, updated 2026-08-11. It consolidates the
+live PAL reference work into an implementation order and records later direct
+trace corrections where they supersede the initial audit.
 
 ## Target reconciliation
 
@@ -13,15 +13,16 @@ oracle supplied for comparison is the PAL PlayStation 2 release of Tekken 5:
 serial:       SCES-53202
 version:      1.00
 CRC:          1F88BECD
-gameplay rate: 50 Hz PAL
+video output:  50 Hz PAL
+player frames: 60 Hz average (six updates per five VBlanks)
 ```
 
 For the stated goal of making the current project play exactly like the Tekken 5
 window, measured PAL behavior must win whenever it conflicts with the authored
-DR spec. The DR document remains a feature and move-coverage contract. If exact
-DR behavior is later required, it should be a separate ruleset backed by a DR
-runtime oracle rather than a mixture of 50 Hz Tekken 5 timings and 60 Hz DR
-assumptions.
+DR spec. The DR document remains a feature and move-coverage contract. Direct
+player traces now show that PAL Tekken 5 also consumes authored gameplay frames
+at 60 Hz despite 50 Hz output. If exact DR behavior is later required, it should
+still be a separate ruleset backed by a DR runtime oracle.
 
 ## Why the clone still feels different
 
@@ -32,7 +33,7 @@ several frame-ordered systems agreeing with each other:
 - move-shell transitions and cancel availability;
 - animation-root transfer, including small overshoot and return tails;
 - current posed collision rather than radial approximations;
-- hitstop, pushback, stun, and recovery all advancing on the same clock;
+- impact state, pushback, stun, and recovery advancing in the measured order;
 - guard, tracking, crush, and sidestep state at the exact contact frame; and
 - rendered feet, torso, camera, and effects presenting the same event the
   simulation resolved.
@@ -47,7 +48,7 @@ The following slices are measured from the PAL executable and documented:
 
 | Area              | Recovered foundation                                                    | Detailed note                             |
 | ----------------- | ----------------------------------------------------------------------- | ----------------------------------------- |
-| clock/input edge  | 50 Hz PAL clock; same-tick singleton/chord start; inclusive i10 contact | `T5_PAL_BASELINE.md`                      |
+| clock/input edge  | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
 | animation decoder | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
 | pose builder      | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
 | world placement   | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
@@ -102,7 +103,7 @@ error.
 ### 5. Contact cadence needs an end-to-end oracle
 
 Startup alone is insufficient. A faithful jab exchange requires exact contact
-pose, hitstop ownership, stun start, pushback envelope, recovery end, guard
+pose, impact-state ownership, stun start, pushback envelope, recovery end, guard
 return, camera response, and audio/VFX timing. Those events need one golden trace
 rather than separate unit assertions.
 
@@ -121,9 +122,10 @@ remain the largest system-level departures from Tekken 5.
 ### 8. Presentation does not yet communicate the simulation
 
 Most visible attack and locomotion animation is still procedural. Foot planting,
-impact poses, hitstop freeze, camera compression, shake, sound transients, and
-effect timing are part of control feel. They should be driven from authoritative
-simulation events after those events are correct, not tuned independently.
+impact poses, any impact-class-specific freeze, camera compression, shake, sound
+transients, and effect timing are part of control feel. They should be driven
+from authoritative simulation events after those events are correct, not tuned
+independently.
 
 ## Iterative implementation order
 
@@ -190,7 +192,7 @@ Start with Jin `1`, then `1,2`, `d/f+1`, and one low. Recover the entire event
 chain for whiff, block, normal hit, and counter hit:
 
 ```text
-input edge -> action start -> active pose -> collision -> hitstop
+input edge -> action start -> active pose -> collision -> impact state
 -> pushback/stun -> recovery -> first actionable frame
 ```
 
@@ -259,7 +261,7 @@ new one-off physics.
 Drive rendering, camera, sound, and effects from the authoritative event trace:
 
 - render the same final skeleton used for collision;
-- freeze the same participants during hitstop;
+- freeze only the participants and impact classes proven to use timeline freeze;
 - align effect and sound onset to contact;
 - reproduce camera distance, lateral framing, and impact response;
 - eliminate procedural foot sliding during native locomotion; and
@@ -279,7 +281,7 @@ that contaminates attacks, hurt volumes, body push, and visible animation.
 ### Iteration B: Jab end-to-end
 
 Scope: neutral `1` on whiff, block, hit, and counter hit. Include input edge,
-contact pose, hitstop, pushback, stun, recovery, guard return, camera, and effect
+contact pose, impact counter, pushback, stun, recovery, guard return, camera, and effect
 events. This establishes the canonical combat cadence.
 
 ### Iteration C: Backdash/KBD
@@ -294,7 +296,8 @@ will notice immediately.
   function because the easing looks smoother.
 - Never retune a downstream symptom before checking clock, frame alignment,
   coordinate ownership, and publication phase.
-- Keep PAL simulation at 50 Hz even when rendering at 60/120/144 Hz.
+- Keep gameplay simulation at the measured 60 Hz player-frame rate; treat the
+  50 Hz PAL VBlank cadence as an output concern.
 - Preserve discrete move shells even when they share one animation payload.
 - Use a provisional fallback only behind an explicit provenance marker and test.
 - Compare player-frame events and world-space state, not video frames alone.

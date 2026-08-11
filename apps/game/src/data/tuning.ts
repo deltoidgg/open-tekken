@@ -1,5 +1,9 @@
-/** The supplied SCES-53202 reference runs its PAL game clock at 50 Hz. */
-export const T5_SIM_HZ = 50;
+/**
+ * SCES-53202 outputs PAL video at 50 Hz, but its player frame at +0x96 advances
+ * six times per five VBlanks. Gameplay therefore consumes authored frames at
+ * 60 Hz; rendering remains independent of this fixed simulation clock.
+ */
+export const T5_SIM_HZ = 60;
 
 /** All gameplay tuning in one place (spec sections 3-5, 9). */
 export const TUNING = {

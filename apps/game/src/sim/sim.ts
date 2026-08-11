@@ -46,8 +46,8 @@ import {
 import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orientation.ts";
 
 // Unmapped ballistic states still use the clone's original per-frame tuning.
-// ROM-backed trajectories consume one native sample per PAL tick and bypass it.
-const PAL_DT = 1 / T5_SIM_HZ;
+// ROM-backed trajectories consume one native player-frame sample and bypass it.
+const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
 
 export interface ReplaySnap {
@@ -79,6 +79,7 @@ interface PendingContact {
   hit: HitDef;
   hitIndex: number;
   move: MoveDef;
+  contactFrame: number;
 }
 
 export interface SimOptions {
@@ -119,7 +120,7 @@ export class Sim {
     this.gs.events.push(e);
   }
 
-  /** Advance exactly one PAL game-clock tick. */
+  /** Advance exactly one Tekken gameplay/player frame. */
   step(padP1: Pad, padP2: Pad): void {
     const gs = this.gs;
     gs.frame++;
@@ -192,8 +193,8 @@ export class Sim {
 
     const [f0, f1] = gs.fighters;
 
-    // Native pushback is world motion, not animation velocity, and continues
-    // while hitstop holds the fighter timelines.
+    // Native pushback is world motion, not animation velocity, and advances on
+    // the same player-frame clock as the fighter timelines.
     this.advanceRecoveredPushbacks();
 
     // throw cinematic owns both fighters
@@ -204,8 +205,9 @@ export class Sim {
       this.decide(1, inputs[1]);
       this.updateFighter(0, inputs[0]);
       this.updateFighter(1, inputs[1]);
-      this.updateAttackFacing();
       this.resolveCombat(inputs);
+      this.settlePostContactAttacks();
+      this.updateAttackFacing();
       this.resolveThrowStartups(inputs);
     }
 
@@ -1000,6 +1002,7 @@ export class Sim {
 
   private updateFighter(i: 0 | 1, inp: FrameInput): void {
     const f = this.gs.fighters[i];
+    if (f.t5ImpactCounter > 0) f.t5ImpactCounter--;
     if (f.hitstop > 0) {
       f.hitstop--;
       return;
@@ -1222,17 +1225,12 @@ export class Sim {
             f.pos.z += fw.z * step;
           }
         }
-        const unresolvedParentHit = move.hits.some(
-          (hit, index) =>
-            !f.hitResolved[index] &&
-            f.actionFrame >= hit.active[0] + f.startupOffset &&
-            f.actionFrame <= hit.active[1] + f.startupOffset,
-        );
+        // PAL collision publishes after the completed active frame. Keep the
+        // parent shell alive through that publication before a child takes over.
+        const unresolvedParentHit = this.hasUnresolvedContactWindow(f, move);
         const queuedFollowup = f.followupQueued;
         const followupReady =
-          queuedFollowup !== null &&
-          f.actionFrame >= f.followupAt &&
-          (f.followupTargetFrame === null || f.actionFrame > f.followupAt || !unresolvedParentHit);
+          queuedFollowup !== null && f.actionFrame >= f.followupAt && !unresolvedParentHit;
         if (followupReady) {
           const timelineFrame = f.followupTargetFrame ?? 0;
           const transitionMode = f.followupTransitionMode;
@@ -1240,21 +1238,7 @@ export class Sim {
           this.startAttack(f, moveById(queuedFollowup), true, timelineFrame, transitionMode);
           break;
         }
-        if (f.actionFrame >= f.actionTotal) {
-          const rec = move.recoversState ?? "stand";
-          if (rec === "crouch") {
-            this.enterCrouch(f);
-          } else if (rec === "grounded") {
-            this.setAction(f, "grounded", 0);
-            f.groundState = "FUFA";
-            f.downFrames = 0;
-          } else if (rec === "CDS") {
-            this.setAction(f, "CDS", 40);
-          } else {
-            this.setAction(f, "idle", 0);
-          }
-          f.moveId = null;
-        }
+        if (f.actionFrame >= f.actionTotal && !unresolvedParentHit) this.finishAttack(f, move);
         break;
       }
       case "throwStartup": {
@@ -1405,39 +1389,100 @@ export class Sim {
       if (atk.action !== "attack" || !atk.moveId || atk.hitstop > 0) continue;
       const move = moveById(atk.moveId);
       const def = this.gs.fighters[i === 0 ? 1 : 0];
+      const contactFrame = atk.actionFrame - 1;
       for (let k = 0; k < move.hits.length; k++) {
         if (atk.hitResolved[k]) continue;
         const hd = move.hits[k]!;
         const a0 = hd.active[0] + atk.startupOffset;
         const a1 = hd.active[1] + atk.startupOffset;
-        if (atk.actionFrame < a0 || atk.actionFrame > a1) {
-          if (atk.actionFrame > a1) {
+        if (contactFrame < a0 || contactFrame > a1) {
+          if (contactFrame > a1) {
             atk.hitResolved[k] = true;
             if (atk.moveContact === "none" && k === move.hits.length - 1) atk.moveContact = "whiff";
           }
           continue;
         }
-        if (this.canContact(atk, def, move, hd)) {
-          contacts.push({ attacker: i, hit: hd, hitIndex: k, move });
+        if (this.canContact(atk, def, move, hd, contactFrame)) {
+          contacts.push({ attacker: i, hit: hd, hitIndex: k, move, contactFrame });
+        } else if (contactFrame >= a1) {
+          atk.hitResolved[k] = true;
+          if (atk.moveContact === "none" && k === move.hits.length - 1) {
+            atk.moveContact = "whiff";
+          }
         }
       }
     }
     for (const c of contacts) this.applyContact(c, inputs);
   }
 
-  private canContact(atk: FighterState, def: FighterState, move: MoveDef, hd: HitDef): boolean {
+  private hasUnresolvedContactWindow(fighter: FighterState, move: MoveDef): boolean {
+    const contactFrame = Math.max(0, fighter.actionFrame - 1);
+    return move.hits.some((hit, index) => {
+      const activeStart = hit.active[0] + fighter.startupOffset;
+      const activeEnd = hit.active[1] + fighter.startupOffset;
+      return (
+        !fighter.hitResolved[index] &&
+        fighter.actionFrame >= activeStart &&
+        contactFrame <= activeEnd
+      );
+    });
+  }
+
+  /** Commit transitions that PAL schedules after evaluating the parent hit. */
+  private settlePostContactAttacks(): void {
+    for (const fighter of this.gs.fighters) {
+      if (fighter.action !== "attack" || !fighter.moveId) continue;
+      const move = moveById(fighter.moveId);
+      if (this.hasUnresolvedContactWindow(fighter, move)) continue;
+
+      const queued = fighter.followupQueued;
+      if (queued !== null && fighter.actionFrame >= fighter.followupAt) {
+        const timelineFrame = fighter.followupTargetFrame ?? 0;
+        const transitionMode = fighter.followupTransitionMode;
+        fighter.followupQueued = null;
+        this.startAttack(fighter, moveById(queued), true, timelineFrame, transitionMode);
+      } else if (fighter.actionFrame >= fighter.actionTotal) {
+        this.finishAttack(fighter, move);
+      }
+    }
+  }
+
+  private finishAttack(fighter: FighterState, move: MoveDef): void {
+    const recoversState = move.recoversState ?? "stand";
+    if (recoversState === "crouch") {
+      this.enterCrouch(fighter);
+    } else if (recoversState === "grounded") {
+      this.setAction(fighter, "grounded", 0);
+      fighter.groundState = "FUFA";
+      fighter.downFrames = 0;
+    } else if (recoversState === "CDS") {
+      this.setAction(fighter, "CDS", 40);
+    } else {
+      this.setAction(fighter, "idle", 0);
+    }
+    fighter.moveId = null;
+  }
+
+  private canContact(
+    atk: FighterState,
+    def: FighterState,
+    move: MoveDef,
+    hd: HitDef,
+    contactFrame: number,
+  ): boolean {
     if (def.invuln > 0) return false;
     if (def.action === "ko" || def.action === "win") return false;
     if (this.gs.activeThrow) return false;
 
+    const defenderFrame = Math.max(0, def.actionFrame - 1);
     const nativeReactionAnimation = t5JinReactionAnimation(def.t5ReactionMoveId);
     const released = (def.action === "walkF" || def.action === "walkB") && def.actionTotal > 0;
     const nativeLocomotion =
       def.action === "ss"
-        ? t5SidestepAnimationPhase(def.ssDir, def.ssPhase, def.actionFrame)
+        ? t5SidestepAnimationPhase(def.ssDir, def.ssPhase, defenderFrame)
         : t5LocomotionPhase(
             def.action,
-            def.actionFrame,
+            defenderFrame,
             released,
             this.t5NativeLocomotionMoveId(def),
           );
@@ -1455,7 +1500,7 @@ export class Sim {
     if (testedNativeGeometry) {
       const locomotionRoot =
         def.action === "ss"
-          ? t5SidestepRootOffset(def.ssDir, def.ssPhase, def.actionFrame)
+          ? t5SidestepRootOffset(def.ssDir, def.ssPhase, defenderFrame)
           : nativeLocomotion?.transfersRoot
             ? sampleT5RootOffset(nativeLocomotion.animation, nativeLocomotion.actionFrame)
             : undefined;
@@ -1473,8 +1518,8 @@ export class Sim {
               : def.t5ReactionOrigin,
         animation: nativeReactionAnimation ?? nativeLocomotion?.animation ?? nativeAttackAnimation,
         actionFrame: nativeReactionPose
-          ? def.actionFrame
-          : (nativeLocomotion?.actionFrame ?? def.actionFrame),
+          ? defenderFrame
+          : (nativeLocomotion?.actionFrame ?? defenderFrame),
       };
       const attackerPlacement = {
         pos: atk.pos,
@@ -1483,9 +1528,9 @@ export class Sim {
         t5PreviousFace: atk.t5PreviousFace,
         t5AnimationOrigin: atk.t5AnimationOrigin,
         animation: move.t5Animation,
-        actionFrame: atk.actionFrame,
+        actionFrame: contactFrame,
       };
-      if (!t5HitboxHitsJin(attackerPlacement, defenderPlacement, hd.t5Hitbox!, atk.actionFrame)) {
+      if (!t5HitboxHitsJin(attackerPlacement, defenderPlacement, hd.t5Hitbox!, contactFrame)) {
         return false;
       }
     } else {
@@ -1511,9 +1556,12 @@ export class Sim {
     }
 
     // vertical rules
-    if (def.action === "launched" || this.hasJumpStatus(def) || def.pos.y > 0.05) {
+    if (def.action === "launched" || this.hasJumpStatus(def, defenderFrame) || def.pos.y > 0.05) {
       if (!nativeReactionPose && def.pos.y > (hd.airReach ?? 1.9)) return false;
-      if (this.hasJumpStatus(def) && (hd.level === "l" || hd.level === "L" || hd.level === "sm"))
+      if (
+        this.hasJumpStatus(def, defenderFrame) &&
+        (hd.level === "l" || hd.level === "L" || hd.level === "sm")
+      )
         return false;
       return true;
     }
@@ -1527,37 +1575,37 @@ export class Sim {
 
     // crush: highs whiff vs crouching status
     if (hd.level === "h") {
-      if (this.hasCrouchStatus(def)) {
+      if (this.hasCrouchStatus(def, defenderFrame)) {
         return false;
       }
     }
     // lows/sm whiff vs jump status
     if (hd.level === "l" || hd.level === "L" || hd.level === "sm") {
-      if (this.hasJumpStatus(def)) return false;
+      if (this.hasJumpStatus(def, defenderFrame)) return false;
     }
     return true;
   }
 
-  private hasCrouchStatus(f: FighterState): boolean {
+  private hasCrouchStatus(f: FighterState, actionFrame = f.actionFrame): boolean {
     if (f.crouching || f.action === "crouch") return true;
     if (f.action === "CD") {
-      return f.actionFrame >= T.cdTc[0] && f.actionFrame <= T.cdTc[1];
+      return actionFrame >= T.cdTc[0] && actionFrame <= T.cdTc[1];
     }
     if (f.action === "CDS") {
-      return f.actionFrame >= 1 && f.actionFrame <= 20;
+      return actionFrame >= 1 && actionFrame <= 20;
     }
     if (f.action === "attack" && f.moveId) {
       const tc = moveById(f.moveId).crush?.TC;
-      if (tc) return f.actionFrame >= tc[0] && f.actionFrame <= tc[1];
+      if (tc) return actionFrame >= tc[0] && actionFrame <= tc[1];
     }
     return false;
   }
 
-  private hasJumpStatus(f: FighterState): boolean {
-    if (f.action === "jump") return t5JumpIsAirborne(f.t5JumpMoveId, f.actionFrame);
+  private hasJumpStatus(f: FighterState, actionFrame = f.actionFrame): boolean {
+    if (f.action === "jump") return t5JumpIsAirborne(f.t5JumpMoveId, actionFrame);
     if (f.action === "attack" && f.moveId) {
       const tj = moveById(f.moveId).crush?.TJ;
-      if (tj) return f.actionFrame >= tj[0] && f.actionFrame <= tj[1];
+      if (tj) return actionFrame >= tj[0] && actionFrame <= tj[1];
     }
     return false;
   }
@@ -1566,6 +1614,7 @@ export class Sim {
     def: FighterState,
     inp: FrameInput,
     jails: boolean,
+    actionFrame = def.actionFrame,
   ): "stand" | "crouch" | "none" {
     // already blocking: stays in the same guard while stun holds (string pressure)
     if (def.action === "blockstun") {
@@ -1578,9 +1627,9 @@ export class Sim {
       def.action === "walkB" ||
       def.action === "rising" ||
       def.action === "turn" ||
-      (def.action === "backdash" && def.actionFrame > T.backdashGuardlessUntil) ||
+      (def.action === "backdash" && actionFrame > T.backdashGuardlessUntil) ||
       (def.action === "ss" && def.ssPhase === "walkStop") ||
-      (def.action === "getup" && def.actionFrame >= 8) ||
+      (def.action === "getup" && actionFrame >= 8) ||
       def.action === "crouch" ||
       def.action === "walkF";
     if (!guardableAction) return "none";
@@ -1596,12 +1645,12 @@ export class Sim {
     return "none";
   }
 
-  private isCHState(def: FighterState): boolean {
+  private isCHState(def: FighterState, actionFrame = def.actionFrame): boolean {
     if (def.action === "run" || def.action === "throwStartup" || def.action === "dash") return true;
     if (def.action === "attack" && def.moveId) {
       const move = moveById(def.moveId);
       const lastActive = Math.max(...move.hits.map((h) => h.active[1])) + def.startupOffset;
-      return def.actionFrame <= lastActive;
+      return actionFrame <= lastActive;
     }
     return false;
   }
@@ -1610,13 +1659,14 @@ export class Sim {
     const atk = this.gs.fighters[c.attacker];
     const defId = c.attacker === 0 ? 1 : 0;
     const def = this.gs.fighters[defId];
+    const defenderFrame = Math.max(0, def.actionFrame - 1);
     const inp = inputs[defId];
     const hd = c.hit;
     if (atk.hitResolved[c.hitIndex]) return;
     atk.hitResolved[c.hitIndex] = true;
 
     const fw = this.facingVec(atk);
-    const rem = Math.max(0, atk.actionTotal - atk.actionFrame);
+    const rem = Math.max(0, atk.actionTotal - c.contactFrame);
     const impact = {
       x: def.pos.x - fw.x * 0.25,
       y: 1.05 + (def.pos.y ?? 0),
@@ -1630,7 +1680,7 @@ export class Sim {
     if (
       defAttacking &&
       defMove &&
-      def.actionFrame < defMove.startup &&
+      defenderFrame < defMove.startup &&
       (hd.level === "h" || hd.level === "m")
     ) {
       const punch = this.isPunchMove(c.move);
@@ -1645,8 +1695,8 @@ export class Sim {
     // Kazama parry
     if (
       def.action === "parry" &&
-      def.actionFrame >= T.parryWindow[0] &&
-      def.actionFrame <= T.parryWindow[1] &&
+      defenderFrame >= T.parryWindow[0] &&
+      defenderFrame <= T.parryWindow[1] &&
       (hd.level === "h" || hd.level === "m")
     ) {
       this.emit({ type: "parry", pos: impact, fighter: defId });
@@ -1685,7 +1735,7 @@ export class Sim {
     }
 
     // blocking
-    const guard = this.guardStateOf(def, inp, !!hd.flags?.jails);
+    const guard = this.guardStateOf(def, inp, !!hd.flags?.jails, defenderFrame);
     const canBlock =
       hd.level !== "unblockable" &&
       guard !== "none" &&
@@ -1703,8 +1753,10 @@ export class Sim {
     ) {
       const stun = hd.blockstun ?? Math.max(1, rem + hd.onBlock);
       this.setAction(def, "blockstun", stun);
+      def.actionFrame = 1;
       def.crouching = guard === "crouch"; // after setAction — it resets the flag
       def.stunKind = "none";
+      def.t5ImpactCounter = 0;
       atk.moveContact = "block";
       // chip while attacker is charged
       if (atk.buff !== "none") {
@@ -1721,8 +1773,10 @@ export class Sim {
         const push = T.pushback[hd.flags?.knockback ?? (hd.damage >= 20 ? "mid" : "small")];
         this.applyPushback(atk, def, fw, push);
       }
-      atk.hitstop = T.hitstopBlock;
-      def.hitstop = T.hitstopBlock;
+      if (c.move.id !== "jin.1") {
+        atk.hitstop = T.hitstopBlock;
+        def.hitstop = T.hitstopBlock;
+      }
       this.emit({
         type: "block",
         pos: impact,
@@ -1744,7 +1798,7 @@ export class Sim {
     }
 
     // ── it hits ──
-    const isCH = this.isCHState(def) || atk.buff !== "none";
+    const isCH = this.isCHState(def, defenderFrame) || atk.buff !== "none";
     const airborneVictim = def.action === "launched" || def.pos.y > 0.05;
     const groundedVictim = def.action === "grounded";
     const wallVictim = def.action === "wallsplat";
@@ -1779,6 +1833,7 @@ export class Sim {
     dmg = Math.floor(dmg);
     def.hp = Math.max(0, def.hp - dmg);
     def.tookDamageThisRound = true;
+    def.t5ImpactCounter = Math.max(0, dmg - 1);
 
     if (!groundedVictim) {
       def.comboHits++;
@@ -1788,8 +1843,12 @@ export class Sim {
 
     atk.moveContact = "hit";
     atk.moveHitLanded = true;
-    atk.hitstop = isCH ? T.hitstopCH : T.hitstopHit;
-    def.hitstop = atk.hitstop;
+    // Direct player traces disprove timeline freeze for standing jab 1. Other
+    // impacts retain their provisional behavior until measured independently.
+    if (c.move.id !== "jin.1") {
+      atk.hitstop = isCH ? T.hitstopCH : T.hitstopHit;
+      def.hitstop = atk.hitstop;
+    }
     this.emit({
       type: isCH && scaleIdx === 0 ? "ch" : "hit",
       pos: impact,
@@ -1868,6 +1927,7 @@ export class Sim {
       this.setAction(def, "hitstun", stun);
       def.stunKind = "normal";
       this.setT5Reaction(def, t5ReactionMoveId);
+      def.actionFrame = 1;
       if (recoveredPushback) {
         this.startRecoveredPushback(def, fw, recoveredPushback);
       } else {
@@ -2051,7 +2111,7 @@ export class Sim {
       f.t5AirTrajectoryFrame++;
       const current = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame);
       const previous = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame - 1);
-      f.vel.y = (current[1] - previous[1]) / PAL_DT;
+      f.vel.y = (current[1] - previous[1]) / T5_FRAME_DT;
       f.pos.y = Math.max(0, f.t5AirTrajectoryOrigin[1] + current[1]);
       this.syncT5ReactionOrigin(f);
       if (f.t5AirTrajectoryFrame >= trajectory.airborneLandingFrame) {

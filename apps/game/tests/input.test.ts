@@ -37,7 +37,7 @@ describe("input edge timing", () => {
     expect(second.rawPressed).toBe(B2);
   });
 
-  it("starts an i10 jab on the input frame and contacts on frame 10", () => {
+  it("starts an i10 jab immediately and publishes its frame-10 contact on frame 11", () => {
     const sim = fightSim(1.0);
     const pressFrame = sim.gs.frame + 1;
 
@@ -55,7 +55,9 @@ describe("input edge timing", () => {
       if (contactFrame < 0) sim.step(pad(), pad({ dx: 1 }));
     }
 
-    expect(contactFrame - pressFrame + 1).toBe(10);
+    expect(contactFrame - pressFrame + 1).toBe(11);
+    expect(sim.gs.fighters[0].actionFrame).toBe(11);
+    expect(sim.gs.fighters[1].actionFrame).toBe(1);
   });
 
   it("replaces a provisional jab with a one-frame-skew 1+2 chord", () => {
