@@ -124,6 +124,8 @@ const PB_WS2 = t5Pushback(48, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
 const PB_D34_BLOCK = t5Pushback(0, 0, [150, 90, 50, 40, 20, 0, 0, 0]);
 const PB_WS2_BLOCK = t5Pushback(0, 0, [100, 80, 30, 20, 10, 0, 0, 0]);
 const PB_133DF3_CH = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0]);
+const PB_F4 = t5Pushback(20, 10, [300, 250, 200, 100, 50, 25, 5, 0]);
+const PB_F4_BLOCK = t5Pushback(10, 10, [200, 200, 100, 30, 20, 0, 0, 0]);
 const PB_B4 = t5Pushback(33, 70, [300, 200, 100, 50, 0, 0, 0, 0]);
 const PB_DF2_CH = t5Pushback(48, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
 const PB_DF4 = t5Pushback(30, 60, [300, 500, 300, 200, 50, 30, 0, 0]);
@@ -142,7 +144,9 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.4": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.f2": outcomes(PB_410, PB_410, PB_BLOCK),
   "jin.f3": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.f4": outcomes(PB_F4, PB_F4, PB_F4_BLOCK),
   "jin.b2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.b3": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.b4": outcomes(PB_B4, PB_B4, PB_ZERO),
   "jin.df1": outcomes(PB_410, PB_410, PB_BLOCK),
   "jin.df2": outcomes(PB_730, PB_DF2_CH, PB_BLOCK),
@@ -156,6 +160,7 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.db2": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
   "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.ss.db4": outcomes(PB_730, PB_133DF3_CH, PB_BLOCK),
   "jin.133": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.133df3": outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
 };
@@ -783,9 +788,18 @@ export const JIN_MOVES: MoveDef[] = [
     "f+4",
     "Right Front Kick",
     16,
-    44,
-    [hit("m", 21, 16, -8, +2, "CS", { range: 1.85 })],
+    49,
+    [
+      hit("m", 21, 16, -8, +2, "CS", {
+        range: 1.85,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_593_HITBOX,
+        t5ReactionMoves: { normal: 596, counterHit: 597 },
+      }),
+    ],
     {
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_593_ANIMATION,
       anim: { clip: "frontKickR" },
       kiaiFollowup: true,
       tags: ["chTool"],
@@ -1220,6 +1234,27 @@ export const JIN_MOVES: MoveDef[] = [
 
   // ── b ────────────────────────────────────────────────────────────────────
   mv(
+    "jin.ss.db4",
+    "SS d/b+4",
+    "Sidestep Shin Kick",
+    20,
+    53,
+    [
+      hit("l", 15, 20, -14, -3, "KND", {
+        range: 1.8,
+        activeLen: 2,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_461_HITBOX,
+        t5ReactionMoves: { normal: 891, counterHit: 822 },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_461_ANIMATION,
+      anim: { clip: "shinKick" },
+      tags: ["low"],
+    },
+  ),
+  mv(
     "jin.b2",
     "b+2",
     "Right Backfist",
@@ -1264,9 +1299,18 @@ export const JIN_MOVES: MoveDef[] = [
     "b+3",
     "Left Inner Crescent",
     14,
-    36,
-    [hit("h", 15, 14, +2, +6, "PLD", { range: 1.8 })],
+    38,
+    [
+      hit("h", 15, 14, +2, +6, "PLD", {
+        range: 1.8,
+        activeLen: 3,
+        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_587_HITBOX,
+        t5ReactionMoves: { normal: 590, counterHit: 591 },
+      }),
+    ],
     {
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_587_ANIMATION,
       anim: { clip: "crescentL" },
       followups: [{ moveId: "jin.b34", buttons: B4, window: [6, 30] }],
       tags: ["chTool"],

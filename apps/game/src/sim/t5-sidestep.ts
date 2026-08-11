@@ -14,6 +14,11 @@ export type T5SidestepMovementRoute = {
   group: 1077;
 };
 
+export type T5SidestepStopCommandRoute =
+  | { kind: "move"; moveId: "jin.ss.db4" | "jin.b3" | "jin.f4"; gate: 1; target: 461 | 587 | 593 }
+  | { kind: "action"; action: "kiaiCharge"; frames: 55; gate: 1; target: 1059 }
+  | { kind: "move"; moveId: string; gate: 6; group: 722 };
+
 const GROUP_722 = new Map<number, string>([
   [B1, "jin.1"],
   [B2, "jin.2"],
@@ -75,6 +80,29 @@ export function t5ActiveSidestepMovementRoute(
   if (direction === "df") return { kind: "crouch", moveId: 250, gate: 9, group: 1077 };
   if (direction === "db") return { kind: "crouch", moveId: 255, gate: 9, group: 1077 };
   return undefined;
+}
+
+/** Resolve the represented direct records and neutral group for PAL moves 1078/1079. */
+export function t5SidestepStopCommandRoute(
+  sourceFrame: number,
+  direction: Dir,
+  buttons: number,
+): T5SidestepStopCommandRoute | undefined {
+  if (sourceFrame < 1) return undefined;
+  if (buttons === (B1 | B2 | B3 | B4)) {
+    return { kind: "action", action: "kiaiCharge", frames: 55, gate: 1, target: 1059 };
+  }
+  if (direction === "db" && buttons === B4) {
+    return { kind: "move", moveId: "jin.ss.db4", gate: 1, target: 461 };
+  }
+  if (direction === "f" && buttons === B4) {
+    return { kind: "move", moveId: "jin.f4", gate: 1, target: 593 };
+  }
+  if (direction === "b" && buttons === B3) {
+    return { kind: "move", moveId: "jin.b3", gate: 1, target: 587 };
+  }
+  const neutralBasic = sourceFrame >= 6 && direction === "n" ? GROUP_722.get(buttons) : undefined;
+  return neutralBasic ? { kind: "move", moveId: neutralBasic, gate: 6, group: 722 } : undefined;
 }
 
 /** Resolve the ordered attack groups invoked by PAL moves 1062..1073. */

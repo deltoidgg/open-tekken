@@ -21,7 +21,8 @@ test("selects the reproducible Jin combat-geometry profile", () => {
 test("selects every directly mapped Jin basic missing from the earlier profiles", () => {
   assert.deepEqual(selectMoveIds(["--profile", "basics"]), BASIC_MOVE_IDS);
   assert.equal(BASIC_MOVE_IDS[0], 395);
-  assert.equal(BASIC_MOVE_IDS.at(-1), 460);
+  assert.equal(BASIC_MOVE_IDS.at(-1), 593);
+  assert.deepEqual(BASIC_MOVE_IDS.slice(-3), [461, 587, 593]);
   assert.equal(new Set(BASIC_MOVE_IDS).size, BASIC_MOVE_IDS.length);
 });
 

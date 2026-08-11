@@ -196,6 +196,27 @@ The ordered directional records are later and shell-specific:
 | sidewalk loop                              |   647 |   12 | `df` and `db` attacks only                    |
 | quick step / start / release / loop / stop |   680 |   20 | `f`, `b`, and neutral attacks                 |
 
+Sidewalk-stop moves `1078/1079` also place a direct command list before those
+groups. Every direct record detects from source frame 1:
+
+| Command              | Target | Clone status                                    |
+| -------------------- | -----: | ----------------------------------------------- |
+| `1+2+3+4`            |   1059 | ki charge, exact frame-55 recovery handoff      |
+| `b/f/n+1+2+3`        |    450 | pending                                         |
+| `1+3+4`              |    437 | pending                                         |
+| `uf+1+2`             |    686 | pending                                         |
+| input sequence `105` |    534 | pending                                         |
+| `db+4`               |    461 | native animation, hitbox, frames, and reactions |
+| `f+4`                |    593 | native animation, hitbox, frames, and reactions |
+| `b+1+2`              |    622 | pending                                         |
+| `b+3`                |    587 | native animation, hitbox, frames, and reactions |
+
+The stop shell now uses that direct order and group 722's frame-6 neutral
+basics instead of the global actionable parser. Unmapped direct records remain
+closed; they no longer degrade into the clone's unrelated kiai, CDS, throw, or
+parry actions. Moves `461`, `587`, and `593` are reproducibly generated in the
+native basics payload.
+
 Group 1077 is invoked by every active lateral shell from source frame 9, but it
 contains directional crouch/movement routes rather than attacks:
 
@@ -274,6 +295,8 @@ Focused tests verify:
 - rejection of throw and taunt chords at the group-722 boundary;
 - group-1077 diagonal crouch entry at source frame 9;
 - source-frame-12, -19, and -20 group selection;
+- stop-shell direct attacks from frame 1 and neutral group 722 from frame 6;
+- rejection of generic throws and unmapped stop records;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
 - the split channel-0-plus-channel-1 root formula.
@@ -288,8 +311,10 @@ Focused tests verify:
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
 4. Map sidewalk-stop's frame-1 direct command list and the remaining native
-   chord targets absent from the clone move catalog. Active groups 722, 647,
-   587/627, and 680 are now ordered by their exact source-frame gates.
+   chord targets absent from the clone move catalog. Targets `461`, `587`,
+   `593`, and `1059` are now represented; `450`, `437`, `686`, `534`, and `622`
+   remain. Active groups 722, 647, 587/627, and 680 are ordered by their exact
+   source-frame gates.
 5. Reproduce the remaining compatible-pose blend and any native logical/render
    root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
    destination-shell delta selection are now implemented.

@@ -45,6 +45,7 @@ import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.t
 import {
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
+  t5SidestepStopCommandRoute,
 } from "../src/sim/t5-sidestep.ts";
 
 function accumulatedForward(
@@ -1010,6 +1011,105 @@ describe("Tekken 5 PAL locomotion roots", () => {
       gate: 9,
       group: 1077,
     });
+  });
+
+  function putInSidewalkStop(sim: ReturnType<typeof fightSim>, actionFrame: number): void {
+    Object.assign(sim.gs.fighters[0], {
+      action: "ss",
+      actionFrame,
+      actionTotal: 15,
+      ssDir: 1,
+      ssPhase: "walkStop",
+    });
+  }
+
+  it.each([
+    [{ dx: -1 as const, dy: -1 as const, btns: B4 }, "jin.ss.db4"],
+    [{ dx: -1 as const, btns: B3 }, "jin.b3"],
+    [{ dx: 1 as const, btns: B4 }, "jin.f4"],
+  ] as const)("starts PAL sidewalk-stop direct attack %# from frame 1", (input, moveId) => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad(input), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({ action: "attack", actionFrame: 1, moveId });
+  });
+
+  it("starts the all-button stop-shell ki charge from frame 1", () => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ btns: B1 | B2 | B3 | B4 }), pad());
+
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "kiaiCharge",
+      actionFrame: 1,
+      actionTotal: 55,
+    });
+  });
+
+  it("opens only neutral group 722 on sidewalk-stop frame 6", () => {
+    const early = fightSim(8);
+    const accepted = fightSim(8);
+    const rejectedThrow = fightSim(8);
+    putInSidewalkStop(early, 4);
+    putInSidewalkStop(accepted, 5);
+    putInSidewalkStop(rejectedThrow, 5);
+
+    early.step(pad({ btns: B1 }), pad());
+    accepted.step(pad({ btns: B1 }), pad());
+    rejectedThrow.step(pad({ btns: B1 | B3 }), pad());
+
+    expect(early.gs.fighters[0]).toMatchObject({ action: "ss", actionFrame: 5 });
+    expect(accepted.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.1",
+    });
+    expect(rejectedThrow.gs.fighters[0]).toMatchObject({
+      action: "ss",
+      actionFrame: 6,
+      ssPhase: "walkStop",
+    });
+  });
+
+  it("resolves the ordered represented stop-shell records", () => {
+    expect(t5SidestepStopCommandRoute(0, "f", B4)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(1, "n", B1 | B2 | B3 | B4)).toEqual({
+      kind: "action",
+      action: "kiaiCharge",
+      frames: 55,
+      gate: 1,
+      target: 1059,
+    });
+    expect(t5SidestepStopCommandRoute(1, "db", B4)).toEqual({
+      kind: "move",
+      moveId: "jin.ss.db4",
+      gate: 1,
+      target: 461,
+    });
+    expect(t5SidestepStopCommandRoute(1, "b", B3)).toEqual({
+      kind: "move",
+      moveId: "jin.b3",
+      gate: 1,
+      target: 587,
+    });
+    expect(t5SidestepStopCommandRoute(1, "f", B4)).toEqual({
+      kind: "move",
+      moveId: "jin.f4",
+      gate: 1,
+      target: 593,
+    });
+    expect(t5SidestepStopCommandRoute(5, "n", B1)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(6, "n", B1)).toEqual({
+      kind: "move",
+      moveId: "jin.1",
+      gate: 6,
+      group: 722,
+    });
+    expect(t5SidestepStopCommandRoute(6, "n", B1 | B3)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(6, "b", B1 | B2)).toBeUndefined();
   });
 
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {

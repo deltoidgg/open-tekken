@@ -66,6 +66,27 @@ describe("Tekken 5 PAL ROM parity", () => {
     expect(backThree.gs.fighters[0].moveId).toBe("jin.3");
   });
 
+  it.each([
+    ["jin.ss.db4", 461, 20, 22, 15, 53, -14, -3, "KND"],
+    ["jin.b3", 587, 14, 17, 15, 38, +2, +6, "PLD"],
+    ["jin.f4", 593, 16, 17, 21, 49, -8, +2, "CS"],
+  ] as const)(
+    "maps sidewalk-stop direct target %s to PAL move %i",
+    (id, romMoveId, activeStart, activeEnd, damage, recovery, onBlock, onHit, onCH) => {
+      const move = moveById(id);
+      const attack = move.hits[0]!;
+
+      expect(move.t5Animation?.romMoveId).toBe(romMoveId);
+      expect(attack.t5Hitbox).toBeDefined();
+      expect(attack.active).toEqual([activeStart, activeEnd]);
+      expect(attack.damage).toBe(damage);
+      expect(move.totalFrames).toBe(recovery);
+      expect(attack.onBlock).toBe(onBlock);
+      expect(attack.onHit).toBe(onHit);
+      expect(attack.onCH).toBe(onCH);
+    },
+  );
+
   it("stores the recovered outcome-specific pushback envelopes in native units", () => {
     expect(moveById("jin.1").hits[0]?.pushback).toEqual({
       normal: {

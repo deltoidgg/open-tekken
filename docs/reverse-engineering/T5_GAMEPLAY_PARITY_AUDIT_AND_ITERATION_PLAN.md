@@ -404,6 +404,16 @@ remaining `d -> 1090/1092` rows require a grounded side and are inapplicable to
 standing sidestep; the earlier `235..237` rows remain pending a combat-aware
 incoming-high requirement evaluator.
 
+Fourth checkpoint: sidewalk-stop no longer falls through the clone's global
+frame-6 command parser. Its direct frame-1 records now route all-button ki
+charge through move `1059`'s frame-55 handoff and route `db+4`, `b+3`, and
+`f+4` to native moves `461`, `587`, and `593`. Those three attacks now use
+generated PAL pose, hit-capsule, frame, reaction, and pushback data. Neutral
+group `722` still opens at frame 6; throws, parries, CDS, and unmapped direct
+targets remain closed instead of becoming unrelated clone actions. Native
+targets `450`, `437`, `686`, `534`, and `622` remain the next stop-shell data
+slice.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing
