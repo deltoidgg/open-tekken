@@ -51,7 +51,10 @@ import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orien
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
-const T5_MEASURED_REACTION_TAILS = new Set([336, 780, 783]);
+const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12"]);
+const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12"]);
+const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 780, 783, 790]);
+const T5_STANDING_BLOCK_REACTION_MOVES = new Set(["jin.1", "jin.12"]);
 
 export interface ReplaySnap {
   fighters: [FighterSnap, FighterSnap];
@@ -860,7 +863,7 @@ export class Sim {
 
   private preserveT5AttackPoseTail(fighter: FighterState, move: MoveDef): boolean {
     const animationLength = move.t5Animation?.animationLength;
-    if (move.id !== "jin.1" || animationLength === undefined) return false;
+    if (!T5_MEASURED_ATTACK_TAILS.has(move.id) || animationLength === undefined) return false;
     if (fighter.actionFrame >= animationLength) return false;
     fighter.t5PoseTail = this.captureT5PoseTail(fighter, animationLength);
     return true;
@@ -1814,7 +1817,7 @@ export class Sim {
     ) {
       const stun = hd.blockstun ?? Math.max(1, rem + hd.onBlock);
       this.setAction(def, "blockstun", stun);
-      this.setT5Reaction(def, c.move.id === "jin.1" ? 336 : undefined);
+      this.setT5Reaction(def, T5_STANDING_BLOCK_REACTION_MOVES.has(c.move.id) ? 336 : undefined);
       def.actionFrame = 1;
       def.crouching = guard === "crouch"; // after setAction — it resets the flag
       def.stunKind = "none";
@@ -1835,7 +1838,7 @@ export class Sim {
         const push = T.pushback[hd.flags?.knockback ?? (hd.damage >= 20 ? "mid" : "small")];
         this.applyPushback(atk, def, fw, push);
       }
-      if (c.move.id !== "jin.1") {
+      if (!T5_NO_TIMELINE_FREEZE_MOVES.has(c.move.id)) {
         atk.hitstop = T.hitstopBlock;
         def.hitstop = T.hitstopBlock;
       }
@@ -1905,9 +1908,9 @@ export class Sim {
 
     atk.moveContact = "hit";
     atk.moveHitLanded = true;
-    // Direct player traces disprove timeline freeze for standing jab 1. Other
-    // impacts retain their provisional behavior until measured independently.
-    if (c.move.id !== "jin.1") {
+    // Direct player traces disprove timeline freeze for the measured jab-string
+    // links. Other impacts retain their provisional behavior until measured.
+    if (!T5_NO_TIMELINE_FREEZE_MOVES.has(c.move.id)) {
       atk.hitstop = isCH ? T.hitstopCH : T.hitstopHit;
       def.hitstop = atk.hitstop;
     }

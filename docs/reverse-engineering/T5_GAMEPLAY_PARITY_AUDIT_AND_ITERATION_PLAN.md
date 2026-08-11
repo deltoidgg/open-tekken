@@ -50,6 +50,7 @@ The following slices are measured from the PAL executable and documented:
 | ------------------ | ----------------------------------------------------------------------- | ----------------------------------------- |
 | clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
 | pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`             |
+| jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`         |
 | animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`             |
 | pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md` |
 | world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md` |
@@ -105,8 +106,10 @@ error.
 
 Startup alone is insufficient. Jin's neutral `1` now has one golden state trace
 through contact publication, impact-state ownership, stun, pushback, actionable
-recovery, and the native pose tail. Camera response and audio/VFX timing remain
-open, and the same complete contract must expand to `1,2`, `d/f+1`, and one low
+recovery, and the native pose tail. The normal-hit `1,2` transition now also has
+a live golden trace through both contacts, reaction replacement, recovery, and
+native tails. Direct `1,2` block/CH traces, camera response, and audio/VFX timing
+remain open, and the same complete contract must expand to `d/f+1` and one low
 instead of becoming a collection of unrelated timing assertions.
 
 ### 6. Defense and lateral evasion are incomplete
@@ -290,6 +293,13 @@ Implementation checkpoint: the 60 Hz player clock, frame-11 contact publication,
 impact counter, native pushback, actionable recovery, reaction selection, and
 independent attack/reaction pose tails are locked by golden tests. Camera and
 effect/audio onset remain before this iteration's exit gate is complete.
+
+Phase-3 checkpoint: Jin `1,2` now settles move `334` before handing ownership to
+move `368`, publishes both active-frame-10 contacts on their following player
+states, replaces reaction `783` with `370`, and preserves the move-368 and
+reaction pose tails independently of the `+8`/`0` control boundaries. Normal hit
+is live-measured. Block and counter-hit details retain inferred/ROM provenance
+until dedicated captures close those cells.
 
 ### Iteration C: Backdash/KBD
 
