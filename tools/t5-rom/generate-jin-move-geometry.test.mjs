@@ -29,7 +29,7 @@ test("selects every directly mapped Jin basic missing from the earlier profiles"
 
 test("selects the directly mapped sidewalk-stop moves", () => {
   assert.deepEqual(selectMoveIds(["--profile", "stop"]), STOP_MOVE_IDS);
-  assert.deepEqual(STOP_MOVE_IDS, [437, 534]);
+  assert.deepEqual(STOP_MOVE_IDS, [437, 534, 345, 450, 451, 452]);
 });
 
 test("selects every front-facing Jin jump-attack shell and strike", () => {

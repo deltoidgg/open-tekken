@@ -14,7 +14,7 @@ export const BASIC_MOVE_IDS = Object.freeze([
   395, 397, 404, 418, 423, 399, 469, 494, 496, 502, 563, 456, 458, 462, 455, 526, 592, 460, 461,
   587, 593,
 ]);
-export const STOP_MOVE_IDS = Object.freeze([437, 534]);
+export const STOP_MOVE_IDS = Object.freeze([437, 534, 345, 450, 451, 452]);
 export const JUMP_MOVE_IDS = Object.freeze([
   269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 284, 286, 289, 290, 291, 292, 293,
   294, 295, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,

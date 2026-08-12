@@ -119,6 +119,7 @@ const PB_410 = t5Pushback(0, 0, [200, 100, 50, 40, 20, 0, 0, 0]);
 const PB_550 = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0]);
 const PB_730 = t5Pushback(0, 0, [200, 200, 100, 100, 50, 40, 20, 20]);
 const PB_PULL_35 = t5Pushback(0, 0, [-20, -10, -5, 0, 0, 0, 0, 0]);
+const PB_PULL_3 = t5Pushback(0, 0, [-3, 0, 0, 0, 0, 0, 0, 0]);
 const PB_PULL_5 = t5Pushback(0, 0, [-5, 0, 0, 0, 0, 0, 0, 0]);
 const PB_LAUNCH_52 = t5Pushback(52, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
 const PB_WS2 = t5Pushback(48, 10, [160, 80, 40, 20, 0, 0, 0, 0]);
@@ -162,6 +163,9 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
   "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
+  "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
+  "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
   "jin.ss.db4": outcomes(PB_730, PB_133DF3_CH, PB_BLOCK),
   "jin.133": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.133df3": outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
@@ -207,6 +211,93 @@ export const JIN_MOVES: MoveDef[] = [
   mv("jin.taunt", "1+3+4", "Taunt", 0, 46, [], {
     t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_437_ANIMATION,
     anim: { clip: "t5Taunt" },
+  }),
+  mv(
+    "jin.t5.450",
+    "1+2+3",
+    "PAL Move 450",
+    10,
+    26,
+    [
+      hit("h", 6, 10, +3, +9, +9, {
+        range: 1.6,
+        activeLen: 0,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_450_HITBOX,
+        t5ReactionMoves: { normal: 783, counterHit: 780 },
+        flags: { nc: true, knockback: "small" },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 1,
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_450_ANIMATION,
+      anim: { clip: "t5Move450" },
+      autoTransition: {
+        moveId: "jin.t5.451",
+        startingFrame: 10,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv(
+    "jin.t5.451",
+    "",
+    "PAL Move 451",
+    14,
+    14,
+    [
+      hit("h", 10, 14, -5, +5, +5, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 20,
+        hitstun: 30,
+        counterHitstun: 30,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_451_HITBOX,
+        t5ReactionMoves: { normal: 797, counterHit: 794 },
+        flags: { nc: true, knockback: "small" },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_451_ANIMATION,
+      anim: { clip: "t5Move451" },
+      autoTransition: {
+        moveId: "jin.t5.452",
+        startingFrame: 14,
+        transitionMode: "preserve",
+      },
+    },
+  ),
+  mv(
+    "jin.t5.452",
+    "",
+    "PAL Move 452",
+    32,
+    33,
+    [
+      hit("m", 10, 32, 0, +4, +4, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 25,
+        hitstun: 29,
+        counterHitstun: 29,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_452_HITBOX,
+        t5ReactionMoves: { normal: 342, counterHit: 342 },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_452_ANIMATION,
+      anim: { clip: "t5Move452" },
+      autoTransition: {
+        moveId: "jin.t5.345",
+        startingFrame: 33,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv("jin.t5.345", "", "PAL Move 345", 0, 25, [], {
+    t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_345_ANIMATION,
+    anim: { clip: "t5Move345" },
   }),
   // ── 6.2 Standing jabs & basic ────────────────────────────────────────────
   mv(

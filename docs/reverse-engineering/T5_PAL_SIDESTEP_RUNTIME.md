@@ -3,10 +3,10 @@
 Status: Jin's first ROM-backed sidestep and sidewalk slice is implemented.
 Executable root composition, move shells, root curves, major cancel gates, and
 compatible source-frame transitions were recovered from the supplied PAL build
-on 2026-08-10 and implemented through 2026-08-11.
+on 2026-08-10 and implemented through 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running at
-50 gameplay frames per second.
+50 Hz video output with a 60 Hz player-frame cadence.
 
 ## Evidence boundary
 
@@ -202,7 +202,7 @@ groups. Every direct record detects from source frame 1:
 | Command              | Target | Clone status                                    |
 | -------------------- | -----: | ----------------------------------------------- |
 | `1+2+3+4`            |   1059 | ki charge, exact frame-55 recovery handoff      |
-| `b/f/n+1+2+3`        |    450 | pending automatic multi-shell chain             |
+| `b/f/n+1+2+3`        |    450 | native automatic `450 -> 451 -> 452 -> 345`     |
 | `1+3+4`              |    437 | native no-hit taunt, exact frame-46 handoff     |
 | `uf+1+2`             |    686 | exact i12 throw startup routed                  |
 | input sequence `105` |    534 | native animation, hitbox, frames, and reactions |
@@ -221,17 +221,27 @@ automatically preserves its timeline into `623` at frame 15 and hands off to a
 frame-67 recovery shell after frame 55. The clone now matches that outer lockout
 and buff handoff, while `623`'s native defensive/cancel behavior remains open.
 
-Target `450` cannot be represented as a single i10 attack without losing its
-actual graph. It strikes for 6 damage on frame 10, resets into `451`, preserves
-that animation into `452`, and finally enters recovery move `345`. It remains
-closed until those automatic transitions and all three hit timelines land as a
-unit.
+Target `450` is represented as four distinct PAL shells rather than one i10
+attack. Move `450` publishes 6 damage on frame 10 before resetting to `451`
+frame 1. Move `451` publishes 10 damage on frame 14 before preserving the shared
+animation into `452` frame 15. Move `452` publishes a 10-damage mid on frame 32,
+then its zero-command record resets to recovery move `345` frame 1 at source
+frame 33. Recovery releases on frame 25. The uninterrupted normal-hit path
+therefore deals 26 damage, while retaining the three native reaction and
+pushback records.
+
+Move `452` also accepts raw command `0x20010000` (`1`) through source frame 32
+and preserves the timeline into move `346`. That optional continuation remains
+closed until its downstream `346 -> 349` branch and alternate recovery shells
+are implemented together; it does not alter the recovered zero-command base
+path above.
 
 The stop shell now uses this direct order and group 722's frame-6 neutral
 basics instead of the global actionable parser. Any still-unmapped record
 remains closed rather than degrading into an unrelated clone action. Moves
-`437` and `534` are reproducibly generated in the native stop payload; moves
-`461`, `587`, and `593` remain in the native basics payload.
+`345`, `437`, `450`, `451`, `452`, and `534` are reproducibly generated in the
+native stop payload; moves `461`, `587`, and `593` remain in the native basics
+payload.
 
 Group 1077 is invoked by every active lateral shell from source frame 9, but it
 contains directional crouch/movement routes rather than attacks:
@@ -323,6 +333,8 @@ Focused tests verify:
 - stop-shell direct attacks from frame 1 and neutral group 722 from frame 6;
 - the no-hit taunt, special throw startup, `b,f+2` sequence, and 67-frame
   Lingering Soul route;
+- target `450`'s three contacts, reset/preserve handoffs, and move-`345`
+  recovery boundary;
 - rejection of generic throws and unmapped stop records;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
@@ -337,11 +349,12 @@ Focused tests verify:
    `0x8004`, including tap/hold/reversal precedence.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
-4. Implement target `450` as its complete `450 -> 451 -> 452 -> 345` automatic
-   chain. The outer command routes for every other frame-1 target are now
-   represented; native throw choreography under `686` and the internal
-   `622/623` defensive branches remain open. Active groups 722, 647, 587/627,
-   and 680 are ordered by their exact source-frame gates.
+4. Complete move `452`'s optional `1 -> 346` continuation through its remaining
+   branch and recovery shells. The automatic `450 -> 451 -> 452 -> 345` path and
+   every outer frame-1 stop command are now represented; native throw
+   choreography under `686` and the internal `622/623` defensive branches remain
+   open. Active groups 722, 647, 587/627, and 680 are ordered by their exact
+   source-frame gates.
 5. Reproduce the remaining compatible-pose blend and any native logical/render
    root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
    destination-shell delta selection are now implemented.

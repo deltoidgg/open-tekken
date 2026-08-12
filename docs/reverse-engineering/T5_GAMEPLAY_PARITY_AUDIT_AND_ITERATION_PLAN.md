@@ -1,6 +1,6 @@
 # Tekken 5 gameplay parity audit and iteration plan
 
-Status: active implementation plan, updated 2026-08-11. It consolidates the
+Status: active implementation plan, updated 2026-08-12. It consolidates the
 live PAL reference work into an implementation order and records later direct
 trace corrections where they supersede the initial audit.
 
@@ -424,6 +424,17 @@ Target `450` remains closed because inspection shows an automatic
 `450 -> 451 -> 452 -> 345` multi-hit graph, not one ordinary attack. Native
 throw choreography below `686` and move `623`'s defensive branches are also
 still explicit follow-up work.
+
+Sixth checkpoint: the remaining three-button stop command now enters native
+move `450` from `b`, `f`, or neutral on source frame 1. Four separate move states
+reproduce the zero-command `450 -> 451 -> 452 -> 345` graph: a 6-damage frame-10
+high resets into `451` frame 1, its 10-damage frame-14 high preserves the shared
+animation into `452` frame 15, and the 10-damage frame-32 mid resets into the
+25-frame recovery shell. Parent contact always publishes before each handoff.
+Generated PAL pose and hit-capsule data drive all four states, and regressions
+cover both the exact whiff timeline and the uninterrupted 26-damage contact
+path. Move `452`'s optional frame-32 `1 -> 346` route remains closed until its
+downstream branch is recovered as a unit.
 
 ## Rules for future tuning
 

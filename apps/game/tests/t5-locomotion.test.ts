@@ -1049,6 +1049,56 @@ describe("Tekken 5 PAL locomotion roots", () => {
     });
   });
 
+  it("runs the PAL three-button stop route through every automatic shell", () => {
+    const sim = fightSim(8);
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ btns: B1 | B2 | B3 }), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.t5.450",
+    });
+
+    run(sim, 9);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.450", actionFrame: 10 });
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.451", actionFrame: 1 });
+
+    run(sim, 13);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.451", actionFrame: 14 });
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.452", actionFrame: 15 });
+
+    run(sim, 17);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.452", actionFrame: 32 });
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.345", actionFrame: 1 });
+
+    run(sim, 23);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.345", actionFrame: 24 });
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({ action: "idle", actionFrame: 0, moveId: null });
+  });
+
+  it("publishes all three PAL stop-route contacts for 26 damage", () => {
+    const sim = fightSim(1.0);
+    const before = hpOf(sim)[1];
+    let contacts = 0;
+    putInSidewalkStop(sim, 0);
+
+    sim.step(pad({ btns: B1 | B2 | B3 }), pad({ dx: 1 }));
+    for (let frame = 0; frame < 90; frame++) {
+      sim.step(pad(), pad({ dx: 1 }));
+      contacts += sim.gs.events.filter(
+        (event) => event.fighter === 0 && (event.type === "hit" || event.type === "ch"),
+      ).length;
+    }
+
+    expect(contacts).toBe(3);
+    expect(before - hpOf(sim)[1]).toBe(26);
+  });
+
   it("starts the no-hit PAL taunt from sidewalk stop", () => {
     const sim = fightSim(8);
     putInSidewalkStop(sim, 0);
@@ -1144,6 +1194,16 @@ describe("Tekken 5 PAL locomotion roots", () => {
       target: 1059,
     });
     expect(t5SidestepStopCommandRoute(1, "f", B1 | B2 | B3 | B4)).toBeUndefined();
+    for (const direction of ["n", "b", "f"] as const) {
+      expect(t5SidestepStopCommandRoute(1, direction, B1 | B2 | B3)).toEqual({
+        kind: "move",
+        moveId: "jin.t5.450",
+        gate: 1,
+        target: 450,
+      });
+    }
+    expect(t5SidestepStopCommandRoute(1, "u", B1 | B2 | B3)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(1, "d", B1 | B2 | B3)).toBeUndefined();
     expect(t5SidestepStopCommandRoute(1, "n", B1 | B3 | B4)).toEqual({
       kind: "move",
       moveId: "jin.taunt",
@@ -1196,7 +1256,7 @@ describe("Tekken 5 PAL locomotion roots", () => {
       group: 722,
     });
     expect(t5SidestepStopCommandRoute(6, "n", B1 | B3)).toBeUndefined();
-    expect(t5SidestepStopCommandRoute(6, "n", B1 | B2 | B3)).toBeUndefined();
+    expect(t5SidestepStopCommandRoute(6, "n", B1 | B2 | B3)).toMatchObject({ target: 450 });
   });
 
   function putJabOnNextFrame(sim: ReturnType<typeof fightSim>): void {

@@ -17,9 +17,9 @@ export type T5SidestepMovementRoute = {
 export type T5SidestepStopCommandRoute =
   | {
       kind: "move";
-      moveId: "jin.taunt" | "jin.bf2" | "jin.ss.db4" | "jin.b3" | "jin.f4";
+      moveId: "jin.taunt" | "jin.bf2" | "jin.t5.450" | "jin.ss.db4" | "jin.b3" | "jin.f4";
       gate: 1;
-      target: 437 | 534 | 461 | 587 | 593;
+      target: 437 | 450 | 534 | 461 | 587 | 593;
     }
   | { kind: "throw"; throwId: "jin.throwUf12"; gate: 1; target: 686 }
   | { kind: "action"; action: "kiaiCharge"; frames: 55 | 67; gate: 1; target: 622 | 1059 }
@@ -98,6 +98,9 @@ export function t5SidestepStopCommandRoute(
   if (sourceFrame < 1) return undefined;
   if (direction === "n" && buttons === (B1 | B2 | B3 | B4)) {
     return { kind: "action", action: "kiaiCharge", frames: 55, gate: 1, target: 1059 };
+  }
+  if ((direction === "n" || direction === "b" || direction === "f") && buttons === (B1 | B2 | B3)) {
+    return { kind: "move", moveId: "jin.t5.450", gate: 1, target: 450 };
   }
   if (direction === "n" && buttons === (B1 | B3 | B4)) {
     return { kind: "move", moveId: "jin.taunt", gate: 1, target: 437 };

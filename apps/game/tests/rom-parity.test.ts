@@ -113,6 +113,63 @@ describe("Tekken 5 PAL ROM parity", () => {
     expect(attack.t5Hitbox).toBeDefined();
   });
 
+  it("models direct target 450 as its four-shell PAL graph", () => {
+    const entry = moveById("jin.t5.450");
+    const knee = moveById("jin.t5.451");
+    const bodyBlow = moveById("jin.t5.452");
+    const recovery = moveById("jin.t5.345");
+
+    expect(entry.t5Animation?.romMoveId).toBe(450);
+    expect(entry.hits[0]).toMatchObject({
+      active: [10, 10],
+      damage: 6,
+      t5ReactionMoves: { normal: 783, counterHit: 780 },
+    });
+    expect(entry.autoTransition).toEqual({
+      moveId: "jin.t5.451",
+      startingFrame: 10,
+      transitionMode: "reset",
+    });
+
+    expect(knee.t5Animation?.romMoveId).toBe(451);
+    expect(knee.totalFrames).toBe(14);
+    expect(knee.hits[0]).toMatchObject({
+      active: [14, 14],
+      damage: 10,
+      blockstun: 20,
+      hitstun: 30,
+      counterHitstun: 30,
+      t5ReactionMoves: { normal: 797, counterHit: 794 },
+    });
+    expect(knee.autoTransition).toEqual({
+      moveId: "jin.t5.452",
+      startingFrame: 14,
+      transitionMode: "preserve",
+    });
+
+    expect(bodyBlow.t5Animation?.romMoveId).toBe(452);
+    expect(bodyBlow.t5Animation?.rootOffsets).toBe(knee.t5Animation?.rootOffsets);
+    expect(bodyBlow.hits[0]).toMatchObject({
+      active: [32, 32],
+      damage: 10,
+      blockstun: 25,
+      hitstun: 29,
+      counterHitstun: 29,
+      t5ReactionMoves: { normal: 342, counterHit: 342 },
+    });
+    expect(bodyBlow.hits[0]?.pushback?.normal.samples).toEqual([-3, 0, 0, 0, 0, 0, 0, 0]);
+    expect(bodyBlow.hits[0]?.pushback?.block.samples).toEqual([-20, -10, -5, 0, 0, 0, 0, 0]);
+    expect(bodyBlow.autoTransition).toEqual({
+      moveId: "jin.t5.345",
+      startingFrame: 33,
+      transitionMode: "reset",
+    });
+
+    expect(recovery.t5Animation?.romMoveId).toBe(345);
+    expect(recovery.totalFrames).toBe(25);
+    expect(recovery.hits).toEqual([]);
+  });
+
   it("stores the recovered outcome-specific pushback envelopes in native units", () => {
     expect(moveById("jin.1").hits[0]?.pushback).toEqual({
       normal: {
