@@ -9,15 +9,25 @@ const PLAYER_FRAME_OFFSET = 0x96;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
+export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
+export const T5_MOVE_RECORD_SIZE = 0x4c;
+
+export function palJinMoveIdFromPointer(pointer) {
+  const offset = pointer - PAL_JIN_MOVE_TABLE_ADDRESS;
+  if (offset < 0 || offset % T5_MOVE_RECORD_SIZE !== 0) return null;
+  return offset / T5_MOVE_RECORD_SIZE;
+}
 
 function readPlayer(buffer, offset) {
+  const currentMovePointer = buffer.readUInt32LE(offset + CURRENT_MOVE_POINTER_OFFSET);
   return {
     x: buffer.readFloatLE(offset),
     y: buffer.readFloatLE(offset + 4),
     z: buffer.readFloatLE(offset + 8),
     playerFrame: buffer.readInt16LE(offset + PLAYER_FRAME_OFFSET),
-    currentMovePointer: buffer.readUInt32LE(offset + CURRENT_MOVE_POINTER_OFFSET),
-    moveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
+    currentMovePointer,
+    nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
+    dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
     impactCounter: buffer.readInt16LE(offset + IMPACT_COUNTER_OFFSET),
   };
 }
@@ -70,7 +80,12 @@ export function parsePlayerTrace(buffer) {
 
 function timelineKey(sample) {
   return sample.players
-    .flatMap((player) => [player.moveId, player.playerFrame, player.impactCounter])
+    .flatMap((player) => [
+      player.nativeMoveId,
+      player.dynamicMoveId,
+      player.playerFrame,
+      player.impactCounter,
+    ])
     .join(":");
 }
 
@@ -99,16 +114,20 @@ function printTimeline(trace) {
   console.log(
     `Samples: ${trace.samples.length}; player struct: 0x${trace.playerSize.toString(16)}`,
   );
-  console.log("time_ms\tp1_move\tp1_frame\tp1_2b6\tp2_move\tp2_frame\tp2_2b6");
+  console.log(
+    "time_ms\tp1_native\tp1_dynamic\tp1_frame\tp1_2b6\tp2_native\tp2_dynamic\tp2_frame\tp2_2b6",
+  );
   for (const sample of playerTraceTransitions(trace)) {
     const [player1, player2] = sample.players;
     console.log(
       [
         sample.timeMs.toFixed(3),
-        player1.moveId,
+        player1.nativeMoveId ?? "?",
+        player1.dynamicMoveId,
         player1.playerFrame,
         player1.impactCounter,
-        player2.moveId,
+        player2.nativeMoveId ?? "?",
+        player2.dynamicMoveId,
         player2.playerFrame,
         player2.impactCounter,
       ].join("\t"),

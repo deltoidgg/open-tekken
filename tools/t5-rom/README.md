@@ -130,7 +130,8 @@ four through six use the same `TriggerVirtualKey4..6`,
 `0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
 the measured setup. The trace stores monotonic timestamps followed by complete
 P1 and P2 snapshots; it never writes to emulated memory. Inspect player-frame,
-move-ID, and `player+0x2B6` transitions with:
+pointer-derived native move ID, dynamic `player+0x158` alias, and
+`player+0x2B6` transitions with:
 
 ```sh
 node tools/t5-rom/inspect-player-trace.mjs /path/to/t5-jab.bin

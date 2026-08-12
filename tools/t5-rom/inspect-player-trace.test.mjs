@@ -1,15 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parsePlayerTrace, playerTraceTransitions } from "./inspect-player-trace.mjs";
+import {
+  PAL_JIN_MOVE_TABLE_ADDRESS,
+  palJinMoveIdFromPointer,
+  parsePlayerTrace,
+  playerTraceTransitions,
+  T5_MOVE_RECORD_SIZE,
+} from "./inspect-player-trace.mjs";
 
 const HEADER_SIZE = 40;
 const PLAYER_SIZE = 0x8d0;
 const RECORD_SIZE = 8 + PLAYER_SIZE * 2;
 
-function writePlayer(buffer, offset, { moveId, playerFrame, impactCounter }) {
+function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame, impactCounter }) {
   buffer.writeInt16LE(playerFrame, offset + 0x96);
-  buffer.writeUInt32LE(0x12345678, offset + 0xc4);
-  buffer.writeUInt16LE(moveId, offset + 0x158);
+  buffer.writeUInt32LE(
+    PAL_JIN_MOVE_TABLE_ADDRESS + nativeMoveId * T5_MOVE_RECORD_SIZE,
+    offset + 0xc4,
+  );
+  buffer.writeUInt16LE(dynamicMoveId, offset + 0x158);
   buffer.writeInt16LE(impactCounter, offset + 0x2b6);
 }
 
@@ -25,16 +34,16 @@ function fixture() {
 
   const states = [
     [
-      { moveId: 334, playerFrame: 10, impactCounter: 0 },
-      { moveId: 32769, playerFrame: 4, impactCounter: 0 },
+      { nativeMoveId: 334, dynamicMoveId: 334, playerFrame: 10, impactCounter: 0 },
+      { nativeMoveId: 220, dynamicMoveId: 32769, playerFrame: 4, impactCounter: 0 },
     ],
     [
-      { moveId: 334, playerFrame: 10, impactCounter: 0 },
-      { moveId: 32769, playerFrame: 4, impactCounter: 0 },
+      { nativeMoveId: 334, dynamicMoveId: 334, playerFrame: 10, impactCounter: 0 },
+      { nativeMoveId: 220, dynamicMoveId: 32769, playerFrame: 4, impactCounter: 0 },
     ],
     [
-      { moveId: 334, playerFrame: 11, impactCounter: 0 },
-      { moveId: 783, playerFrame: 1, impactCounter: 6 },
+      { nativeMoveId: 334, dynamicMoveId: 334, playerFrame: 11, impactCounter: 0 },
+      { nativeMoveId: 370, dynamicMoveId: 783, playerFrame: 1, impactCounter: 6 },
     ],
   ];
   for (let index = 0; index < states.length; index++) {
@@ -58,10 +67,20 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     y: 0,
     z: 0,
     playerFrame: 1,
-    currentMovePointer: 0x12345678,
-    moveId: 783,
+    currentMovePointer: PAL_JIN_MOVE_TABLE_ADDRESS + 370 * T5_MOVE_RECORD_SIZE,
+    nativeMoveId: 370,
+    dynamicMoveId: 783,
     impactCounter: 6,
   });
+});
+
+test("derives PAL Jin move identity from the current-move pointer", () => {
+  assert.equal(
+    palJinMoveIdFromPointer(PAL_JIN_MOVE_TABLE_ADDRESS + 615 * T5_MOVE_RECORD_SIZE),
+    615,
+  );
+  assert.equal(palJinMoveIdFromPointer(PAL_JIN_MOVE_TABLE_ADDRESS - 1), null);
+  assert.equal(palJinMoveIdFromPointer(PAL_JIN_MOVE_TABLE_ADDRESS + 1), null);
 });
 
 test("filters high-rate samples to player-frame and impact transitions", () => {
@@ -71,11 +90,11 @@ test("filters high-rate samples to player-frame and impact transitions", () => {
     transitions.map((sample) => [
       sample.timeMs,
       sample.players[0].playerFrame,
-      sample.players[1].moveId,
+      sample.players[1].nativeMoveId,
     ]),
     [
-      [0, 10, 32769],
-      [20, 11, 783],
+      [0, 10, 220],
+      [20, 11, 370],
     ],
   );
 });
