@@ -22,6 +22,9 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeFloatLE(30.75, offset + 0x70);
   buffer.writeFloatLE(-0.75, offset + 0x74);
   buffer.writeInt16LE(playerFrame, offset + 0x96);
+  buffer.writeFloatLE(-21, offset + 0x11c);
+  buffer.writeFloatLE(96, offset + 0x120);
+  buffer.writeFloatLE(-22, offset + 0x124);
   buffer.writeUInt32LE(
     PAL_JIN_MOVE_TABLE_ADDRESS + nativeMoveId * T5_MOVE_RECORD_SIZE,
     offset + 0xc4,
@@ -35,6 +38,9 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeUInt32LE(0x015993d2, offset + 0x2ac);
   buffer.writeFloatLE(30, offset + 0x2dc);
   buffer.writeUInt32LE(0x01598acc, offset + 0x2f0);
+  buffer.writeFloatLE(-88.98828125, offset + 0x640);
+  buffer.writeFloatLE(96, offset + 0x644);
+  buffer.writeFloatLE(-95.328125, offset + 0x648);
   buffer.writeFloatLE(400.25, offset + 0x750);
   buffer.writeFloatLE(500.5, offset + 0x754);
   buffer.writeFloatLE(600.75, offset + 0x758);
@@ -88,6 +94,7 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     animationRoot: { x: 10.25, y: 20.5, z: 30.75 },
     skeletonAngle: -0.75,
     playerFrame: 1,
+    logicalDisplacement: { x: -21, y: 96, z: -22 },
     currentMovePointer: PAL_JIN_MOVE_TABLE_ADDRESS + 370 * T5_MOVE_RECORD_SIZE,
     nativeMoveId: 370,
     dynamicMoveId: 783,
@@ -100,6 +107,7 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
       samplePointer: 0x015993d2,
       baseDisplacement: 30,
     },
+    composedDisplacement: { x: -88.98828125, y: 96, z: -95.328125 },
     renderRoot: { x: 400.25, y: 500.5, z: 600.75 },
   });
 });

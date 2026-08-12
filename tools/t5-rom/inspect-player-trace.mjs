@@ -9,6 +9,7 @@ const ROOT_ANGLE_OFFSET = 0x0e;
 const ANIMATION_ROOT_OFFSET = 0x68;
 const SKELETON_ANGLE_OFFSET = 0x74;
 const PLAYER_FRAME_OFFSET = 0x96;
+const LOGICAL_DISPLACEMENT_OFFSET = 0x11c;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
 const PUSHBACK_DURATION_OFFSET = 0x2a4;
@@ -18,6 +19,7 @@ const PUSHBACK_SAMPLE_POINTER_OFFSET = 0x2ac;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
 const PUSHBACK_BASE_DISPLACEMENT_OFFSET = 0x2dc;
 const PUSHBACK_POINTER_OFFSET = 0x2f0;
+const COMPOSED_DISPLACEMENT_OFFSET = 0x640;
 const RENDER_ROOT_OFFSET = 0x750;
 export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
 export const T5_MOVE_RECORD_SIZE = 0x4c;
@@ -42,6 +44,11 @@ function readPlayer(buffer, offset) {
     },
     skeletonAngle: buffer.readFloatLE(offset + SKELETON_ANGLE_OFFSET),
     playerFrame: buffer.readInt16LE(offset + PLAYER_FRAME_OFFSET),
+    logicalDisplacement: {
+      x: buffer.readFloatLE(offset + LOGICAL_DISPLACEMENT_OFFSET),
+      y: buffer.readFloatLE(offset + LOGICAL_DISPLACEMENT_OFFSET + 4),
+      z: buffer.readFloatLE(offset + LOGICAL_DISPLACEMENT_OFFSET + 8),
+    },
     currentMovePointer,
     nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
     dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
@@ -56,6 +63,11 @@ function readPlayer(buffer, offset) {
       ],
       samplePointer: buffer.readUInt32LE(offset + PUSHBACK_SAMPLE_POINTER_OFFSET),
       baseDisplacement: buffer.readFloatLE(offset + PUSHBACK_BASE_DISPLACEMENT_OFFSET),
+    },
+    composedDisplacement: {
+      x: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET),
+      y: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET + 4),
+      z: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET + 8),
     },
     renderRoot: {
       x: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET),
