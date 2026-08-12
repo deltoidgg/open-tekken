@@ -170,6 +170,104 @@ describe("Tekken 5 PAL ROM parity", () => {
     expect(recovery.hits).toEqual([]);
   });
 
+  it("models the complete optional branch after PAL move 452", () => {
+    const bodyBlow = moveById("jin.t5.452");
+    const high = moveById("jin.t5.346");
+    const highRecovery = moveById("jin.t5.348");
+    const low = moveById("jin.t5.349");
+    const blockedLowRecovery = moveById("jin.t5.350");
+    const charge = moveById("jin.t5.448");
+
+    expect(bodyBlow.followups).toContainEqual({
+      moveId: "jin.t5.346",
+      buttons: B1,
+      window: [1, 32],
+      startingFrame: 32,
+      transitionMode: "preserve",
+    });
+
+    expect(high).toMatchObject({
+      startup: 42,
+      totalFrames: 43,
+      followups: [
+        {
+          moveId: "jin.t5.349",
+          buttons: B4,
+          window: [1, 42],
+          startingFrame: 42,
+          transitionMode: "preserve",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.t5.348",
+        startingFrame: 43,
+        transitionMode: "reset",
+      },
+    });
+    expect(high.t5Animation?.romMoveId).toBe(346);
+    expect(high.hits[0]).toMatchObject({
+      active: [42, 42],
+      damage: 10,
+      blockstun: 25,
+      hitstun: 32,
+      counterHitstun: 32,
+      t5ReactionMoves: { normal: 897, counterHit: 897, block: 347, crouchBlock: 701 },
+    });
+    expect(high.hits[0]?.t5Hitbox).toBeDefined();
+
+    expect(highRecovery.t5Animation?.romMoveId).toBe(348);
+    expect(highRecovery.totalFrames).toBe(28);
+    expect(highRecovery.hits).toEqual([]);
+
+    expect(low).toMatchObject({
+      startup: 59,
+      totalFrames: 80,
+      followups: [
+        {
+          moveId: "jin.t5.448",
+          buttons: B1 | B2,
+          dir: "d",
+          window: [43, 65],
+          startingFrame: 65,
+          transitionMode: "reset",
+        },
+      ],
+      contactTransitions: {
+        block: {
+          moveId: "jin.t5.350",
+          window: [59, 60],
+          startingFrame: 59,
+          transitionMode: "preserve",
+        },
+      },
+    });
+    expect(low.t5Animation?.romMoveId).toBe(349);
+    expect(low.hits[0]).toMatchObject({
+      level: "l",
+      active: [59, 60],
+      damage: 10,
+      onBlock: -8,
+      onHit: 24,
+      onCH: 24,
+      blockstun: 19,
+      hitstun: 45,
+      counterHitstun: 45,
+      t5ReactionMoves: { normal: 351, counterHit: 351, block: 698, crouchBlock: 701 },
+    });
+    expect(low.hits[0]?.t5Hitbox).toBeDefined();
+
+    expect(blockedLowRecovery.t5Animation?.romMoveId).toBe(350);
+    expect(blockedLowRecovery.totalFrames).toBe(86);
+    expect(blockedLowRecovery.hits).toEqual([]);
+    expect(high.t5Animation?.rootOffsets).toBe(low.t5Animation?.rootOffsets);
+    expect(low.t5Animation?.rootOffsets).toBe(blockedLowRecovery.t5Animation?.rootOffsets);
+
+    expect(charge.t5Animation?.romMoveId).toBe(448);
+    expect(charge.totalFrames).toBe(60);
+    expect(charge.hits).toEqual([]);
+    expect(charge.t5BuffOnStart).toEqual({ kind: "kiai", frames: 150 });
+  });
+
   it("stores the recovered outcome-specific pushback envelopes in native units", () => {
     expect(moveById("jin.1").hits[0]?.pushback).toEqual({
       normal: {

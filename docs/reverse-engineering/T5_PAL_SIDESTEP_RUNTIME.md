@@ -202,7 +202,7 @@ groups. Every direct record detects from source frame 1:
 | Command              | Target | Clone status                                    |
 | -------------------- | -----: | ----------------------------------------------- |
 | `1+2+3+4`            |   1059 | ki charge, exact frame-55 recovery handoff      |
-| `b/f/n+1+2+3`        |    450 | native automatic `450 -> 451 -> 452 -> 345`     |
+| `b/f/n+1+2+3`        |    450 | native base path plus complete optional branch  |
 | `1+3+4`              |    437 | native no-hit taunt, exact frame-46 handoff     |
 | `uf+1+2`             |    686 | exact i12 throw startup routed                  |
 | input sequence `105` |    534 | native animation, hitbox, frames, and reactions |
@@ -231,17 +231,37 @@ therefore deals 26 damage, while retaining the three native reaction and
 pushback records.
 
 Move `452` also accepts raw command `0x20010000` (`1`) through source frame 32
-and preserves the timeline into move `346`. That optional continuation remains
-closed until its downstream `346 -> 349` branch and alternate recovery shells
-are implemented together; it does not alter the recovered zero-command base
-path above.
+and preserves the timeline into move `346` frame 33. Move `346` publishes a
+10-damage mid on frame 42. With no further input, its source-frame-43
+zero-command record resets into no-hit recovery move `348` frame 1, which
+releases on frame 28. Raw command `0x20080000` (`4`) is accepted through move
+`346` frame 42 and instead preserves the shared animation into move `349` frame 43.
+
+Move `349` publishes a 10-damage low on frames 59-60. Its conditional
+zero-command record uses requirement `41`, mapped by the Tekken 5 extraction
+aliases to **On Block**, and preserves the source timeline into move `350` at
+target frame 60. Move `350` releases on frame 86; against the low's 19-frame
+crouch-block recovery this makes the complete branch exactly `-8`. The simple
+move-349 recovery in isolation appears to be `-2`, so following the conditional
+target is necessary when deriving frame advantage. Absolute impact-freeze
+duration on this branch remains provisional until a controlled live trace is
+available, but the relative recovery is ROM-proven.
+
+Move `349` also accepts exact raw command `0x20030004` (`d+1+2`) on source
+frames 43-65 and resets into no-hit move `448` frame 1. Move `448` releases on
+frame 60 while its animation continues through frame 73. Its move-start extra
+property is `0x8067 = 150`; the Tekken 5 extraction aliases identify `0x8067`
+as the counter-hit-property writer. The clone therefore grants the kiai
+counter-hit state for exactly 150 player ticks beginning on the transition
+tick. An already queued direct `d+1+2` cancel has priority over move `349`'s
+block-only transition, preserving native cancel-list ordering.
 
 The stop shell now uses this direct order and group 722's frame-6 neutral
 basics instead of the global actionable parser. Any still-unmapped record
 remains closed rather than degrading into an unrelated clone action. Moves
-`345`, `437`, `450`, `451`, `452`, and `534` are reproducibly generated in the
-native stop payload; moves `461`, `587`, and `593` remain in the native basics
-payload.
+`345`, `346`, `348`, `349`, `350`, `437`, `448`, `450`, `451`, `452`, and `534`
+are reproducibly generated in the native stop payload; moves `461`, `587`, and
+`593` remain in the native basics payload.
 
 Group 1077 is invoked by every active lateral shell from source frame 9, but it
 contains directional crouch/movement routes rather than attacks:
@@ -311,8 +331,7 @@ state. Throw, parry, and taunt chords remain closed in the active lateral shell.
 Sidewalk-stop uses its own ordered frame-1 direct list and does not invoke the
 standing parser.
 
-The two newly recovered native stop moves are reproducible from the private EE
-snapshot:
+The recovered native stop graph is reproducible from the private EE snapshot:
 
 ```sh
 node tools/t5-rom/generate-jin-move-geometry.mjs \
@@ -335,6 +354,10 @@ Focused tests verify:
   Lingering Soul route;
 - target `450`'s three contacts, reset/preserve handoffs, and move-`345`
   recovery boundary;
+- move `452`'s exact `1` window, move `346`'s final-frame `4` branch, and the
+  alternate move-`348` recovery;
+- move `349`'s exact `d+1+2` cancel, 150-tick move-`448` property, conditional
+  move-`350` crouch-block recovery, and resulting `-8` advantage;
 - rejection of generic throws and unmapped stop records;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
@@ -349,12 +372,11 @@ Focused tests verify:
    `0x8004`, including tap/hold/reversal precedence.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
-4. Complete move `452`'s optional `1 -> 346` continuation through its remaining
-   branch and recovery shells. The automatic `450 -> 451 -> 452 -> 345` path and
-   every outer frame-1 stop command are now represented; native throw
-   choreography under `686` and the internal `622/623` defensive branches remain
-   open. Active groups 722, 647, 587/627, and 680 are ordered by their exact
-   source-frame gates.
+4. Complete native throw choreography under `686` and the internal `622/623`
+   defensive branches. The automatic `450 -> 451 -> 452 -> 345` path, optional
+   `452 -> 346 -> 348/349 -> 350/448` graph, and every outer frame-1 stop command
+   are now represented. Active groups 722, 647, 587/627, and 680 are ordered by
+   their exact source-frame gates.
 5. Reproduce the remaining compatible-pose blend and any native logical/render
    root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
    destination-shell delta selection are now implemented.

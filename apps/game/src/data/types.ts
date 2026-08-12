@@ -42,6 +42,18 @@ export interface T5NativeReactionAnimationDef extends T5NativeAnimationDef {
 export interface T5ReactionMoveIds {
   normal: number;
   counterHit: number;
+  block?: number;
+  crouchBlock?: number;
+}
+
+export interface T5MoveTransition {
+  moveId: string;
+  startingFrame: number;
+  transitionMode: "reset" | "preserve";
+}
+
+export interface T5ContactTransition extends T5MoveTransition {
+  window: [start: number, end: number];
 }
 
 export interface T5NativeCapsuleDef {
@@ -166,11 +178,11 @@ export interface MoveDef {
   hitRecoveryBonus?: number;
   followups?: FollowupDef[];
   /** Unconditional command-zero transition in the original move record. */
-  autoTransition?: {
-    moveId: string;
-    startingFrame: number;
-    transitionMode: "reset" | "preserve";
-  };
+  autoTransition?: T5MoveTransition;
+  /** Outcome-gated command-zero transitions evaluated after contact publication. */
+  contactTransitions?: Partial<Record<"block" | "hit" | "counterHit", T5ContactTransition>>;
+  /** Native move-start property that grants a timed counter-hit state. */
+  t5BuffOnStart?: { kind: "kiai"; frames: number };
   /** auto-parry incoming m/h strikes during startup (ten-string guard points) */
   guardPoint?: boolean;
   /** parries h/m punches during startup (CDS 2 Suigetsu) */

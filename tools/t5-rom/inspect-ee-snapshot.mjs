@@ -20,6 +20,7 @@ export const REQUIREMENT_SIZE = 0x04;
 export const REQUIREMENT_END = 321;
 export const INPUT_SEQUENCE_SIZE = 0x08;
 export const INPUT_SIZE = 0x04;
+export const EXTRA_MOVE_PROPERTY_SIZE = 0x08;
 /** T5 reserves commands through 0x8012; sequence 12 is the first callable entry. */
 export const T5_INPUT_SEQUENCE_COMMAND_OFFSET = 0x8007;
 export const T5_INPUT_SEQUENCE_COMMAND_START = 0x8013;
@@ -274,6 +275,27 @@ export function parseRequirement(data, address) {
   };
 }
 
+export function parseExtraMoveProperty(data, address) {
+  assertRange(data, address, EXTRA_MOVE_PROPERTY_SIZE, "extra move property");
+  return {
+    address,
+    startingFrame: u16(data, address, "extra move property starting frame"),
+    id: u16(data, address + 2, "extra move property id"),
+    value: u32(data, address + 4, "extra move property value"),
+  };
+}
+
+export function parseExtraMovePropertyList(data, address, maxEntries = 4096) {
+  if (address === 0) return [];
+  const properties = [];
+  for (let index = 0; index < maxEntries; index++) {
+    const property = parseExtraMoveProperty(data, address + index * EXTRA_MOVE_PROPERTY_SIZE);
+    properties.push(property);
+    if (property.startingFrame === 0) return properties;
+  }
+  throw new Error(`Extra move property list at 0x${address.toString(16)} has no terminator`);
+}
+
 export function selectDefaultHitCondition(data, address, maxEntries = 128) {
   for (let index = 0; index < maxEntries; index++) {
     const hitCondition = parseHitCondition(data, address + index * HIT_CONDITION_SIZE);
@@ -376,6 +398,7 @@ export function parseMove(data, moveset, moveId) {
   assertRange(data, address, MOVE_SIZE, `move ${moveId}`);
   const cancelAddress = u32(data, address + 0x14);
   const hitConditionAddress = u32(data, address + 0x20);
+  const extraPropertiesAddress = u32(data, address + 0x30);
   const cancels = parseCancelList(data, cancelAddress);
   const autoCancel = cancels.find((cancel) => cancel.command === 0x8000);
 
@@ -388,6 +411,8 @@ export function parseMove(data, moveset, moveId) {
     cancelAddress,
     transition: u16(data, address + 0x18),
     hitConditionAddress,
+    extraPropertiesAddress,
+    extraProperties: parseExtraMovePropertyList(data, extraPropertiesAddress),
     animationLength: i16(data, address + 0x24),
     airborneStart: u16(data, address + 0x26),
     airborneEnd: u16(data, address + 0x28),
@@ -714,6 +739,7 @@ async function main() {
           counterHit: frameData.counterHit,
           block: frameData.block,
           cancels: frameData.move.cancels,
+          extraProperties: frameData.move.extraProperties,
         },
         null,
         2,

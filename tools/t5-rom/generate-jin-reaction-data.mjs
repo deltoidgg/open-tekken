@@ -9,8 +9,9 @@ import { JinPoseDeriver } from "./derive-jin-posed-geometry.mjs";
 import { parseMove } from "./inspect-ee-snapshot.mjs";
 
 export const DEFAULT_REACTION_MOVE_IDS = Object.freeze([
-  159, 160, 161, 162, 163, 336, 370, 371, 401, 463, 499, 505, 583, 585, 693, 701, 776, 780, 783,
-  790, 794, 797, 800, 802, 803, 806, 811, 842, 854, 870, 893, 896, 898,
+  159, 160, 161, 162, 163, 336, 339, 342, 344, 347, 351, 370, 371, 401, 463, 499, 505, 583, 585,
+  689, 693, 698, 701, 776, 780, 783, 790, 794, 797, 800, 802, 803, 806, 811, 842, 854, 870, 893,
+  896, 897, 898,
 ]);
 const AIRBORNE_REACTION_MOVE_IDS = new Set([159, 160, 161, 162, 163, 870]);
 
@@ -27,15 +28,17 @@ function payloadName(reaction) {
 }
 
 function formatPoint(point) {
-  return `[${point.join(",")}]`;
+  return `[${point.join(", ")}]`;
 }
 
 function formatPointFrames(frames) {
-  return frames.map((frame) => `    [${frame.map(formatPoint).join(",")}],`).join("\n");
+  return frames
+    .map((frame) => `  [\n${frame.map((point) => `    ${formatPoint(point)},`).join("\n")}\n  ],`)
+    .join("\n");
 }
 
 function formatPoints(points) {
-  return points.map((point) => `    ${formatPoint(point)},`).join("\n");
+  return points.map((point) => `  ${formatPoint(point)},`).join("\n");
 }
 
 export function renderJinReactionModule(reactions) {
@@ -91,9 +94,9 @@ export function t5JinReactionAnimation(
   moveId: number | null | undefined,
 ): T5NativeReactionAnimationDef | undefined {
   if (moveId === null || moveId === undefined) return undefined;
-  return (T5_JIN_REACTION_ANIMATIONS as Readonly<
-    Partial<Record<number, T5NativeReactionAnimationDef>>
-  >)[moveId];
+  return (
+    T5_JIN_REACTION_ANIMATIONS as Readonly<Partial<Record<number, T5NativeReactionAnimationDef>>>
+  )[moveId];
 }
 `;
 }

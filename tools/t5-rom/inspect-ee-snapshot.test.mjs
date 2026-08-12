@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   CANCEL_SIZE,
   decodeCancelTimelineMode,
+  EXTRA_MOVE_PROPERTY_SIZE,
   INPUT_SEQUENCE_SIZE,
   MOVESET_TABLE_OFFSET,
   MOVE_SIZE,
@@ -102,6 +103,7 @@ test("parses a moveset table, move, hit, and recovery cancel", () => {
   const moveAddress = 0x800;
   const cancelAddress = 0xa00;
   const hitAddress = 0xb00;
+  const extraPropertiesAddress = 0xc00;
   data.writeUInt16LE(25, player + 0x42);
   data.writeUInt32LE(movesetAddress, player + 0x50);
   data.writeUInt16LE(0x8001, player + 0x158);
@@ -119,12 +121,16 @@ test("parses a moveset table, move, hit, and recovery cancel", () => {
   data.writeUInt32LE(cancelAddress, moveAddress + 0x14);
   data.writeUInt16LE(0x8001, moveAddress + 0x18);
   data.writeUInt32LE(hitAddress, moveAddress + 0x20);
+  data.writeUInt32LE(extraPropertiesAddress, moveAddress + 0x30);
   data.writeInt16LE(39, moveAddress + 0x24);
   data.writeUInt16LE(10, moveAddress + 0x44);
   data.writeUInt16LE(10, moveAddress + 0x46);
   data.writeUInt32LE(7, hitAddress + 4);
   data.writeUInt32LE(0x8000, cancelAddress);
   data.writeUInt16LE(26, cancelAddress + 16);
+  data.writeUInt16LE(0x8001, extraPropertiesAddress);
+  data.writeUInt16LE(0x8067, extraPropertiesAddress + 2);
+  data.writeUInt32LE(150, extraPropertiesAddress + 4);
 
   const moveset = parseMoveset(data, player);
   const move = parseMove(data, moveset, 0);
@@ -135,6 +141,21 @@ test("parses a moveset table, move, hit, and recovery cancel", () => {
   assert.equal(move.activeStart, 10);
   assert.equal(move.baseDamage, 7);
   assert.equal(move.recoveryFrame, 26);
+  assert.equal(EXTRA_MOVE_PROPERTY_SIZE, 8);
+  assert.deepEqual(move.extraProperties, [
+    {
+      address: extraPropertiesAddress,
+      startingFrame: 0x8001,
+      id: 0x8067,
+      value: 150,
+    },
+    {
+      address: extraPropertiesAddress + EXTRA_MOVE_PROPERTY_SIZE,
+      startingFrame: 0,
+      id: 0,
+      value: 0,
+    },
+  ]);
 });
 
 test("stops cancel lists at their requested terminator", () => {

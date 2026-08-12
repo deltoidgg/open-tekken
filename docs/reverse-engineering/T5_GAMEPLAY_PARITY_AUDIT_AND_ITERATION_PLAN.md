@@ -433,8 +433,23 @@ animation into `452` frame 15, and the 10-damage frame-32 mid resets into the
 25-frame recovery shell. Parent contact always publishes before each handoff.
 Generated PAL pose and hit-capsule data drive all four states, and regressions
 cover both the exact whiff timeline and the uninterrupted 26-damage contact
-path. Move `452`'s optional frame-32 `1 -> 346` route remains closed until its
-downstream branch is recovered as a unit.
+path. This established the base path before opening its optional branch.
+
+Seventh checkpoint: move `452` now accepts `1` through source frame 32 and
+preserves the timeline into move `346` frame 33. Its frame-42 mid either resets
+into 28-frame recovery move `348` or, when `4` is accepted through frame 42,
+preserves into move `349` frame 43. Move `349`'s 10-damage low is active on
+frames 59-60. Requirement `41` on its zero-command record is the Tekken 5
+**On Block** condition, so a blocked low preserves into move `350` frame 60 and
+recovers on frame 86, producing the ROM-derived `-8` instead of the `-2` implied
+by inspecting move `349` alone. Its exact `d+1+2` window on frames 43-65 resets
+into move `448`, whose move-start property `0x8067 = 150` grants the 150-tick
+counter-hit charge. The snapshot inspector now decodes extra move properties,
+the stop and reaction generators cover every downstream record, and regressions
+lock the command boundaries, alternate whiff recovery, conditional block
+recovery, reaction 701, charge event, and buff lifetime. Native hit-freeze for
+this branch still needs a controlled live trace; the test locks the proven
+relative `-8` without treating the current shared freeze as ROM evidence.
 
 ## Rules for future tuning
 

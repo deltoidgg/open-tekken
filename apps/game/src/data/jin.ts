@@ -166,6 +166,8 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
+  "jin.t5.346": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
+  "jin.t5.349": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.ss.db4": outcomes(PB_730, PB_133DF3_CH, PB_BLOCK),
   "jin.133": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.133df3": outcomes(PB_ZERO, PB_133DF3_CH, PB_BLOCK),
@@ -223,7 +225,7 @@ export const JIN_MOVES: MoveDef[] = [
         range: 1.6,
         activeLen: 0,
         t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_450_HITBOX,
-        t5ReactionMoves: { normal: 783, counterHit: 780 },
+        t5ReactionMoves: { normal: 783, counterHit: 780, block: 689, crouchBlock: 701 },
         flags: { nc: true, knockback: "small" },
       }),
     ],
@@ -252,7 +254,7 @@ export const JIN_MOVES: MoveDef[] = [
         hitstun: 30,
         counterHitstun: 30,
         t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_451_HITBOX,
-        t5ReactionMoves: { normal: 797, counterHit: 794 },
+        t5ReactionMoves: { normal: 797, counterHit: 794, block: 339, crouchBlock: 701 },
         flags: { nc: true, knockback: "small" },
       }),
     ],
@@ -281,13 +283,22 @@ export const JIN_MOVES: MoveDef[] = [
         hitstun: 29,
         counterHitstun: 29,
         t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_452_HITBOX,
-        t5ReactionMoves: { normal: 342, counterHit: 342 },
+        t5ReactionMoves: { normal: 342, counterHit: 342, block: 344, crouchBlock: 701 },
       }),
     ],
     {
       t5CancelOrientationMode: 2,
       t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_452_ANIMATION,
       anim: { clip: "t5Move452" },
+      followups: [
+        {
+          moveId: "jin.t5.346",
+          buttons: B1,
+          window: [1, 32],
+          startingFrame: 32,
+          transitionMode: "preserve",
+        },
+      ],
       autoTransition: {
         moveId: "jin.t5.345",
         startingFrame: 33,
@@ -298,6 +309,99 @@ export const JIN_MOVES: MoveDef[] = [
   mv("jin.t5.345", "", "PAL Move 345", 0, 25, [], {
     t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_345_ANIMATION,
     anim: { clip: "t5Move345" },
+  }),
+  mv(
+    "jin.t5.346",
+    "1",
+    "PAL Move 346",
+    42,
+    43,
+    [
+      hit("m", 10, 42, -3, +4, +4, {
+        range: 1.6,
+        activeLen: 0,
+        blockstun: 25,
+        hitstun: 32,
+        counterHitstun: 32,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_346_HITBOX,
+        t5ReactionMoves: { normal: 897, counterHit: 897, block: 347, crouchBlock: 701 },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_346_ANIMATION,
+      anim: { clip: "t5Move346" },
+      followups: [
+        {
+          moveId: "jin.t5.349",
+          buttons: B4,
+          window: [1, 42],
+          startingFrame: 42,
+          transitionMode: "preserve",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.t5.348",
+        startingFrame: 43,
+        transitionMode: "reset",
+      },
+    },
+  ),
+  mv("jin.t5.348", "", "PAL Move 348", 0, 28, [], {
+    t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_348_ANIMATION,
+    anim: { clip: "t5Move348" },
+  }),
+  mv(
+    "jin.t5.349",
+    "4",
+    "PAL Move 349",
+    59,
+    80,
+    [
+      hit("l", 10, 59, -8, +24, +24, {
+        range: 1.7,
+        activeLen: 1,
+        blockstun: 19,
+        hitstun: 45,
+        counterHitstun: 45,
+        t5Hitbox: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_349_HITBOX,
+        t5ReactionMoves: { normal: 351, counterHit: 351, block: 698, crouchBlock: 701 },
+        flags: { knockback: "mid" },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_349_ANIMATION,
+      anim: { clip: "t5Move349" },
+      followups: [
+        {
+          moveId: "jin.t5.448",
+          buttons: B1 | B2,
+          dir: "d",
+          window: [43, 65],
+          startingFrame: 65,
+          transitionMode: "reset",
+        },
+      ],
+      contactTransitions: {
+        block: {
+          moveId: "jin.t5.350",
+          window: [59, 60],
+          startingFrame: 59,
+          transitionMode: "preserve",
+        },
+      },
+    },
+  ),
+  mv("jin.t5.350", "", "PAL Move 350", 0, 86, [], {
+    t5CancelOrientationMode: 2,
+    t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_350_ANIMATION,
+    anim: { clip: "t5Move350" },
+  }),
+  mv("jin.t5.448", "d+1+2", "PAL Move 448", 0, 60, [], {
+    t5Animation: T5_JIN_STOP_NATIVE.T5_JIN_MOVE_448_ANIMATION,
+    t5BuffOnStart: { kind: "kiai", frames: 150 },
+    anim: { clip: "t5Move448" },
   }),
   // ── 6.2 Standing jabs & basic ────────────────────────────────────────────
   mv(

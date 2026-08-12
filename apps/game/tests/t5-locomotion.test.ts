@@ -41,7 +41,7 @@ import {
   t5LocomotionRootDeltaBetween,
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
-import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S } from "./helpers.ts";
+import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
 import {
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
@@ -1023,6 +1023,35 @@ describe("Tekken 5 PAL locomotion roots", () => {
     });
   }
 
+  function stepUntilMove(sim: ReturnType<typeof fightSim>, moveId: string, maxFrames = 120): void {
+    for (let frame = 0; frame < maxFrames; frame++) {
+      if (sim.gs.fighters[0].moveId === moveId) return;
+      sim.step(pad(), pad());
+    }
+    throw new Error(`did not reach ${moveId}`);
+  }
+
+  function enterTripleButtonBodyBlow(sim: ReturnType<typeof fightSim>): void {
+    putInSidewalkStop(sim, 0);
+    sim.step(pad({ btns: B1 | B2 | B3 }), pad());
+    stepUntilMove(sim, "jin.t5.452");
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.452", actionFrame: 15 });
+  }
+
+  function enterTripleButtonHigh(sim: ReturnType<typeof fightSim>): void {
+    enterTripleButtonBodyBlow(sim);
+    sim.step(pad({ btns: B1 }), pad());
+    stepUntilMove(sim, "jin.t5.346");
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.346", actionFrame: 33 });
+  }
+
+  function enterTripleButtonLow(sim: ReturnType<typeof fightSim>): void {
+    enterTripleButtonHigh(sim);
+    sim.step(pad({ btns: B4 }), pad());
+    stepUntilMove(sim, "jin.t5.349");
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.349", actionFrame: 43 });
+  }
+
   it.each([
     [{ dx: -1 as const, dy: -1 as const, btns: B4 }, "jin.ss.db4"],
     [{ dx: -1 as const, btns: B3 }, "jin.b3"],
@@ -1079,6 +1108,128 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.345", actionFrame: 24 });
     sim.step(pad(), pad());
     expect(sim.gs.fighters[0]).toMatchObject({ action: "idle", actionFrame: 0, moveId: null });
+  });
+
+  it("accepts move 452's 1 extension through frame 32 and rejects it after handoff", () => {
+    const earliest = fightSim(8);
+    const boundary = fightSim(8);
+    const late = fightSim(8);
+
+    enterTripleButtonBodyBlow(earliest);
+    earliest.step(pad({ btns: B1 }), pad());
+    expect(earliest.gs.fighters[0]).toMatchObject({
+      moveId: "jin.t5.452",
+      actionFrame: 16,
+      followupQueued: "jin.t5.346",
+      followupAt: 32,
+      followupTargetFrame: 33,
+    });
+
+    enterTripleButtonBodyBlow(boundary);
+    run(boundary, 17);
+    expect(boundary.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.452", actionFrame: 32 });
+    boundary.step(pad({ btns: B1 }), pad());
+    expect(boundary.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.346", actionFrame: 33 });
+
+    enterTripleButtonBodyBlow(late);
+    run(late, 17);
+    late.step(pad(), pad());
+    expect(late.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.345", actionFrame: 1 });
+    late.step(pad({ btns: B1 }), pad());
+    expect(late.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.345", actionFrame: 2 });
+  });
+
+  it("uses move 348 unless move 346 receives 4 through its final cancel frame", () => {
+    const whiff = fightSim(8);
+    enterTripleButtonHigh(whiff);
+    run(whiff, 9);
+    expect(whiff.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.346", actionFrame: 42 });
+    whiff.step(pad(), pad());
+    expect(whiff.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.348", actionFrame: 1 });
+    run(whiff, 27);
+    expect(whiff.gs.fighters[0]).toMatchObject({ action: "idle", moveId: null });
+
+    const extension = fightSim(8);
+    enterTripleButtonHigh(extension);
+    run(extension, 9);
+    extension.step(pad({ btns: B4 }), pad());
+    expect(extension.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.349", actionFrame: 43 });
+  });
+
+  it("routes move 349's earliest d+1+2 cancel into the 150-frame PAL charge", () => {
+    const sim = fightSim(8);
+    enterTripleButtonLow(sim);
+
+    sim.step(pad({ dy: -1, btns: B1 | B2 }), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({
+      moveId: "jin.t5.349",
+      actionFrame: 44,
+      followupQueued: "jin.t5.448",
+      followupAt: 65,
+      followupTargetFrame: 1,
+    });
+    stepUntilMove(sim, "jin.t5.448");
+    expect(sim.gs.fighters[0]).toMatchObject({
+      moveId: "jin.t5.448",
+      actionFrame: 1,
+      buff: "kiai",
+      buffFrames: 149,
+    });
+    expect(sim.gs.events).toContainEqual(expect.objectContaining({ type: "kiai", fighter: 0 }));
+
+    run(sim, 59);
+    expect(sim.gs.fighters[0]).toMatchObject({
+      action: "idle",
+      moveId: null,
+      buff: "kiai",
+      buffFrames: 90,
+      t5PoseTail: {
+        moveId: "jin.t5.448",
+        actionFrame: 60,
+        actionTotal: 73,
+      },
+    });
+    run(sim, 89);
+    expect(sim.gs.fighters[0]).toMatchObject({ buff: "kiai", buffFrames: 1 });
+    sim.step(pad(), pad());
+    expect(sim.gs.fighters[0]).toMatchObject({ buff: "none", buffFrames: 0 });
+  });
+
+  it("uses PAL move 350 to make the blocked extension low exactly -8", () => {
+    const sim = fightSim(8);
+    enterTripleButtonLow(sim);
+    run(sim, 15);
+    expect(sim.gs.fighters[0]).toMatchObject({ moveId: "jin.t5.349", actionFrame: 58 });
+    setSeparation(sim, 1.0);
+
+    sim.step(pad(), pad({ dx: -1, dy: -1 }));
+    sim.step(pad(), pad({ dx: -1, dy: -1 }));
+
+    expect(sim.gs.events).toContainEqual(expect.objectContaining({ type: "block", fighter: 0 }));
+    expect(sim.gs.fighters[0]).toMatchObject({
+      moveId: "jin.t5.350",
+      actionFrame: 60,
+      actionTotal: 86,
+    });
+    expect(sim.gs.fighters[1]).toMatchObject({
+      action: "blockstun",
+      actionFrame: 1,
+      actionTotal: 19,
+      crouching: true,
+      t5ReactionMoveId: 701,
+    });
+
+    let attackerFree = -1;
+    let defenderFree = -1;
+    for (let elapsed = 1; elapsed <= 40; elapsed++) {
+      sim.step(pad(), pad({ dx: -1, dy: -1 }));
+      if (attackerFree < 0 && sim.gs.fighters[0].action !== "attack") attackerFree = elapsed;
+      if (defenderFree < 0 && sim.gs.fighters[1].action !== "blockstun") defenderFree = elapsed;
+    }
+
+    expect(attackerFree).toBeGreaterThan(0);
+    expect(defenderFree).toBeGreaterThan(0);
+    expect(defenderFree - attackerFree).toBe(-8);
   });
 
   it("publishes all three PAL stop-route contacts for 26 damage", () => {

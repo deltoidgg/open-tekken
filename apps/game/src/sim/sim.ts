@@ -59,8 +59,21 @@ import {
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
 const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3"]);
-const T5_MEASURED_ATTACK_TAILS = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3"]);
-const T5_MEASURED_REACTION_TAILS = new Set([336, 370, 371, 693, 780, 783, 790, 803, 806, 811]);
+const T5_MEASURED_ATTACK_TAILS = new Set([
+  "jin.1",
+  "jin.12",
+  "jin.df1",
+  "jin.d3",
+  "jin.t5.345",
+  "jin.t5.348",
+  "jin.t5.349",
+  "jin.t5.350",
+  "jin.t5.448",
+]);
+const T5_MEASURED_REACTION_TAILS = new Set([
+  336, 339, 342, 344, 347, 351, 370, 371, 689, 693, 698, 780, 783, 790, 794, 797, 803, 806, 811,
+  897,
+]);
 const T5_STANDING_BLOCK_REACTIONS = new Map([
   ["jin.1", 336],
   ["jin.12", 371],
@@ -906,6 +919,24 @@ export class Sim {
     f.followupAutomatic = automatic;
   }
 
+  private queueContactTransition(
+    fighter: FighterState,
+    move: MoveDef,
+    result: "block" | "hit" | "counterHit",
+    contactFrame: number,
+  ): void {
+    const transition = move.contactTransitions?.[result];
+    if (!transition || fighter.followupQueued !== null) return;
+    if (contactFrame < transition.window[0] || contactFrame > transition.window[1]) return;
+    this.queueRomTransition(
+      fighter,
+      transition.moveId,
+      transition.startingFrame,
+      transition.transitionMode,
+      true,
+    );
+  }
+
   private matchFollowup(
     followups: FollowupDef[] | undefined,
     inp: FrameInput,
@@ -1138,6 +1169,11 @@ export class Sim {
     f.followupAutomatic = false;
     f.followupChain = [];
     f.crouching = false;
+    if (move.t5BuffOnStart) {
+      f.buff = move.t5BuffOnStart.kind;
+      f.buffFrames = move.t5BuffOnStart.frames;
+      this.emit({ type: "kiai", pos: { ...f.pos }, fighter: f.id });
+    }
     // press buffered while the previous link was still queued (mashed string)
     const nextInChain = chain[0];
     let explicitQueued = false;
@@ -1985,8 +2021,8 @@ export class Sim {
       this.setAction(def, "blockstun", stun);
       const blockReaction =
         guard === "crouch"
-          ? T5_CROUCH_BLOCK_REACTIONS.get(c.move.id)
-          : T5_STANDING_BLOCK_REACTIONS.get(c.move.id);
+          ? (hd.t5ReactionMoves?.crouchBlock ?? T5_CROUCH_BLOCK_REACTIONS.get(c.move.id))
+          : (hd.t5ReactionMoves?.block ?? T5_STANDING_BLOCK_REACTIONS.get(c.move.id));
       this.setT5Reaction(def, blockReaction);
       def.actionFrame = 1;
       def.crouching = guard === "crouch"; // after setAction — it resets the flag
@@ -2029,6 +2065,7 @@ export class Sim {
         frame: this.gs.frame,
       };
       def.lastContact = atk.lastContact;
+      this.queueContactTransition(atk, c.move, "block", c.contactFrame);
       return;
     }
 
@@ -2105,6 +2142,7 @@ export class Sim {
       frame: this.gs.frame,
     };
     def.lastContact = atk.lastContact;
+    this.queueContactTransition(atk, c.move, isCH ? "counterHit" : "hit", c.contactFrame);
 
     if (hd.flags?.forceOC) def.crouching = true;
     if (hd.flags?.selfRC) atk.crouching = true;
