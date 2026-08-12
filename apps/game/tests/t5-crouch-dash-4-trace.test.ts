@@ -139,7 +139,7 @@ describe("Tekken 5 PAL crouch-dash +4 routes", () => {
     run(sim, 29);
     expect(defender.pushback).toBeNull();
     const separation = Math.hypot(defender.pos.x - attacker.pos.x, defender.pos.z - attacker.pos.z);
-    expect(Math.abs(separation - 2.8437)).toBeLessThan(0.005);
+    expect(separation).toBeCloseTo(2.8599567571185216, 3);
   });
 
   it("uses reaction 704 and resets into move 360 when crouch-blocked", () => {

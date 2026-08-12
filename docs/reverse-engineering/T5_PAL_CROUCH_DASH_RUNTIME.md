@@ -197,7 +197,10 @@ inputs select moves `607`, `605`, or `603` on source frames 1-8, 9-13, and 14-19
 Generated attack and recovery poses, reaction `615`, block reactions `692/704`,
 hit shell transitions `612/613/614`, move-360 block recovery, recovered
 pushback, no-timeline-freeze contact, and the effective `-31` crouch-block
-recovery are covered by executable tests. See `T5_PAL_CROUCH_DASH_4_TRACE.md`.
+recovery are covered by executable tests. The attack boundary also commits move
+524's `0.022 m` frame-zero forward root; the early branch's measured body curve
+and reaction-615 contact solve now close the full launch publication. See
+`T5_PAL_CROUCH_DASH_4_TRACE.md`.
 
 ## Verification and limits
 
@@ -219,7 +222,10 @@ Focused tests establish:
 12. final-edge `d/f+4` selects move 502 while all six delayed-4 window edges
     select moves 607, 605, or 603; and
 13. delayed-4 hit, crouch block, whiff, recovery-shell, reaction, and frame-60
-    victim-gate behavior match the recovered PAL records.
+    victim-gate behavior match the recovered PAL records; and
+14. the early branch reproduces move 524's root commit, move-607 body edges,
+    reaction-615's completed contact edge, and the pushback endpoint within
+    `0.1 mm`.
 
 The following are not yet ROM-complete:
 
@@ -233,9 +239,9 @@ The following are not yet ROM-complete:
   exact predicate behind `SPECIAL_0x8001` and native split logical/render-root
   representation still need a controlled input and root-field matrix.
 - CD+1 and the optional `3+4` branches below delayed CD+4 are not yet native.
-  The three ordinary delayed-4 attacks and both human Jin CD+2 attacks now use
-  native move definitions. The downstream `d/b+2,2,3` pickup still needs moves
-  526-528's native reset timings and grounded-hit outcome.
+  The three ordinary delayed-4 attacks, both human Jin CD+2 attacks, and the
+  downstream `d/b+2,2,3` pickup now use native move definitions and measured
+  reset timing.
 - Rendering remains procedural; gameplay body collision uses the recovered pose.
 
 The remaining timing claims are intentionally left open rather than inferred

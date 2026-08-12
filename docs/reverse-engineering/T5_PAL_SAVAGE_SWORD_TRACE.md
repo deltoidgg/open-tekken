@@ -83,6 +83,15 @@ without changing authored range or strike geometry. The untraced
 `526 -> 527` and counter-hit `531 -> 532` branches retain the provisional
 transition policy.
 
+The same ownership rule applies when crouch-dash locomotion exits into Hell
+Trip. At the captured move-524 frame-4 branch, the generated relative curve has
+already transferred `0.273550 m`; PAL also commits the animation's `22` native
+unit frame-zero forward root. The clone now records that `0.022 m` base on all
+three `524 -> 607/605/603` attack entries instead of dropping it at the action
+boundary. The long-pulse setup still enters move 607 about `4.4 mm` from PAL on
+frames 1-5 because the earlier `222 -> 672 -> 673` base transition is not yet
+exact; the first measured body solve on frame 6 closes that upstream residual.
+
 The same replay exposed a separate publication-clock error. PAL publishes
 native launch reaction `615` as frame 1 on the Hell Trip contact state. The
 clone previously installed it at frame 0 and then sampled `actionFrame - 1`
@@ -190,8 +199,10 @@ The clone previously skipped body collision whenever either fighter was
 launched. That left the final contact at only `2.2632 m` separation. Reactions
 `1/12` now carry their ROM-derived eight body-sphere centres, and the shared
 deepest-overlap resolver runs only for logical-height air shells. Animation-
-height-owned reaction `615` and legacy unmapped launches retain their existing
-no-body-push behavior.
+height-owned reaction `615` normally retains its no-body-push behavior. Hell
+Trip's contact tick is a measured exception: PAL installs reaction `615`,
+publishes the recovered pushback, and then performs one final body solve while
+move `612` frame 21 is active.
 
 The complete player snapshots expose the live collision inputs and output:
 
@@ -205,7 +216,28 @@ Executable routine `0x00217C34` confirms that PAL does not simply split the
 deepest penetration in half. It measures both rendered-root sweeps from the
 stored `+0x510` points, selects directions against each fighter's root angle,
 weights the correction by the two sweep lengths, and publishes asymmetric
-vectors at `+0x690`. The measured completed-tick edges and attacker shares are:
+vectors at `+0x690`. Hell Trip's measured completed-tick edges and attacker
+shares are:
+
+| Attack frame | Defender state | Separation edge | Attacker share |
+| -----------: | -------------- | --------------: | -------------: |
+|      `607:6` | idle           | `1.416650275 m` |  `0.392825676` |
+|      `607:7` | idle           | `1.482089586 m` |  `0.438339765` |
+|      `607:8` | idle           | `1.546170855 m` |  `0.448614087` |
+|      `607:9` | idle           | `1.602371247 m` |  `0.448578643` |
+|     `607:11` | idle           | `1.689940385 m` |  `0.400443217` |
+|     `607:12` | idle           | `1.719635849 m` |  `0.234597964` |
+|     `607:13` | idle           | `1.740248541 m` |  `0.016885616` |
+|     `607:20` | idle           | `1.856472125 m` |  `0.821552050` |
+|     `612:21` | `615:1`        | `2.100523648 m` |  `0.604205245` |
+
+The move-612 edge also records PAL's two non-collinear correction directions.
+The victim's installed pushback vector is `-0.941490433 rad` from the completed
+separation axis. Matching distance without this relationship left the pushback
+endpoint about `11 mm` long because the clone's axis was rotated by roughly one
+degree.
+
+The downstream airborne edges are:
 
 | Attack frame | Victim frame | Separation edge | Attacker share |
 | -----------: | -----------: | --------------: | -------------: |
@@ -218,7 +250,7 @@ vectors at `+0x690`. The measured completed-tick edges and attacker shares are:
 
 The clone's idle-calibrated pose approximation does not yet reproduce the
 secondary-pose inputs to that resolver. Until that pipeline is recovered, these
-six live edges are authoritative for the measured move/reaction frame pairs;
+live edges are authoritative for the measured move/reaction frame pairs;
 missing entries inside each measured range explicitly mean no correction. This
 is collision data, not strike-range inflation, and the generic generated-sphere
 resolver remains active outside the traced pairs.
@@ -228,23 +260,23 @@ separation now gives these phase-aligned, completed-tick logical distances:
 
 | Contact          | PAL distance | Clone distance |    Residual |
 | ---------------- | -----------: | -------------: | ----------: |
-| Hell Trip        | `2.019097 m` |   `2.072318 m` |   `53.2 mm` |
+| Hell Trip        | `2.100524 m` |   `2.100524 m` | `<0.001 mm` |
 | buffered `d/b+2` | `1.078389 m` |   `1.078389 m` | `<0.001 mm` |
-| second `2`       | `1.181302 m` |   `1.181243 m` | `-0.059 mm` |
+| second `2`       | `1.181302 m` |   `1.181244 m` | `-0.058 mm` |
 | final `3`        | `2.894067 m` |   `2.894067 m` | `<0.001 mm` |
 
-All four native posed contacts now land from the PAL setup. Every airborne
-contact clears the protocol's `1 mm` spatial gate; the remaining `53.2 mm`
-route error is already present at the Hell Trip launch and is the next slice.
+All four native posed contacts now land from the PAL setup and clear the
+protocol's `1 mm` spatial gate. The clone reaches `2.860038 m` when Hell Trip's
+pushback expires against PAL's `2.859957 m`, a `+0.081 mm` residual.
 
 The high-rate trace also exposes two distinct samples inside body-corrected
 contact ticks. Reaction selection and composed movement publish first; posed
-body correction follows roughly one millisecond later. For the first reaction
-`1`, separation is `0.927942 m` before body correction and `1.078389 m` after
-it. For reaction `12`, the corresponding values are `2.777894 m` and
-`2.894067 m`. Clone tests observe the completed simulation tick, so future
-residual tables must compare them with the latter values. Mixing these phases
-made the earlier final-contact residual look about `87 mm` smaller than it was.
+body correction follows roughly one millisecond later. Hell Trip publishes
+reaction `615` at `2.019097 m` before its solve and `2.100524 m` after it. For
+the first reaction `1`, separation is `0.927942 m` before body correction and
+`1.078389 m` after it. For reaction `12`, the corresponding values are
+`2.777894 m` and `2.894067 m`. Clone tests observe the completed simulation
+tick, so residual tables compare against the latter values.
 
 ## Attack records
 
@@ -328,7 +360,10 @@ semantics; no Savage Sword ID is hard-coded into the simulation.
     `615 -> 1 -> 1 -> 12`, scaled damage `18 + 8 + 7 + 10 = 43`, and natural
     native posed collision with no range inflation; and
 14. the exact `1.8845 m` PAL setup, move-524 delay, ROM-derived reaction-1/12
-    body spheres, and all four post-contact separation checkpoints.
+    body spheres, and all four post-contact separation checkpoints;
+15. move-524's `0.022 m` frame-zero root commit, all eight measured move-607
+    body edges, reaction-615's contact-tick edge and direction, and the
+    `2.859957 m` Hell Trip pushback endpoint.
 
 The spec's former skipped 43-damage combo is now active in `combos.test.ts`.
 The detailed trace regression additionally locks each reaction, damage event,
@@ -346,9 +381,11 @@ first relaunch height, and timeline-freeze result.
   including side reaction `530`.
 - Trace reaction `1/12` post-frame-50 get-up, tech, and stay-down options. The
   measured route currently closes at the landing gate.
-- Reduce the remaining `124.1/59.2/14.6 mm` air-contact spacing residuals by
-  recovering body correction and pushback publication order at sub-frame state
-  transitions.
+- Recover the remaining `222 -> 672 -> 673` transition base; the controlled
+  long-pulse route is about `4.4 mm` off before move-607 frame 6.
+- Replace the phase-aligned body-edge profiles with PAL's complete secondary
+  pose/constraint stage so arbitrary spacings and defender poses resolve from
+  generated collision inputs rather than measured route pairs.
 
 ## Reproduction
 

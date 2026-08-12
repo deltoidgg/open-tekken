@@ -13,6 +13,7 @@ import type {
   MoveDef,
   PushbackDef,
   Reaction,
+  T5BodyCollisionEdge,
   ThrowDef,
 } from "../data/types.ts";
 import { T5_SIM_HZ, TUNING as T } from "../data/tuning.ts";
@@ -1272,6 +1273,9 @@ export class Sim {
         : sourceFrame;
     const transfersLogicalRoot =
       !!poseSource.moveId && move.t5LogicalRootHandoffFrom?.includes(poseSource.moveId);
+    if (poseSource.action === "CD" && move.t5LocomotionRootCommit) {
+      this.applyT5LocalRootDeltaAtFace(f, move.t5LocomotionRootCommit, poseSource.t5RootFace);
+    }
     if (transfersLogicalRoot && sourceAnimation) {
       const sourceRoot = sampleT5PoseRoot(sourceAnimation, logicalHandoffSourceFrame);
       this.applyT5LocalRootDeltaAtFace(
@@ -3048,8 +3052,92 @@ export class Sim {
         "lowParried",
       ].includes(f.action);
     };
-    if (skip(a) || skip(b) || this.gs.activeThrow) return;
+    if (this.gs.activeThrow) return;
     const d = dist2D(a.pos.x, a.pos.z, b.pos.x, b.pos.z);
+    let resolvedPenetration: number | null = null;
+    let aShare = 0.5;
+    let directionalTrace:
+      | {
+          attacker: FighterState;
+          defender: FighterState;
+          edge: T5BodyCollisionEdge;
+        }
+      | undefined;
+    for (const [attacker, defender] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      if (attacker.action !== "attack" || !attacker.moveId) continue;
+      const trace = moveById(attacker.moveId).t5BodyCollisionTraces?.find(
+        (candidate) =>
+          candidate.defenderReactionMoveId === defender.t5ReactionMoveId &&
+          attacker.actionFrame >= candidate.attackerFrames[0] &&
+          attacker.actionFrame <= candidate.attackerFrames[1] &&
+          (candidate.defenderFrameOffset === null ||
+            defender.actionFrame === attacker.actionFrame + candidate.defenderFrameOffset),
+      );
+      if (!trace) continue;
+      const edge = trace.separationEdges[attacker.actionFrame];
+      resolvedPenetration = edge ? Math.max(0, edge.separation - d) : 0;
+      if (edge) {
+        aShare = attacker === a ? edge.attackerShare : 1 - edge.attackerShare;
+        if (
+          edge.attackerDirectionOffset !== undefined &&
+          edge.defenderDirectionOffset !== undefined
+        ) {
+          directionalTrace = { attacker, defender, edge };
+        }
+      }
+      break;
+    }
+    if (directionalTrace) {
+      const { attacker, defender, edge } = directionalTrace;
+      const rx = defender.pos.x - attacker.pos.x;
+      const rz = defender.pos.z - attacker.pos.z;
+      const distance = Math.hypot(rx, rz);
+      if (distance < edge.separation && distance > 0.0001) {
+        if (edge.defenderTravelDirectionOffset !== undefined && defender.pushback) {
+          const travelDirection = Math.atan2(
+            defender.pushback.directionZ,
+            defender.pushback.directionX,
+          );
+          const targetDirection = travelDirection - edge.defenderTravelDirectionOffset;
+          const targetX = Math.cos(targetDirection) * edge.separation;
+          const targetZ = Math.sin(targetDirection) * edge.separation;
+          const deltaX = targetX - rx;
+          const deltaZ = targetZ - rz;
+          attacker.pos.x -= deltaX * edge.attackerShare;
+          attacker.pos.z -= deltaZ * edge.attackerShare;
+          defender.pos.x += deltaX * (1 - edge.attackerShare);
+          defender.pos.z += deltaZ * (1 - edge.attackerShare);
+          return;
+        }
+        const axis = Math.atan2(rz, rx);
+        const attackerDirection = axis + edge.attackerDirectionOffset!;
+        const defenderDirection = axis + edge.defenderDirectionOffset!;
+        const attackerUnit = {
+          x: Math.cos(attackerDirection),
+          z: Math.sin(attackerDirection),
+        };
+        const defenderUnit = {
+          x: Math.cos(defenderDirection),
+          z: Math.sin(defenderDirection),
+        };
+        const wx = defenderUnit.x * (1 - edge.attackerShare) - attackerUnit.x * edge.attackerShare;
+        const wz = defenderUnit.z * (1 - edge.attackerShare) - attackerUnit.z * edge.attackerShare;
+        const qa = wx * wx + wz * wz;
+        const qb = 2 * (rx * wx + rz * wz);
+        const qc = distance * distance - edge.separation * edge.separation;
+        const discriminant = Math.max(0, qb * qb - 4 * qa * qc);
+        const correction = qa > 1e-9 ? (-qb + Math.sqrt(discriminant)) / (2 * qa) : 0;
+        attacker.pos.x += attackerUnit.x * correction * edge.attackerShare;
+        attacker.pos.z += attackerUnit.z * correction * edge.attackerShare;
+        defender.pos.x += defenderUnit.x * correction * (1 - edge.attackerShare);
+        defender.pos.z += defenderUnit.z * correction * (1 - edge.attackerShare);
+      }
+      return;
+    }
+    if (resolvedPenetration === null && (skip(a) || skip(b))) return;
     const bodyPlacement = (f: FighterState) => {
       const pose = t5PoseState(f);
       const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
@@ -3087,27 +3175,7 @@ export class Sim {
             : pose.t5AnimationOrigin,
       };
     };
-    const penetration = t5BodyPushPenetration(bodyPlacement(a), bodyPlacement(b));
-    let resolvedPenetration = penetration;
-    let aShare = 0.5;
-    for (const [attacker, defender] of [
-      [a, b],
-      [b, a],
-    ] as const) {
-      if (attacker.action !== "attack" || !attacker.moveId) continue;
-      const trace = moveById(attacker.moveId).t5BodyCollisionTraces?.find(
-        (candidate) =>
-          candidate.defenderReactionMoveId === defender.t5ReactionMoveId &&
-          attacker.actionFrame >= candidate.attackerFrames[0] &&
-          attacker.actionFrame <= candidate.attackerFrames[1] &&
-          defender.actionFrame === attacker.actionFrame + candidate.defenderFrameOffset,
-      );
-      if (!trace) continue;
-      const edge = trace.separationEdges[attacker.actionFrame];
-      resolvedPenetration = edge ? Math.max(0, edge.separation - d) : 0;
-      if (edge) aShare = attacker === a ? edge.attackerShare : 1 - edge.attackerShare;
-      break;
-    }
+    resolvedPenetration ??= t5BodyPushPenetration(bodyPlacement(a), bodyPlacement(b));
     if (resolvedPenetration > 0 && d > 0.0001) {
       const nx = (b.pos.x - a.pos.x) / d;
       const nz = (b.pos.z - a.pos.z) / d;

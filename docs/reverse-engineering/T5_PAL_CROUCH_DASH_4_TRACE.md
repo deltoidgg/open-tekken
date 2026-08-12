@@ -105,17 +105,20 @@ reaction owned until the PAL gate rather than ending on the first zero-height
 sample. The current simulator maps that gate to grounded state provisionally;
 the exact PAL post-gate victim route remains a live-capture follow-up.
 
-In the early live trace, logical-root separation grew from about 1.94 m at
-reaction frame 1 to 2.84 m at frame 30. That agrees with the recovered pushback
-envelope and disproves reducing launch travel merely to preserve an old combo
-script.
+The high-rate controlled route separates two publications on reaction frame 1.
+Reaction selection and the first pushback sample produce `2.019097 m`; the
+following body solve produces the completed-tick `2.100524 m` state. The victim
+then reaches `2.859957 m` when the 30-frame envelope expires. The clone now
+reproduces those checkpoints at `2.100524 m` and `2.860038 m`, respectively;
+the endpoint residual is `+0.081 mm` and clears the parity protocol's `1 mm`
+gate. The older `2.8437 m` endpoint came from a lower-rate capture before the
+contact-tick body phase was identified and is superseded for this route.
 
-The clone now applies the packed reaction direction to the recovered envelope.
-At the final pushback tick it measures `2.847153 m` against the retained PAL
-endpoint of `2.8437 m`, a `3.5 mm` residual. This is close enough to protect as
-an intermediate regression but does not yet satisfy the parity protocol's
-`1 mm` exit tolerance. Contact-frame root publication and attacker recoil remain
-the candidate owners of that residual.
+The locomotion-to-attack branch also commits move 524's `22` native unit
+frame-zero forward root. During the active kick, measured move-607 body edges
+own frames `6,7,8,9,11,12,13,20`; move-612 frame 21 then owns the final
+reaction-615 body edge and its orientation relative to the installed pushback
+vector. These are phase-aligned collision observations, not added attack range.
 
 ## Clone contract
 
@@ -127,7 +130,9 @@ data. Tests protect:
 - all six branch boundaries;
 - startup, active, recovery, and ROM animation IDs;
 - normal hit reaction `615` and hit shell `612`;
-- packed `0xD556` pushback direction and the near-parity frame-30 endpoint;
+- packed `0xD556` pushback direction and the sub-millimetre frame-30 endpoint;
+- move-524's frame-zero root commit, move-607 body edges, and exact
+  reaction-615 contact/body publication order;
 - crouch-block reaction `704`, reset shell `360`, and effective `-31` recovery;
 - no timeline freeze;
 - whiff ownership; and

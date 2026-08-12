@@ -322,7 +322,8 @@ counter-hit, and block pushback. The shared recovered-pushback path now rotates
 each exact envelope relative to the attack heading. The clone's final normal-hit
 pushback tick reaches `2.847153 m` separation against `2.8437 m` in the retained
 PAL trace, leaving about `3.5 mm` rather than the former large straight-line
-error. This is an intermediate gate, not the protocol's `1 mm` exit. The first
+error. This was an intermediate gate; the higher-rate contact/body phase and
+endpoint below supersede both values. The first
 `d/b+2` air contact, reaction replacement, contact-root residual, attacker
 recoil, and remaining horizontal pickup ownership are the next slice.
 
@@ -389,7 +390,22 @@ separation edges and attacker shares while unmeasured pairs retain generated
 sphere collision. The buffered pickup and final kick match their PAL completed
 ticks exactly; the second contact is within `0.059 mm`. The three air contacts
 therefore clear the `1 mm` gate, leaving the launch's existing `53.2 mm`
-residual as the next route error.
+residual as the next route error at that checkpoint. The launch-publication
+checkpoint below resolves it.
+
+Hell Trip launch-publication checkpoint 2026-08-12: the retained high-rate
+trace resolves that apparent residual into two states on reaction-615 frame 1.
+Pushback/reaction publication appears first at `2.019097 m`; PAL's final body
+solve follows at `2.100524 m`. Move 607 now uses its eight measured grounded
+body edges, move 612 frame 21 is allowed to resolve the otherwise animation-
+height-owned reaction 615, and the edge preserves PAL's angle to the installed
+pushback vector. The clone matches the completed contact exactly and reaches
+`2.860038 m` at pushback expiry against PAL's `2.859957 m`, a `+0.081 mm`
+residual. The `524 -> 607/605/603` branches also commit move 524's missing
+`0.022 m` frame-zero forward root. All four contacts and Hell Trip's pushback
+endpoint now clear the `1 mm` gate. The remaining upstream route discrepancy
+is about `4.4 mm` during move-607 frames 1-5, before the first measured body
+edge, and belongs to the preserved `222 -> 672 -> 673` transition base.
 
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.

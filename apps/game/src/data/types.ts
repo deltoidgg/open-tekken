@@ -175,13 +175,20 @@ export interface T5BodyCollisionEdge {
   separation: number;
   /** Fraction of the correction assigned to the attacking fighter. */
   attackerShare: number;
+  /** Radians from the pre-solve attacker-to-defender axis to the attacker correction. */
+  attackerDirectionOffset?: number;
+  /** Radians from the pre-solve attacker-to-defender axis to the defender correction. */
+  defenderDirectionOffset?: number;
+  /** PAL angle from the completed separation axis to the defender's installed pushback vector. */
+  defenderTravelDirectionOffset?: number;
 }
 
 export interface T5BodyCollisionTraceDef {
-  defenderReactionMoveId: number;
+  /** Null targets a defender without a native reaction shell. */
+  defenderReactionMoveId: number | null;
   attackerFrames: readonly [start: number, end: number];
-  /** defenderFrame = attackerFrame + defenderFrameOffset */
-  defenderFrameOffset: number;
+  /** defenderFrame = attackerFrame + defenderFrameOffset; null ignores the defender clock. */
+  defenderFrameOffset: number | null;
   /** Missing entries inside the measured range are authoritative no-correction frames. */
   separationEdges: Readonly<Partial<Record<number, T5BodyCollisionEdge>>>;
 }
@@ -206,6 +213,8 @@ export interface MoveDef {
   t5Animation?: T5NativeAnimationDef;
   /** Source move shells whose composed root transfers into logical X/Z on entry. */
   t5LogicalRootHandoffFrom?: readonly string[];
+  /** Frame-zero local root committed when this attack exits native locomotion. */
+  t5LocomotionRootCommit?: T5LocalPoint;
   /** Phase-aligned live body-collision trace used while generated pose parity remains incomplete. */
   t5BodyCollisionTraces?: readonly T5BodyCollisionTraceDef[];
   /**

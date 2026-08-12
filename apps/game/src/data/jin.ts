@@ -273,6 +273,40 @@ function mv(
 
 const TRACK_BOTH = { left: true, right: true };
 const TRACK_R = { left: false, right: true };
+const T5_CD_524_ROOT_BASE_COMMIT = [0, 0, 0.022] as const;
+const T5_CD4_BODY_COLLISION_TRACES = [
+  {
+    defenderReactionMoveId: null,
+    attackerFrames: [1, 20],
+    defenderFrameOffset: null,
+    separationEdges: {
+      6: { separation: 1.4166502748081093, attackerShare: 0.3928256760563209 },
+      7: { separation: 1.4820895858848677, attackerShare: 0.4383397647781327 },
+      8: { separation: 1.5461708546692416, attackerShare: 0.44861408728458674 },
+      9: { separation: 1.6023712466453603, attackerShare: 0.4485786433549461 },
+      11: { separation: 1.6899403851575217, attackerShare: 0.4004432173039832 },
+      12: { separation: 1.7196358488860506, attackerShare: 0.23459796381505096 },
+      13: { separation: 1.7402485409470072, attackerShare: 0.016885616274931785 },
+      20: { separation: 1.8564721248598024, attackerShare: 0.8215520498907675 },
+    },
+  },
+] as const;
+const T5_CD4_RECOVERY_BODY_COLLISION_TRACES = [
+  {
+    defenderReactionMoveId: 615,
+    attackerFrames: [21, 22],
+    defenderFrameOffset: -20,
+    separationEdges: {
+      21: {
+        separation: 2.10052364787352,
+        attackerShare: 0.6042052447747649,
+        attackerDirectionOffset: -3.026228083554164,
+        defenderDirectionOffset: 0.11959874930000924,
+        defenderTravelDirectionOffset: -0.9414904330921243,
+      },
+    },
+  },
+] as const;
 
 export const JIN_MOVES: MoveDef[] = [
   ...T5_JIN_JUMP_MOVES,
@@ -2217,6 +2251,8 @@ export const JIN_MOVES: MoveDef[] = [
     {
       from: ["CD"],
       t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_607_ANIMATION,
+      t5LocomotionRootCommit: T5_CD_524_ROOT_BASE_COMMIT,
+      t5BodyCollisionTraces: T5_CD4_BODY_COLLISION_TRACES,
       anim: { clip: "hellTrip" },
       contactTransitions: {
         block: {
@@ -2261,6 +2297,7 @@ export const JIN_MOVES: MoveDef[] = [
     {
       from: ["CD"],
       t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_605_ANIMATION,
+      t5LocomotionRootCommit: T5_CD_524_ROOT_BASE_COMMIT,
       anim: { clip: "hellTrip" },
       contactTransitions: {
         block: {
@@ -2305,6 +2342,7 @@ export const JIN_MOVES: MoveDef[] = [
     {
       from: ["CD"],
       t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_603_ANIMATION,
+      t5LocomotionRootCommit: T5_CD_524_ROOT_BASE_COMMIT,
       anim: { clip: "hellTrip" },
       contactTransitions: {
         block: {
@@ -2331,6 +2369,7 @@ export const JIN_MOVES: MoveDef[] = [
   ),
   mv("jin.cd4.earlyRecovery", "", "Hell Trip Early Recovery", 0, 51, [], {
     t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_612_ANIMATION,
+    t5BodyCollisionTraces: T5_CD4_RECOVERY_BODY_COLLISION_TRACES,
     anim: { clip: "hellTrip" },
   }),
   mv("jin.cd4.midRecovery", "", "Hell Trip Mid Recovery", 0, 51, [], {
