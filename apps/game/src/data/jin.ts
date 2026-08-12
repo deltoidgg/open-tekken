@@ -162,6 +162,37 @@ const PB_AIR_SAVAGE_SWORD = t5Pushback(35, 30, [150, 150, 130, 120, 100, 70, 60,
 const AIR_DB2_HORIZONTAL_DISPLACEMENT = Math.hypot(17, 17);
 const AIR_DB22_HORIZONTAL_DISPLACEMENT = Math.hypot(21, 22);
 const AIR_DB223_HORIZONTAL_DISPLACEMENT = Math.hypot(27, 30);
+const DB22_AIR_BODY_COLLISION = [
+  {
+    defenderReactionMoveId: 1,
+    attackerFrames: [1, 8],
+    defenderFrameOffset: 0,
+    separationEdges: {
+      1: { separation: 1.0783887924562794, attackerShare: 0.5274654140579484 },
+      4: { separation: 1.2905626351646802, attackerShare: 0.6257943633393948 },
+      7: { separation: 1.4469547333296835, attackerShare: 0.5434908323197787 },
+    },
+  },
+] as const;
+const DB223_AIR_BODY_COLLISION = [
+  {
+    defenderReactionMoveId: 1,
+    attackerFrames: [1, 35],
+    defenderFrameOffset: 0,
+    separationEdges: {
+      33: { separation: 2.344861569285865, attackerShare: 0.5110485233199625 },
+      34: { separation: 2.52717317418783, attackerShare: 0.5119420387439314 },
+    },
+  },
+  {
+    defenderReactionMoveId: 12,
+    attackerFrames: [36, 36],
+    defenderFrameOffset: -35,
+    separationEdges: {
+      36: { separation: 2.8940670945009455, attackerShare: 0.5435919662148809 },
+    },
+  },
+] as const;
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
 const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
@@ -1431,6 +1462,7 @@ export const JIN_MOVES: MoveDef[] = [
     {
       t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_527_ANIMATION,
       t5LogicalRootHandoffFrom: ["jin.db2.buffered"],
+      t5BodyCollisionTraces: DB22_AIR_BODY_COLLISION,
       anim: { clip: "risingBackfist" },
       followups: [
         {
@@ -1502,6 +1534,7 @@ export const JIN_MOVES: MoveDef[] = [
     {
       t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_528_ANIMATION,
       t5LogicalRootHandoffFrom: ["jin.db22"],
+      t5BodyCollisionTraces: DB223_AIR_BODY_COLLISION,
       anim: { clip: "stabKick" },
       tags: ["wallEnder", "comboEnder"],
     },

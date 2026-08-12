@@ -378,6 +378,19 @@ inherited from posed body correction: PAL resolves reaction-1 overlap on frames
 `0.927942/2.777894 m` contact values are pre-body publications; phase-aligned
 end-of-tick values are `1.078389/2.894067 m`.
 
+Airborne body-edge checkpoint 2026-08-12: the full player snapshots expose all
+eight body records at `+0x490`, the previous rendered-root sweep point at
+`+0x510`, and each asymmetric correction at `+0x690`. Disassembly of resolver
+`0x00217C34` disproves the clone's provisional equal split: PAL weights the
+correction by both rendered-root sweep lengths and each fighter's root-facing
+direction. Because the current generated pose omits PAL's secondary constraint
+stage, the measured move/reaction pairs now use six phase-aligned live
+separation edges and attacker shares while unmeasured pairs retain generated
+sphere collision. The buffered pickup and final kick match their PAL completed
+ticks exactly; the second contact is within `0.059 mm`. The three air contacts
+therefore clear the `1 mm` gate, leaving the launch's existing `53.2 mm`
+residual as the next route error.
+
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.
 

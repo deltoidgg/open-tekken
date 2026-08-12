@@ -193,20 +193,49 @@ deepest-overlap resolver runs only for logical-height air shells. Animation-
 height-owned reaction `615` and legacy unmapped launches retain their existing
 no-body-push behavior.
 
+The complete player snapshots expose the live collision inputs and output:
+
+|                 Offset | Meaning                                        |
+| ---------------------: | ---------------------------------------------- |
+|               `+0x490` | eight world-space body-sphere records          |
+|               `+0x510` | radius plus previous rendered-root sweep point |
+| `+0x690/+0x694/+0x698` | published body-correction vector               |
+
+Executable routine `0x00217C34` confirms that PAL does not simply split the
+deepest penetration in half. It measures both rendered-root sweeps from the
+stored `+0x510` points, selects directions against each fighter's root angle,
+weights the correction by the two sweep lengths, and publishes asymmetric
+vectors at `+0x690`. The measured completed-tick edges and attacker shares are:
+
+| Attack frame | Victim frame | Separation edge | Attacker share |
+| -----------: | -----------: | --------------: | -------------: |
+|      `527:1` |        `1:1` | `1.078388792 m` |  `0.527465414` |
+|      `527:4` |        `1:4` | `1.290562635 m` |  `0.625794363` |
+|      `527:7` |        `1:7` | `1.446954733 m` |  `0.543490832` |
+|     `528:33` |       `1:33` | `2.344861569 m` |  `0.511048523` |
+|     `528:34` |       `1:34` | `2.527173174 m` |  `0.511942039` |
+|     `528:36` |       `12:1` | `2.894067095 m` |  `0.543591966` |
+
+The clone's idle-calibrated pose approximation does not yet reproduce the
+secondary-pose inputs to that resolver. Until that pipeline is recovered, these
+six live edges are authoritative for the measured move/reaction frame pairs;
+missing entries inside each measured range explicitly mean no correction. This
+is collision data, not strike-range inflation, and the generic generated-sphere
+resolver remains active outside the traced pairs.
+
 Replaying the native move-524 delay from the trace's exact `1.8845 m` starting
 separation now gives these phase-aligned, completed-tick logical distances:
 
 | Contact          | PAL distance | Clone distance |    Residual |
 | ---------------- | -----------: | -------------: | ----------: |
 | Hell Trip        | `2.019097 m` |   `2.072318 m` |   `53.2 mm` |
-| buffered `d/b+2` | `1.078389 m` |   `1.051770 m` |  `-26.6 mm` |
-| second `2`       | `1.181302 m` |   `1.233960 m` |   `52.7 mm` |
-| final `3`        | `2.894067 m` |   `2.792519 m` | `-101.5 mm` |
+| buffered `d/b+2` | `1.078389 m` |   `1.078389 m` | `<0.001 mm` |
+| second `2`       | `1.181302 m` |   `1.181243 m` | `-0.059 mm` |
+| final `3`        | `2.894067 m` |   `2.894067 m` | `<0.001 mm` |
 
-All four native posed contacts now land from the PAL setup. The final spacing
-has improved by about `529 mm` from the no-body result, but the phase-aligned
-residual is still `101.5 mm`. These contact residuals remain open evidence in
-posed-body publication and must not be hidden with range inflation.
+All four native posed contacts now land from the PAL setup. Every airborne
+contact clears the protocol's `1 mm` spatial gate; the remaining `53.2 mm`
+route error is already present at the Hell Trip launch and is the next slice.
 
 The high-rate trace also exposes two distinct samples inside body-corrected
 contact ticks. Reaction selection and composed movement publish first; posed

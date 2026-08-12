@@ -170,6 +170,22 @@ export interface FollowupDef {
   requiresBuff?: "som";
 }
 
+export interface T5BodyCollisionEdge {
+  /** Completed-tick logical root separation measured from PAL, in metres. */
+  separation: number;
+  /** Fraction of the correction assigned to the attacking fighter. */
+  attackerShare: number;
+}
+
+export interface T5BodyCollisionTraceDef {
+  defenderReactionMoveId: number;
+  attackerFrames: readonly [start: number, end: number];
+  /** defenderFrame = attackerFrame + defenderFrameOffset */
+  defenderFrameOffset: number;
+  /** Missing entries inside the measured range are authoritative no-correction frames. */
+  separationEdges: Readonly<Partial<Record<number, T5BodyCollisionEdge>>>;
+}
+
 export interface MoveDef {
   id: string;
   command: string;
@@ -190,6 +206,8 @@ export interface MoveDef {
   t5Animation?: T5NativeAnimationDef;
   /** Source move shells whose composed root transfers into logical X/Z on entry. */
   t5LogicalRootHandoffFrom?: readonly string[];
+  /** Phase-aligned live body-collision trace used while generated pose parity remains incomplete. */
+  t5BodyCollisionTraces?: readonly T5BodyCollisionTraceDef[];
   /**
    * Frames of recovery skipped when the move LANDS (hit, not block) —
    * trip/launcher hit-animations recover faster than their block recovery,

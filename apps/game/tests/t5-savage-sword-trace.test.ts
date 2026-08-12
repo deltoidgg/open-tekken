@@ -111,6 +111,18 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     });
     expect(moveById("jin.db22").t5Animation?.romMoveId).toBe(527);
     expect(moveById("jin.db22").t5LogicalRootHandoffFrom).toEqual(["jin.db2.buffered"]);
+    expect(moveById("jin.db22").t5BodyCollisionTraces).toEqual([
+      {
+        defenderReactionMoveId: 1,
+        attackerFrames: [1, 8],
+        defenderFrameOffset: 0,
+        separationEdges: {
+          1: { separation: 1.0783887924562794, attackerShare: 0.5274654140579484 },
+          4: { separation: 1.2905626351646802, attackerShare: 0.6257943633393948 },
+          7: { separation: 1.4469547333296835, attackerShare: 0.5434908323197787 },
+        },
+      },
+    ]);
 
     expect(moveById("jin.db22.counter")).toMatchObject({
       startup: 8,
@@ -160,6 +172,7 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     });
     expect(moveById("jin.db223").t5Animation?.romMoveId).toBe(528);
     expect(moveById("jin.db223").t5LogicalRootHandoffFrom).toEqual(["jin.db22"]);
+    expect(moveById("jin.db223").t5BodyCollisionTraces).toHaveLength(2);
   });
 
   it("transfers move-612 frame 51 into the pickup's logical anchor", () => {
@@ -359,9 +372,19 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     const damage: number[] = [];
     const relaunchHeights: number[] = [];
     const contactSeparations: number[] = [];
+    const bodySeparations = new Map<string, number>();
 
     const step = (input: Parameters<typeof pad>[0] = {}): void => {
       sim.step(pad(input), pad());
+      if (
+        attacker.moveId &&
+        (defender.t5ReactionMoveId === 1 || defender.t5ReactionMoveId === 12)
+      ) {
+        bodySeparations.set(
+          `${attacker.moveId}:${attacker.actionFrame}:${defender.t5ReactionMoveId}:${defender.actionFrame}`,
+          Math.hypot(attacker.pos.x - defender.pos.x, attacker.pos.z - defender.pos.z),
+        );
+      }
       if (!sim.gs.events.some((event) => event.type === "hit")) return;
       reactions.push(defender.t5ReactionMoveId!);
       damage.push(attacker.lastContact!.damage);
@@ -413,11 +436,21 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     expect(relaunchHeights[2]).toBeCloseTo(0.791, 6);
     expect(contactSeparations).toEqual([
       expect.closeTo(2.072318, 6),
-      expect.closeTo(1.05177, 6),
-      expect.closeTo(1.23396, 6),
-      expect.closeTo(2.792519, 6),
+      expect.closeTo(1.0783887924562794, 9),
+      expect.closeTo(1.1812429945217489, 9),
+      expect.closeTo(2.8940670945009455, 9),
     ]);
     expect(hp - defender.hp).toBe(43);
+    for (const [key, expected] of [
+      ["jin.db22:1:1:1", 1.0783887924562794],
+      ["jin.db22:4:1:4", 1.2905626351646802],
+      ["jin.db22:7:1:7", 1.4469547333296835],
+      ["jin.db223:33:1:33", 2.344861569285865],
+      ["jin.db223:34:1:34", 2.52717317418783],
+      ["jin.db223:36:12:1", 2.8940670945009455],
+    ] as const) {
+      expect(bodySeparations.get(key)).toBeCloseTo(expected, 9);
+    }
 
     const finalHorizontalTravel = new Map<number, number>();
     while (defender.t5AirTrajectoryFrame < 38) {

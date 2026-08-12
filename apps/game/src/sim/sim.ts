@@ -3088,14 +3088,33 @@ export class Sim {
       };
     };
     const penetration = t5BodyPushPenetration(bodyPlacement(a), bodyPlacement(b));
-    if (penetration > 0 && d > 0.0001) {
-      const push = penetration / 2;
+    let resolvedPenetration = penetration;
+    let aShare = 0.5;
+    for (const [attacker, defender] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      if (attacker.action !== "attack" || !attacker.moveId) continue;
+      const trace = moveById(attacker.moveId).t5BodyCollisionTraces?.find(
+        (candidate) =>
+          candidate.defenderReactionMoveId === defender.t5ReactionMoveId &&
+          attacker.actionFrame >= candidate.attackerFrames[0] &&
+          attacker.actionFrame <= candidate.attackerFrames[1] &&
+          defender.actionFrame === attacker.actionFrame + candidate.defenderFrameOffset,
+      );
+      if (!trace) continue;
+      const edge = trace.separationEdges[attacker.actionFrame];
+      resolvedPenetration = edge ? Math.max(0, edge.separation - d) : 0;
+      if (edge) aShare = attacker === a ? edge.attackerShare : 1 - edge.attackerShare;
+      break;
+    }
+    if (resolvedPenetration > 0 && d > 0.0001) {
       const nx = (b.pos.x - a.pos.x) / d;
       const nz = (b.pos.z - a.pos.z) / d;
-      a.pos.x -= nx * push;
-      a.pos.z -= nz * push;
-      b.pos.x += nx * push;
-      b.pos.z += nz * push;
+      a.pos.x -= nx * resolvedPenetration * aShare;
+      a.pos.z -= nz * resolvedPenetration * aShare;
+      b.pos.x += nx * resolvedPenetration * (1 - aShare);
+      b.pos.z += nz * resolvedPenetration * (1 - aShare);
     }
   }
 

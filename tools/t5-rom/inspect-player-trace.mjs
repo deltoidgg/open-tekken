@@ -19,7 +19,12 @@ const PUSHBACK_SAMPLE_POINTER_OFFSET = 0x2ac;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
 const PUSHBACK_BASE_DISPLACEMENT_OFFSET = 0x2dc;
 const PUSHBACK_POINTER_OFFSET = 0x2f0;
+const BODY_PUSH_OFFSET = 0x490;
+const BODY_PUSH_COUNT = 8;
+const BODY_PUSH_STRIDE = 0x10;
+const BODY_PUSH_ORIGIN_OFFSET = 0x510;
 const COMPOSED_DISPLACEMENT_OFFSET = 0x640;
+const BODY_CORRECTION_OFFSET = 0x690;
 const RENDER_ROOT_OFFSET = 0x750;
 export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
 export const T5_MOVE_RECORD_SIZE = 0x4c;
@@ -32,6 +37,15 @@ export function palJinMoveIdFromPointer(pointer) {
 
 function readPlayer(buffer, offset) {
   const currentMovePointer = buffer.readUInt32LE(offset + CURRENT_MOVE_POINTER_OFFSET);
+  const bodyPushSpheres = Array.from({ length: BODY_PUSH_COUNT }, (_, index) => {
+    const sphereOffset = offset + BODY_PUSH_OFFSET + index * BODY_PUSH_STRIDE;
+    return {
+      x: buffer.readFloatLE(sphereOffset),
+      y: buffer.readFloatLE(sphereOffset + 4),
+      z: buffer.readFloatLE(sphereOffset + 8),
+      radius: buffer.readFloatLE(sphereOffset + 12),
+    };
+  });
   return {
     x: buffer.readFloatLE(offset),
     y: buffer.readFloatLE(offset + 4),
@@ -64,10 +78,22 @@ function readPlayer(buffer, offset) {
       samplePointer: buffer.readUInt32LE(offset + PUSHBACK_SAMPLE_POINTER_OFFSET),
       baseDisplacement: buffer.readFloatLE(offset + PUSHBACK_BASE_DISPLACEMENT_OFFSET),
     },
+    bodyPushSpheres,
+    bodyPushOrigin: {
+      radius: buffer.readFloatLE(offset + BODY_PUSH_ORIGIN_OFFSET),
+      x: buffer.readFloatLE(offset + BODY_PUSH_ORIGIN_OFFSET + 4),
+      y: buffer.readFloatLE(offset + BODY_PUSH_ORIGIN_OFFSET + 8),
+      z: buffer.readFloatLE(offset + BODY_PUSH_ORIGIN_OFFSET + 12),
+    },
     composedDisplacement: {
       x: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET),
       y: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET + 4),
       z: buffer.readFloatLE(offset + COMPOSED_DISPLACEMENT_OFFSET + 8),
+    },
+    bodyCorrection: {
+      x: buffer.readFloatLE(offset + BODY_CORRECTION_OFFSET),
+      y: buffer.readFloatLE(offset + BODY_CORRECTION_OFFSET + 4),
+      z: buffer.readFloatLE(offset + BODY_CORRECTION_OFFSET + 8),
     },
     renderRoot: {
       x: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET),

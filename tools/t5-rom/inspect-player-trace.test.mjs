@@ -38,9 +38,23 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeUInt32LE(0x015993d2, offset + 0x2ac);
   buffer.writeFloatLE(30, offset + 0x2dc);
   buffer.writeUInt32LE(0x01598acc, offset + 0x2f0);
+  for (let index = 0; index < 8; index++) {
+    const sphereOffset = offset + 0x490 + index * 0x10;
+    buffer.writeFloatLE(700.25 + index, sphereOffset);
+    buffer.writeFloatLE(800.5 + index, sphereOffset + 4);
+    buffer.writeFloatLE(900.75 + index, sphereOffset + 8);
+    buffer.writeFloatLE(0.1 + index / 100, sphereOffset + 12);
+  }
+  buffer.writeFloatLE(100, offset + 0x510);
+  buffer.writeFloatLE(1000.25, offset + 0x514);
+  buffer.writeFloatLE(1100.5, offset + 0x518);
+  buffer.writeFloatLE(1200.75, offset + 0x51c);
   buffer.writeFloatLE(-88.98828125, offset + 0x640);
   buffer.writeFloatLE(96, offset + 0x644);
   buffer.writeFloatLE(-95.328125, offset + 0x648);
+  buffer.writeFloatLE(42.8203125, offset + 0x690);
+  buffer.writeFloatLE(0, offset + 0x694);
+  buffer.writeFloatLE(46.4296875, offset + 0x698);
   buffer.writeFloatLE(400.25, offset + 0x750);
   buffer.writeFloatLE(500.5, offset + 0x754);
   buffer.writeFloatLE(600.75, offset + 0x758);
@@ -107,10 +121,24 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
       samplePointer: 0x015993d2,
       baseDisplacement: 30,
     },
+    bodyPushSpheres: Array.from({ length: 8 }, (_, index) => ({
+      x: 700.25 + index,
+      y: 800.5 + index,
+      z: 900.75 + index,
+      radius: bufferFloat(0.1 + index / 100),
+    })),
+    bodyPushOrigin: { radius: 100, x: 1000.25, y: 1100.5, z: 1200.75 },
     composedDisplacement: { x: -88.98828125, y: 96, z: -95.328125 },
+    bodyCorrection: { x: 42.8203125, y: 0, z: 46.4296875 },
     renderRoot: { x: 400.25, y: 500.5, z: 600.75 },
   });
 });
+
+function bufferFloat(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeFloatLE(value);
+  return buffer.readFloatLE(0);
+}
 
 test("derives PAL Jin move identity from the current-move pointer", () => {
   assert.equal(

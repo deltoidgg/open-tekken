@@ -141,12 +141,15 @@ Add `--json` for machine-readable transition records. Each player record also
 includes root angle `+0x0E`, composed animation root `+0x68`, skeleton angle
 `+0x74`, logical per-frame displacement `+0x11C/+0x120/+0x124`, composed
 per-tick displacement `+0x640/+0x644/+0x648`, rendered root `+0x750`, and live
-pushback state at `+0x2A4` through `+0x2F0`. The pushback object exposes
-remaining duration and samples, packed direction fields, current sample
-pointer, base displacement, and active record pointer. Together these fields
-allow logical, visual, and horizontal ownership to be compared at native
-handoffs. Use the standalone pulse helper when a polled pad input must span
-several PCSX2 input polls without a trace:
+pushback state at `+0x2A4` through `+0x2F0`. All eight live body-push sphere
+records at `+0x490` are exposed as world-space centres and radii. The previous
+rendered-root sweep point at `+0x510` and body-correction vector at `+0x690` are
+included alongside them. The pushback object exposes remaining duration and
+samples, packed direction fields, current sample pointer, base displacement,
+and active record pointer. Together these fields allow logical, visual, and
+horizontal ownership to be compared at native handoffs. Use the standalone
+pulse helper when a polled pad input must span several PCSX2 input polls without
+a trace:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
