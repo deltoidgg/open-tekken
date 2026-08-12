@@ -708,12 +708,13 @@ describe("Tekken 5 PAL ROM parity", () => {
   });
 
   it.each([
-    ["jin.uf4", 322, [15, 17], 46, 160],
-    ["jin.ws2", 509, [14, 15], 35, 159],
-    ["jin.cd2", 677, [12, 13], 38, 163],
+    ["jin.uf4", 322, [15, 17], 46, 160, undefined],
+    ["jin.ws2", 509, [14, 15], 35, 159, undefined],
+    ["jin.cd2", 677, [12, 13], 38, 163, 678],
+    ["jin.ewhf", 679, [11, 12], 36, 163, 680],
   ] as const)(
     "uses the recovered launcher record for %s",
-    (id, romMoveId, active, recovery, reactionMoveId) => {
+    (id, romMoveId, active, recovery, reactionMoveId, blockReactionMoveId) => {
       const move = moveById(id);
       const attack = move.hits[0]!;
 
@@ -721,12 +722,26 @@ describe("Tekken 5 PAL ROM parity", () => {
       expect(attack.t5Hitbox).toBeDefined();
       expect(attack.active).toEqual(active);
       expect(move.totalFrames).toBe(recovery);
-      expect(attack.t5ReactionMoves).toEqual({
+      expect(attack.t5ReactionMoves).toMatchObject({
         normal: reactionMoveId,
         counterHit: reactionMoveId,
+        ...(blockReactionMoveId === undefined ? {} : { block: blockReactionMoveId }),
       });
     },
   );
+
+  it("keeps move 679's second native strike capsule and PAL pushback envelopes", () => {
+    const normal = moveById("jin.cd2").hits[0]!;
+    const electric = moveById("jin.ewhf").hits[0]!;
+
+    expect(normal.t5Hitbox?.packedLocation).toBe(0x00000008);
+    expect(normal.t5Hitbox?.samples[0]?.capsules).toHaveLength(1);
+    expect(electric.t5Hitbox?.packedLocation).toBe(0x00070008);
+    expect(electric.t5Hitbox?.samples[0]?.capsules).toHaveLength(2);
+    expect(normal.pushback?.normal).toMatchObject({ duration: 38, displacement: 50 });
+    expect(electric.pushback?.normal).toMatchObject({ duration: 40, displacement: 75 });
+    expect(electric.pushback?.block).toMatchObject({ duration: 10, displacement: 10 });
+  });
 
   it("models Can Cans as the native 465 -> 467 shared-animation transition", () => {
     const first = moveById("jin.d34");

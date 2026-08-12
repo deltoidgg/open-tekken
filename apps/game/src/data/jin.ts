@@ -45,6 +45,8 @@ import {
   T5_JIN_MOVE_509_HITBOX,
   T5_JIN_MOVE_677_ANIMATION,
   T5_JIN_MOVE_677_HITBOX,
+  T5_JIN_MOVE_679_ANIMATION,
+  T5_JIN_MOVE_679_HITBOX,
 } from "./t5-jin-launchers-native.ts";
 import { T5_JIN_JUMP_MOVES } from "./t5-jump.ts";
 import type {
@@ -166,6 +168,8 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
   "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.cd2": outcomes(PB_DB3, PB_DB3_CH, PB_410),
+  "jin.ewhf": outcomes(PB_DB3_CH, PB_DB3_CH, PB_D1_BLOCK),
   "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
@@ -1960,9 +1964,8 @@ export const JIN_MOVES: MoveDef[] = [
         range: 1.85,
         airReach: 2.1,
         activeLen: 1,
-        pushback: outcomes(PB_DB3, PB_DB3_CH, PB_410),
         t5Hitbox: T5_JIN_MOVE_677_HITBOX,
-        t5ReactionMoves: { normal: 163, counterHit: 163 },
+        t5ReactionMoves: { normal: 163, counterHit: 163, block: 678, crouchBlock: 701 },
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],
@@ -1974,26 +1977,27 @@ export const JIN_MOVES: MoveDef[] = [
       anim: { clip: "whf" },
     },
   ),
-  // Worked example from spec section 8 (Electric Wind Hook Fist)
   mv(
     "jin.ewhf",
-    "f,N,d,df:2",
+    "f,N,d,d/f:2",
     "Electric Wind Hook Fist",
     11,
-    45,
+    36,
     [
       hit("h", 30, 11, +5, "KND", "KND", {
         range: 1.9,
         airReach: 2.2,
+        activeLen: 1,
+        t5Hitbox: T5_JIN_MOVE_679_HITBOX,
+        t5ReactionMoves: { normal: 163, counterHit: 163, block: 680, crouchBlock: 701 },
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],
     {
       input: { buttons: B2, motion: "cd", justFrame: true },
       from: ["stand", "CD"],
-      crush: { TC: [1, 8] },
-      tracking: TRACK_R,
-      advance: [1, 8, 0.35],
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_MOVE_679_ANIMATION,
       anim: { clip: "ewhf" },
       tags: ["electric", "whiffPunish", "signature"],
     },

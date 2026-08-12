@@ -16,7 +16,7 @@ export interface FrameInput {
   pressed: number;
   /** direction held on the frame the chord's first button went down */
   pressedDir: Dir;
-  /** frame the chord's first button went down (just-frame timing uses this) */
+  /** frame the chord's first button went down (completion-edge ownership uses this) */
   pressedAtFrame: number;
   /** raw newly-pressed mask this exact frame (no chord grouping delay) */
   rawPressed: number;
@@ -24,7 +24,7 @@ export interface FrameInput {
   held: number;
   /** recent motion completions, newest last */
   motions: MotionEvent[];
-  /** frame at which df of a CD motion was registered (for just-frame checks) */
+  /** frame at which d/f of a CD motion was registered */
   cdDfFrame: number;
   /** taps: dir tap events for sidestep detection are consumed by sim */
   tapU: boolean;

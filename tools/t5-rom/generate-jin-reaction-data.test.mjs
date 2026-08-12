@@ -12,6 +12,12 @@ test("includes every reaction used by the PAL target-450 graph", () => {
   }
 });
 
+test("includes the normal and electric Wind Hook Fist block reactions", () => {
+  for (const moveId of [678, 680]) {
+    assert.ok(DEFAULT_REACTION_MOVE_IDS.includes(moveId), `missing reaction ${moveId}`);
+  }
+});
+
 test("renders deterministic typed reaction data", () => {
   const output = renderJinReactionModule([
     {

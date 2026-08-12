@@ -1,7 +1,7 @@
 # Tekken 5 PAL Jin crouch-dash runtime
 
-Status: first ROM-backed crouch-dash locomotion slice implemented. Updated
-2026-08-10.
+Status: ROM-backed crouch-dash locomotion and +2 ownership slices implemented.
+Updated 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. All move IDs, pointers, animation samples, and cancel records below
@@ -117,25 +117,30 @@ animation and root curve but routes to different attacks.
 
 Move 673 exposes direct final-input attacks:
 
-| Command |               Target | Notes                                      |
-| ------- | -------------------: | ------------------------------------------ |
-| `d/f+1` | 554 for captured Jin | move 552 is the alternate character branch |
-| `d/f+2` | 677 for captured Jin | move 679 is the alternate character branch |
-| `d/f    |                   f` | 524                                        | buttonless crouch dash |
-| `d/b`   |                  255 | crouch transition during frames 1-9        |
+| Command    | Target | Notes                                                      |
+| ---------- | -----: | ---------------------------------------------------------- |
+| `d/f+1`    |    552 | unconditional first branch; conditional 554 follows        |
+| `d/f+2`    |    679 | unconditional first branch; live completion-frame electric |
+| `d/f or f` |    524 | buttonless crouch dash                                     |
+| `d/b`      |    255 | crouch transition during frames 1-9                        |
+
+The earlier interpretation of `679` as an alternate-character branch was
+incorrect. Controlled human-Jin traces prove that completion-frame `d/f+2`
+selects move `679`, while delayed button 2 enters move `524` and then `677`.
+See `T5_PAL_CROUCH_DASH_2_TRACE.md` for the exact/late/early/buffered oracle.
 
 Move 524 then accepts attacks throughout its locomotion shell:
 
-| Command   | Target / window                                         |
-| --------- | ------------------------------------------------------- |
-| `1`       | 554, frames 1-19                                        |
-| `2`       | 677, frames 1-19; conditional move 632 is checked first |
-| `d        | d/f+3`                                                  | 511, frames 1-19                      |
-| `d        | d/f+4`                                                  | 607 on 1-8, 605 on 9-13, 603 on 14-19 |
-| `u/f`     | 525, frames 1-19                                        |
-| `u/f+3`   | 521, frames 1-19                                        |
-| `b`       | crouch-back transition 253, frames 1-9                  |
-| automatic | crouch alias `0x8002` at frame 19                       |
+| Command      | Target / window                                         |
+| ------------ | ------------------------------------------------------- |
+| `1`          | 554, frames 1-19                                        |
+| `2`          | 677, frames 1-19; conditional move 632 is checked first |
+| `d or d/f+3` | 511, frames 1-19                                        |
+| `d or d/f+4` | 607 on 1-8, 605 on 9-13, 603 on 14-19                   |
+| `u/f`        | 525, frames 1-19                                        |
+| `u/f+3`      | 521, frames 1-19                                        |
+| `b`          | crouch-back transition 253, frames 1-9                  |
+| automatic    | crouch alias `0x8002` at frame 19                       |
 
 The timed `4` branches are especially important: flattening all CD+4 inputs to
 one authored move loses native startup-dependent behavior. Requirement list
@@ -184,8 +189,9 @@ The following are not yet ROM-complete:
 - Repeated CD currently resets the native shell without recovered transition
   blend/root-compensation flags. Its displacement is monotonic and no longer
   authored, but exact wavedash spacing still needs a controlled trace.
-- CD+1, delayed CD+4, and the conditional CD+2/4 branches are mapped statically
-  but are not all represented by native move definitions in the clone.
+- CD+1, delayed CD+4, and the conditional CD+4 branches are mapped statically
+  but are not all represented by native move definitions in the clone. Both
+  human Jin CD+2 attacks now use their native move definitions.
 - Rendering remains procedural; gameplay body collision uses the recovered pose.
 
 The Computer connector lost its stateful interaction context during this pass,

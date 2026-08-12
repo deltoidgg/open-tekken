@@ -58,12 +58,14 @@ import {
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
-const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3"]);
+const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3", "jin.ewhf"]);
 const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.1",
   "jin.12",
   "jin.df1",
   "jin.d3",
+  "jin.cd2",
+  "jin.ewhf",
   "jin.t5.340",
   "jin.t5.345",
   "jin.t5.348",
@@ -72,8 +74,8 @@ const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.t5.448",
 ]);
 const T5_MEASURED_REACTION_TAILS = new Set([
-  336, 339, 342, 344, 347, 351, 370, 371, 689, 693, 698, 780, 783, 790, 794, 797, 803, 806, 811,
-  897,
+  336, 339, 342, 344, 347, 351, 370, 371, 678, 680, 689, 693, 698, 780, 783, 790, 794, 797, 803,
+  806, 811, 897,
 ]);
 const T5_STANDING_BLOCK_REACTIONS = new Map([
   ["jin.1", 336],
@@ -118,7 +120,6 @@ interface PendingContact {
 }
 
 export interface SimOptions {
-  jfWindow?: number;
   seed?: number;
 }
 
@@ -126,7 +127,6 @@ export class Sim {
   gs: GameState = createGameState();
   parsers: [CommandParser, CommandParser] = [new CommandParser(), new CommandParser()];
   rng: Rng;
-  jfWindow: number;
   replay: ReplaySnap[] = [];
   /** debug: pause the fight clock (frame-step tooling) */
   frozen = false;
@@ -139,7 +139,6 @@ export class Sim {
   lastInputs: [FrameInput, FrameInput] | null = null;
 
   constructor(opts: SimOptions = {}) {
-    this.jfWindow = opts.jfWindow ?? T.justFrameWindow;
     this.rng = new Rng(opts.seed ?? 0xc0ffee);
   }
 
@@ -396,7 +395,7 @@ export class Sim {
     if (f.action === "grounded") {
       if (f.downFrames < T.minDownFrames) return;
       if (inp.pressed & (B3 | B4) || inp.pressed) {
-        const mvSel = selectMove(f, inp, false, this.jfWindow);
+        const mvSel = selectMove(f, inp, false);
         if (mvSel && mvSel.from.includes("grounded")) {
           if (mvSel.id === "jin.spring" && (f.groundState === "FDFA" || f.groundState === "FDFT")) {
             // spring kick needs face-up
@@ -430,7 +429,13 @@ export class Sim {
     if (f.action === "attack" && f.moveId) {
       const consumed = this.tryFollowup(f, inp);
       if (!consumed && inp.pressed && f.actionTotal - f.actionFrame <= T.bufferFrames) {
-        const buffered = selectMove(f, inp, opp.action === "grounded", this.jfWindow);
+        // PAL does not carry 220 -> 222 -> 672 -> 673 locomotion through an
+        // unrelated attack shell. Its final held d/f+button still buffers as
+        // the matching standing directional command.
+        const bufferedInput = inp.motions.some((event) => event.motion === "cd")
+          ? { ...inp, motions: inp.motions.filter((event) => event.motion !== "cd") }
+          : inp;
+        const buffered = selectMove(f, bufferedInput, opp.action === "grounded");
         if (buffered) {
           this.pendingMove[i] = { move: buffered, expires: this.gs.frame + T.bufferFrames + 4 };
         }
@@ -470,7 +475,7 @@ export class Sim {
         f.action === "rising" ||
         f.action === "parrySuccess";
       if (inp.pressed && bufferable && f.actionTotal - f.actionFrame <= T.bufferFrames) {
-        const buffered = selectMove(f, inp, opp.action === "grounded", this.jfWindow);
+        const buffered = selectMove(f, inp, opp.action === "grounded");
         if (buffered) {
           this.pendingMove[i] = { move: buffered, expires: this.gs.frame + T.bufferFrames + 4 };
         }
@@ -545,9 +550,7 @@ export class Sim {
     }
     // attacks
     const mvSel =
-      moveStance === null
-        ? null
-        : selectMove(f, inp, opp.action === "grounded", this.jfWindow, moveStance);
+      moveStance === null ? null : selectMove(f, inp, opp.action === "grounded", moveStance);
     if (mvSel) {
       this.startAttack(f, mvSel);
       return true;

@@ -4,11 +4,16 @@ import test from "node:test";
 import {
   BASIC_MOVE_IDS,
   COMBAT_MOVE_IDS,
+  DEFAULT_MOVE_IDS,
   JUMP_MOVE_IDS,
   renderJinMoveGeometryModule,
   selectMoveIds,
   STOP_MOVE_IDS,
 } from "./generate-jin-move-geometry.mjs";
+
+test("includes both PAL crouch-dash +2 attack shells", () => {
+  assert.deepEqual(DEFAULT_MOVE_IDS.slice(-2), [677, 679]);
+});
 
 test("selects the reproducible Jin combat-geometry profile", () => {
   assert.deepEqual(selectMoveIds(["--profile", "combat"]), COMBAT_MOVE_IDS);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { B1, B2, B3, B4, fightSim, measureAdvantage, S, type Script } from "./helpers.ts";
+import { B1, B2, B3, B4, fightSim, measureAdvantage, pad, S, type Script } from "./helpers.ts";
 
 interface Case {
   name: string;
@@ -92,15 +92,15 @@ describe("frame data: hit advantage", () => {
 });
 
 describe("electric just frame", () => {
-  it("EWHF comes out when 2 lands on the df frame and is +5 on block", () => {
+  it("move 679 owns 2 on the exact d/f completion frame and is +5 on block", () => {
     const sim = fightSim(1.3);
     const r = measureAdvantage(sim, S.cd(B2), { dx: -1 });
-    // with 2 on the exact df frame, the JF version (+5) must be selected over WHF (-2)
+    expect(sim.gs.fighters[0].lastContact?.moveId).toBe("jin.ewhf");
     expect(r.contactResult).toBe("block");
     expect(r.advantage).toBe(+5);
   });
 
-  it("2 pressed one frame late gives regular WHF at default 1f window", () => {
+  it("move 677 owns 2 one player frame after d/f", () => {
     const sim = fightSim(1.3);
     const script: Script = [
       { dx: 1 },
@@ -110,21 +110,19 @@ describe("electric just frame", () => {
       { dx: 1, dy: -1, btns: B2 },
     ];
     const r = measureAdvantage(sim, script, { dx: -1 });
+    expect(sim.gs.fighters[0].lastContact?.moveId).toBe("jin.cd2");
     expect(r.contactResult).toBe("block");
     expect(r.advantage).toBe(-2);
   });
 
-  it("accessibility flag widens JF window to 2f", () => {
-    const sim = fightSim(1.3, { jfWindow: 2 });
-    const script: Script = [
-      { dx: 1 },
-      {},
-      { dy: -1 },
-      { dx: 1, dy: -1 },
-      { dx: 1, dy: -1, btns: B2 },
-    ];
-    const r = measureAdvantage(sim, script, { dx: -1 });
-    expect(r.contactResult).toBe("block");
-    expect(r.advantage).toBe(+5);
+  it("2 on the d frame commits standing move 456 before the final diagonal", () => {
+    const sim = fightSim(8);
+    sim.step(pad({ dx: 1 }), pad());
+    sim.step(pad(), pad());
+    sim.step(pad({ dy: -1, btns: B2 }), pad());
+    expect(sim.gs.fighters[0].moveId).toBe("jin.d2");
+
+    sim.step(pad({ dx: 1, dy: -1, btns: B2 }), pad());
+    expect(sim.gs.fighters[0].moveId).toBe("jin.d2");
   });
 });

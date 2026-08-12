@@ -92,7 +92,6 @@ export const TUNING = {
   kiaiChipRatio: 0.25,
 
   // input
-  justFrameWindow: 1, // frames; set 2 for accessibility
   bufferFrames: 10,
 
   // ground game (5.11)

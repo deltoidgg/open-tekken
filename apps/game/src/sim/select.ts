@@ -42,7 +42,6 @@ export function selectMove(
   f: FighterState,
   inp: FrameInput,
   oppGrounded: boolean,
-  jfWindow: number = TUNING.justFrameWindow,
   stanceOverride?: FighterStance,
 ): MoveDef | null {
   if (!inp.pressed) return null;
@@ -79,9 +78,8 @@ export function selectMove(
       if (!inCdState && !hasMotion) continue;
       score += 8;
       if (pat.justFrame) {
-        // just frame: button went down on the exact frame df registered
-        if (inp.pressedAtFrame - inp.cdDfFrame >= jfWindow || inp.pressedAtFrame < inp.cdDfFrame)
-          continue;
+        // Move 673 owns the electric only when 2 and the final d/f edge share a player frame.
+        if (inp.pressedAtFrame !== inp.cdDfFrame) continue;
         score += 6;
       }
     } else if (pat.justFrame) {

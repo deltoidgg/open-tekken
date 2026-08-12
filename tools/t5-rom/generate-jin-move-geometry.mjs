@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { JinPoseDeriver } from "./derive-jin-posed-geometry.mjs";
 import { parseMove } from "./inspect-ee-snapshot.mjs";
 
-export const DEFAULT_MOVE_IDS = Object.freeze([322, 465, 467, 509, 677]);
+export const DEFAULT_MOVE_IDS = Object.freeze([322, 465, 467, 509, 677, 679]);
 export const COMBAT_MOVE_IDS = Object.freeze([
   334, 376, 337, 338, 340, 341, 368, 374, 369, 577, 578, 579,
 ]);
