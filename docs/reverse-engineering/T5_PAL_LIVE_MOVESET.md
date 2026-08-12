@@ -440,8 +440,10 @@ The first native locomotion slice now transfers the generated roots and posed
 body collision for forward/back walk, dash, backdash, run, and Jin crouch dash.
 The `f,N,d,d/f` route resolves through moves `222 -> 672 -> 673 -> 524`; move
 524 travels `1.367081 m` over its 20-frame animation and then hands off to
-crouch. A fresh repeated CD completion restarts move 524 once, while stale
-buffered motion events cannot repeatedly reset it.
+crouch. Move 524 has no direct self-cancel. The captured repeated route is
+`524 -> 224 -> 225 -> 673 -> 524`; its outgoing root is transferred once at the
+dash reset, and button 2 while move 524 remains active selects normal move 677.
+The full correction is in `T5_PAL_WAVEDASH_TRANSITION_TRACE.md`.
 
 The lateral slice now uses the executable's corrected component-wise
 `channel 0 + channel 1` root. Quick-step moves `1062` and `1068` exit on source

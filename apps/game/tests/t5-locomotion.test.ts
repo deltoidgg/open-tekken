@@ -5,6 +5,7 @@ import {
   T5_JIN_LOCOMOTION_222,
   T5_JIN_LOCOMOTION_223,
   T5_JIN_LOCOMOTION_224,
+  T5_JIN_LOCOMOTION_225,
   T5_JIN_LOCOMOTION_230,
   T5_JIN_LOCOMOTION_231,
   T5_JIN_LOCOMOTION_232,
@@ -775,15 +776,60 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(fighter.action).toBe("rising");
   });
 
-  it("restarts move 524 once for a newly completed wavedash motion", () => {
+  it("does not invent a direct move-524 restart for one repeated CD motion", () => {
     const sim = fightSim(8);
     const fighter = sim.gs.fighters[0];
     playP1(sim, S.cd());
-    sim.step(pad(), pad());
-
-    expect(fighter).toMatchObject({ action: "CD", actionFrame: 2 });
+    const frameBeforeRepeat = fighter.actionFrame;
     playP1(sim, S.cd());
+
+    expect(fighter.action).toBe("CD");
+    expect(fighter.actionFrame).toBeGreaterThan(frameBeforeRepeat);
+  });
+
+  it("chains repeated crouch dash through native 224, 225, and 673 shells", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    playP1(sim, S.cd());
+    const firstCrouchDashStart = fighter.pos.x;
+    run(sim, 8);
+
+    sim.step(pad({ dx: 1 }), pad());
+    sim.step(pad(), pad());
+    sim.step(pad({ dx: 1 }), pad());
+    expect(fighter).toMatchObject({ action: "dash", actionFrame: 1, t5DashMoveId: 224 });
+
+    sim.step(pad(), pad());
+    expect(fighter).toMatchObject({ action: "dash", actionFrame: 2, t5DashMoveId: 225 });
+
+    sim.step(pad({ dy: -1 }), pad());
+    expect(fighter).toMatchObject({ action: "crouch", actionFrame: 1, t5CrouchMoveId: 673 });
+    expect(
+      t5LocomotionPhase(fighter.action, fighter.actionFrame, false, fighter.t5CrouchMoveId)
+        ?.animation.romMoveId,
+    ).toBe(673);
+
+    sim.step(pad({ dx: 1, dy: -1 }), pad());
     expect(fighter).toMatchObject({ action: "CD", actionFrame: 1 });
+    expect(fighter.pos.x - firstCrouchDashStart).toBeCloseTo(
+      T5_JIN_LOCOMOTION_524.rootOffsets[11]![2] + T5_JIN_LOCOMOTION_225.rootOffsets[1]![2],
+      6,
+    );
+  });
+
+  it("keeps move-225 down cancellation after the command-history deadline", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dx: 1 }), pad());
+    sim.step(pad(), pad());
+    sim.step(pad({ dx: 1 }), pad());
+    sim.step(pad(), pad());
+    run(sim, 24);
+
+    expect(fighter).toMatchObject({ action: "dash", actionFrame: 26, t5DashMoveId: 225 });
+    sim.step(pad({ dy: -1 }), pad());
+    expect(fighter).toMatchObject({ action: "crouch", actionFrame: 1, t5CrouchMoveId: 673 });
   });
 
   it("transfers the native 27-frame quick-step curves in both directions", () => {

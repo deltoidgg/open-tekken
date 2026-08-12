@@ -136,7 +136,7 @@ KBD cancel:      230/232 frame 1 -db-> 255 frame 1
 run:             17 -> 18 -> 19 -> 20 -> 19 -> 20 ...
 
 crouch dash:     220 -f-> 222 -N-> 672 -d-> 673 -df-> 524 -> crouch
-repeated CD:     fresh f,N,d,df restarts 524 once
+repeat capture:  524 -ff-> 224 -N preserve-> 225 -d-> 673 -df-> 524
 
 neutral crouch:  220 -d-> 254 -> 234 ... -N-> 256 -> 220
 forward rise:    234 -f-> 257 -> 220
@@ -160,6 +160,13 @@ publishes move `255` frame 1 on the next player tick. The complete evidence is i
 
 The crouch alias, neutral lowering/rising poses, directional variants, and root
 ownership are recorded in `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`.
+
+Move `524` has no self-cancel. Its special forward-dash branch resets to move
+`224`; neutral preserves the shared dash animation in move `225`, whose direct
+`d` cancel resets to move `673`. The captured repeat then returns to move `524`
+on `d/f`. The outgoing frame-12 root is consumed exactly once before the move-
+224 reset. Full live input, shell, and split-root evidence is in
+`T5_PAL_WAVEDASH_TRANSITION_TRACE.md`.
 
 Move `224` has two held-forward cancels at starting frame 12: one re-enters
 `224` under requirement `97`, and the ordinary branch enters run move `17`.
@@ -222,7 +229,8 @@ Focused tests verify:
 - first-frame `d/b` cancellation into move `255` without stale root transfer;
 - held dash entering run at frame 12;
 - the complete move-524 crouch-dash curve and crouch handoff;
-- a fresh wavedash input restarting move 524 without stale-event resets;
+- the measured `524 -> 224 -> 225 -> 673 -> 524` repeat route and exact
+  `1.272412 m` transferred displacement;
 - both complete 27-frame quick-step curves;
 - the quick-step/start/loop/stop sidewalk graph; and
 - source-frame-6 attack cancellation without startup padding;
@@ -241,8 +249,8 @@ Focused tests verify:
    passive guard collision order and character-specific directional cancels
    remain incomplete. Backdash movement and ordinary attack arbitration now
    begin at source frame 1; passive guard and route precedence remain open.
-4. Recover move-524 tech-crouch, guard, and cancel precedence, plus exact
-   repeated-wavedash blend/root compensation.
+4. Recover move-524 tech-crouch, guard, and cancel precedence, plus the exact
+   `SPECIAL_0x8001` input predicate and split logical/render-root commit.
 5. Decode sidestep requirements `111/112/115/116/172`, special input commands
    `0x8003/0x8004`, and side-dependent intermediate moves `1074..1077`.
 6. Calibrate attack tracking, homing, hurt geometry, and facing changes against

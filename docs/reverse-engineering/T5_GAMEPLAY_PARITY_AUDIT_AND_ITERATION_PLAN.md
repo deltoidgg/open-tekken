@@ -46,26 +46,26 @@ unstable: one native subsystem exposes the error in the next provisional one.
 
 The following slices are measured from the PAL executable and documented:
 
-| Area               | Recovered foundation                                                    | Detailed note                                                    |
-| ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`                                    |
-| pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`                                    |
-| jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`                                |
-| d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`                                    |
-| d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`                                     |
-| command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`         | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`                            |
-| animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`                                    |
-| pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                        |
-| world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md`                        |
-| hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`                                   |
-| movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`                                   |
-| crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                            |
-| crouch dash        | shell graph plus early/exact/late/buffered +2 ownership                 | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_CROUCH_DASH_2_TRACE.md` |
-| lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`                                     |
-| guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                        |
-| combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                                         |
-| Kazama Fury route  | standing `1,3,2,1,4`, stop recoveries, contacts, reset-root boundary    | `T5_PAL_KAZAMA_FURY_TRACE.md`                                    |
-| launch/collision   | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md`                        |
+| Area               | Recovered foundation                                                    | Detailed note                                                          |
+| ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
+| pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
+| jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`                                      |
+| d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`                                          |
+| d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`                                           |
+| command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`         | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`                                  |
+| animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`                                          |
+| pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                              |
+| world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md`                              |
+| hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`                                         |
+| movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`                                         |
+| crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                                  |
+| crouch dash        | shell graph, repeat route, exits, and exact/late/buffered +2 ownership  | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_WAVEDASH_TRANSITION_TRACE.md` |
+| lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`                                           |
+| guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                              |
+| combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                                               |
+| Kazama Fury route  | standing `1,3,2,1,4`, stop recoveries, contacts, reset-root boundary    | `T5_PAL_KAZAMA_FURY_TRACE.md`                                          |
+| launch/collision   | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md`                              |
 
 This foundation should be treated as executable specification, not as a pool of
 values to average into the original tuning constants.
@@ -93,10 +93,11 @@ single short exchange, so cadence and spacing change depending on the move.
 ### 3. Movement transitions remain more important than top speed
 
 The native root curves include overshoot, plant-back, release shells, and early
-cancel gates. Remaining uncertainties include distance-selected backdash shells,
-`b,b,db` guard/cancel timing, repeated wavedash transition compensation,
-sidestep passive guard, and exact side requirements. These determine whether KBD
-and wavedash feel crisp even when total displacement is already correct.
+cancel gates. The first repeated-CD route is now measured through moves
+`524 -> 224 -> 225 -> 673 -> 524`; remaining uncertainties include the exact
+special-command predicate, split-root commit, `b,b,db` guard timing, sidestep
+passive guard, and exact side requirements. These determine whether KBD and
+wavedash feel crisp even when total displacement is already correct.
 
 ### 4. Command priority is only partially proven
 
@@ -255,8 +256,11 @@ are installed for moves `677` and `679`. The early held-back boundary is also
 implemented: move-524 frames 1-9 reverse through move `253`, while frame 10
 rejects that route. The late route now publishes neutral rise `256` or guarded
 back rise `258`, preserves compatible rise frames, and gives WS/FC buttons
-ownership through frame 5 before standing commands win from frame 6. Exact
-repeated-root transfer and the remaining jump/low-parry branches remain before
+ownership through frame 5 before standing commands win from frame 6. The first
+repeat route now publishes `524 f12 -> 224 f1 -> 225 f2 -> 673 f1 -> 524 f1`,
+consumes `1.272412 m` of generated root travel, and keeps move-524 `+2` ownership
+on attempted one-forward repeats. The exact `SPECIAL_0x8001` predicate,
+split-root field parity, and remaining jump/low-parry branches remain before
 this phase's full exit gate is closed.
 
 Exit gate: normal WHF, electric, failed electric, repeated CD, and buffered CD

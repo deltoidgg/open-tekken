@@ -85,8 +85,10 @@ export function t5LocomotionPhase(
         ? { animation: start, actionFrame, transfersRoot: true }
         : cycle(229, actionFrame, start.animationLength + 1);
     }
-    case "dash":
-      return { animation: t5JinLocomotionAnimation(224), actionFrame, transfersRoot: true };
+    case "dash": {
+      const moveId = nativeMoveId === 225 ? 225 : 224;
+      return { animation: t5JinLocomotionAnimation(moveId), actionFrame, transfersRoot: true };
+    }
     case "backdash": {
       const moveId =
         nativeMoveId === 230 || nativeMoveId === 231 || nativeMoveId === 232 || nativeMoveId === 233

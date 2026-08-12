@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderJinLocomotionModule } from "./generate-jin-locomotion-data.mjs";
+import {
+  DEFAULT_LOCOMOTION_MOVE_IDS,
+  renderJinLocomotionModule,
+} from "./generate-jin-locomotion-data.mjs";
+
+test("includes the PAL crouch-dash down bridge in the default locomotion set", () => {
+  assert.ok(DEFAULT_LOCOMOTION_MOVE_IDS.includes(673));
+});
 
 test("shares locomotion poses while preserving each PAL move shell", () => {
   const base = {

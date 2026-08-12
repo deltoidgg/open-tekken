@@ -174,6 +174,8 @@ export interface FighterState {
   t5LocomotionReverse: boolean;
 
   // backdash
+  /** PAL held/released forward-dash shell supplying the current pose. */
+  t5DashMoveId: 224 | 225;
   /** PAL close/far backdash or paired neutral-release move supplying the current shell. */
   t5BackdashMoveId: 230 | 231 | 232 | 233;
 
@@ -309,6 +311,7 @@ export function createFighter(id: 0 | 1): FighterState {
     risingLeft: 0,
     t5JumpMoveId: 21,
     t5LocomotionReverse: false,
+    t5DashMoveId: 224,
     t5BackdashMoveId: 230,
     groundState: "FUFA",
     downFrames: 0,

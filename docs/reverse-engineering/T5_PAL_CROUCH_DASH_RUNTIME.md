@@ -1,6 +1,6 @@
 # Tekken 5 PAL Jin crouch-dash runtime
 
-Status: ROM-backed locomotion, +2 ownership, and early held-back exit slices
+Status: ROM-backed locomotion, +2 ownership, repeat-dash shell, and exit slices
 implemented. Updated 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
@@ -158,7 +158,7 @@ The runtime now uses generated move-524 data for:
 - a 20-frame CD action followed by the native crouch handoff;
 - a direct handoff to crouch alias move 234 without replaying a standing-to-
   crouch lowering shell; and
-- fresh repeated CD completions while already in CD.
+- the measured repeated route through native moves 224, 225, and 673.
 
 The input fix is behavioral as well as numeric. Before this slice, the `d`
 stage changed the clone to ordinary crouch, and `decideMovement` rejected
@@ -166,9 +166,12 @@ crouching actions before it could consume the final CD event. Bare crouch dash
 therefore did not start at all, although a button on the final `d/f` could still
 select a CD-listed attack. Crouch now admits a newly completed CD event.
 
-Repeated wavedash events are gated by their exact completion frame. A fresh
-`f,N,d,d/f` restarts move 524 at local frame 1; the same buffered event on the
-following ticks cannot repeatedly reset the shell.
+The earlier direct `524 -> 524` repeated-CD restart was not present in the live
+cancel graph and did not occur under controlled input. The captured repeat route
+is `524 f12 -> 224 f1 -> 225 f2..f4 -> 673 f1..f2 -> 524 f1`. It consumes the
+outgoing move-524 root once and preserves move 225's shared dash timeline. See
+`T5_PAL_WAVEDASH_TRANSITION_TRACE.md` for the input masks, static records, root
+boundary, and corrected normal-WHF ownership while move 524 remains active.
 
 Controlled boundary traces now also establish move 524's early held-back exit.
 Source frames 1-9 enter move 253 one frame behind the published source and count
@@ -190,13 +193,14 @@ Focused tests establish:
 2. the canonical four-frame command enters CD at action frame 1;
 3. move 524 publishes neutral rise 256 or late-back rise 258 directly after
    frame 19;
-4. a stale motion event advances normally instead of resetting CD; and
-5. a newly completed repeated motion restarts the shell exactly once;
-6. held back on move-524 frame 9 enters reverse move 253 frame 8; and
-7. move-524 frame 10 no longer owns that back exit;
-8. move 258 preserves its frame when neutral selects move 256 and reaches back
+4. a one-forward repeated motion does not invent a direct move-524 reset;
+5. the captured repeat publishes `224 f1`, `225 f2`, `673 f1`, then `524 f1`;
+6. the transferred curves advance exactly `1.272412 m` through that boundary;
+7. held back on move-524 frame 9 enters reverse move 253 frame 8;
+8. move-524 frame 10 no longer owns that back exit;
+9. move 258 preserves its frame when neutral selects move 256 and reaches back
    walk 227 after frame 10; and
-9. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6.
+10. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6.
 
 The following are not yet ROM-complete:
 
@@ -205,9 +209,9 @@ The following are not yet ROM-complete:
 - Jump-cancel, low-parry, and unrepresented rising button families still need
   controlled live traces. Late passive guard and neutral `1` WS/standing
   ownership are now measured and implemented.
-- Repeated CD currently resets the native shell without recovered transition
-  blend/root-compensation flags. Its displacement is monotonic and no longer
-  authored, but exact wavedash spacing still needs a controlled trace.
+- The measured repeated shell and transferred world travel are installed. The
+  exact predicate behind `SPECIAL_0x8001` and native split logical/render-root
+  representation still need a controlled input and root-field matrix.
 - CD+1, delayed CD+4, and the conditional CD+4 branches are mapped statically
   but are not all represented by native move definitions in the clone. Both
   human Jin CD+2 attacks now use their native move definitions.

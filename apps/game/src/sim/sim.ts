@@ -107,6 +107,7 @@ export interface FighterSnap {
   t5AirTrajectoryOrigin: FighterState["t5AirTrajectoryOrigin"];
   t5JumpMoveId: FighterState["t5JumpMoveId"];
   t5LocomotionReverse: FighterState["t5LocomotionReverse"];
+  t5DashMoveId: FighterState["t5DashMoveId"];
   t5BackdashMoveId: FighterState["t5BackdashMoveId"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
@@ -655,16 +656,27 @@ export class Sim {
       return;
     }
 
+    const inForwardRelease = f.action === "walkF" && f.actionTotal > 0;
+    const inDashRelease = f.action === "dash" && f.t5DashMoveId === 225;
+    if (inp.dir === "d" && (inForwardRelease || inDashRelease)) {
+      this.enterCrouch(f, 673);
+      return;
+    }
+
     const motions = inp.motions.filter((m) => inp.frame - m.frame <= 2);
     for (const m of motions) {
-      if (m.motion === "cd" && (f.action !== "CD" || m.frame === inp.frame)) {
+      if (m.motion === "cd" && f.action !== "CD") {
         this.setAction(f, "CD", T.cdFrames);
         this.emit({ type: "dash", pos: { ...f.pos }, fighter: f.id });
         return;
       }
       if (f.action === "crouch") continue;
       if ((m.motion === "ff" || m.motion === "fff") && f.action !== "dash" && f.action !== "run") {
+        if (f.action === "CD") {
+          this.applyT5LocomotionBetween(f, f.actionFrame, f.actionFrame + 1);
+        }
         this.setAction(f, "dash", T.dashFrames);
+        f.t5DashMoveId = 224;
         this.emit({ type: "dash", pos: { ...f.pos }, fighter: f.id });
         return;
       }
@@ -1058,6 +1070,7 @@ export class Sim {
       f.t5JumpMoveId = 21;
       f.t5LocomotionReverse = false;
     }
+    if (a !== "dash") f.t5DashMoveId = 224;
     if (a !== "backdash") f.t5BackdashMoveId = 230;
     if (a !== "crouch") f.crouching = false;
   }
@@ -1363,6 +1376,11 @@ export class Sim {
         break;
       case "crouch":
         f.crouching = true;
+        if (f.t5CrouchMoveId === 673) {
+          this.applyT5Locomotion(f);
+          if (f.actionFrame >= 10) this.enterCrouch(f, 234);
+          break;
+        }
         if (!DIR_HAS_D[inp.dir]) {
           const sourceFrame = f.actionFrame - 1;
           const isEntryShell =
@@ -1386,6 +1404,7 @@ export class Sim {
         this.updateT5RisingShell(f, inp.dir);
         break;
       case "dash": {
+        if (!DIR_HAS_F[inp.dir] && f.t5DashMoveId === 224) f.t5DashMoveId = 225;
         this.applyT5Locomotion(f);
         if (f.actionFrame >= T.runStartFrame && DIR_HAS_F[inp.dir]) {
           this.setAction(f, "run", 0);
@@ -2770,6 +2789,7 @@ export class Sim {
   }
 
   private t5NativeLocomotionMoveId(f: FighterState): number {
+    if (f.action === "dash") return f.t5DashMoveId;
     if (f.action === "backdash") return f.t5BackdashMoveId;
     return f.action === "jump" ? f.t5JumpMoveId : f.t5CrouchMoveId;
   }
@@ -3068,6 +3088,7 @@ export class Sim {
       t5AirTrajectoryOrigin: f.t5AirTrajectoryOrigin,
       t5JumpMoveId: f.t5JumpMoveId,
       t5LocomotionReverse: f.t5LocomotionReverse,
+      t5DashMoveId: f.t5DashMoveId,
       t5BackdashMoveId: f.t5BackdashMoveId,
       t5PoseTail: f.t5PoseTail,
     });

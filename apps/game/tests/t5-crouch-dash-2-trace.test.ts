@@ -142,14 +142,14 @@ describe("Tekken 5 PAL crouch-dash +2 routes", () => {
     expect(fighter.t5PoseTail).toBeNull();
   });
 
-  it("preserves exact electric ownership after a repeated crouch dash", () => {
+  it("keeps move-524 normal +2 ownership during an attempted repeated motion", () => {
     const sim = fightSim(8);
     const fighter = sim.gs.fighters[0];
     for (const input of S.cd()) sim.step(pad(input), pad());
     sim.step(pad(), pad());
     for (const input of S.cd(B2)) sim.step(pad(input), pad());
 
-    expect(fighter).toMatchObject({ action: "attack", actionFrame: 1, moveId: "jin.ewhf" });
+    expect(fighter).toMatchObject({ action: "attack", actionFrame: 1, moveId: "jin.cd2" });
   });
 
   it("buffers standing d/f+2 when the whole motion occurs inside jab recovery", () => {

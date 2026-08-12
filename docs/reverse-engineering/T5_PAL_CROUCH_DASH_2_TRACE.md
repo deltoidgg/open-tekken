@@ -128,7 +128,9 @@ The implemented vertical slice now requires:
 5. attack-recovery input suppressing stale crouch-dash motion ownership;
 6. ROM frame data, posed hitboxes, pushback, and reaction IDs for both attacks;
 7. control recovery at frames 38/36 with animation tails through 50/49; and
-8. completion-frame electric ownership surviving a fresh repeated crouch dash.
+8. move-524 `+2` ownership surviving a one-forward repeated-motion attempt.
 
-CD cancel to guard/WS and exact repeated-wavedash root transfer remain open parts
-of the broader Phase 5 exit gate.
+The first repeated shell/root route is implemented and documented in
+`T5_PAL_WAVEDASH_TRANSITION_TRACE.md`. CD cancel to guard, the exact special-dash
+input predicate, and remaining WS/low-parry branches remain open parts of the
+broader Phase 5 exit gate.

@@ -78,8 +78,9 @@ export function selectMove(
       if (!inCdState && !hasMotion) continue;
       score += 8;
       if (pat.justFrame) {
-        // Move 673 owns the electric only when 2 and the final d/f edge share a player frame.
-        if (inp.pressedAtFrame !== inp.cdDfFrame) continue;
+        // Move 673 owns the electric completion edge. Once move 524 is active,
+        // its local 2 cancel shadows the same physical d/f+2 input with move 677.
+        if (stance === "CD" || inp.pressedAtFrame !== inp.cdDfFrame) continue;
         score += 6;
       }
     } else if (pat.justFrame) {

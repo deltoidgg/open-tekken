@@ -44,6 +44,18 @@ param(
   [int]$TriggerAtMilliseconds6 = 1500,
   [ValidateRange(1, 2000)]
   [int]$TriggerHoldMilliseconds6 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey7 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds7 = 1600,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds7 = 100,
+  [ValidateRange(0, 255)]
+  [int]$TriggerVirtualKey8 = 0,
+  [ValidateRange(0, 29000)]
+  [int]$TriggerAtMilliseconds8 = 1700,
+  [ValidateRange(1, 2000)]
+  [int]$TriggerHoldMilliseconds8 = 100,
   [string]$WindowTitle = "Tekken 5"
 )
 
@@ -472,7 +484,9 @@ try {
       $TriggerVirtualKey3,
       $TriggerVirtualKey4,
       $TriggerVirtualKey5,
-      $TriggerVirtualKey6
+      $TriggerVirtualKey6,
+      $TriggerVirtualKey7,
+      $TriggerVirtualKey8
     ),
     [int[]]@(
       $TriggerAtMilliseconds,
@@ -480,7 +494,9 @@ try {
       $TriggerAtMilliseconds3,
       $TriggerAtMilliseconds4,
       $TriggerAtMilliseconds5,
-      $TriggerAtMilliseconds6
+      $TriggerAtMilliseconds6,
+      $TriggerAtMilliseconds7,
+      $TriggerAtMilliseconds8
     ),
     [int[]]@(
       $TriggerHoldMilliseconds,
@@ -488,7 +504,9 @@ try {
       $TriggerHoldMilliseconds3,
       $TriggerHoldMilliseconds4,
       $TriggerHoldMilliseconds5,
-      $TriggerHoldMilliseconds6
+      $TriggerHoldMilliseconds6,
+      $TriggerHoldMilliseconds7,
+      $TriggerHoldMilliseconds8
     ),
     $WindowTitle
   )
