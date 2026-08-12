@@ -126,6 +126,218 @@ function crossVectors(a, b) {
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
+function vectorLength(vector) {
+  return Math.sqrt(dotVectors(vector, vector));
+}
+
+function requireFiniteVector(vector, label) {
+  if (
+    !Array.isArray(vector) ||
+    vector.length !== 3 ||
+    vector.some((value) => !Number.isFinite(value))
+  ) {
+    throw new Error(`${label} must contain three finite components`);
+  }
+}
+
+function resolveTwoBonePole(axis, poleVector, fallbackPoleVector) {
+  let projected = rejectVector(poleVector, axis);
+  if (vectorLength(projected) <= Number.EPSILON && fallbackPoleVector) {
+    projected = rejectVector(fallbackPoleVector, axis);
+  }
+  if (vectorLength(projected) <= Number.EPSILON) {
+    const fallbackAxis = Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    projected = rejectVector(fallbackAxis, axis);
+  }
+  return normalizeVector(projected);
+}
+
+function buildT5TwoBoneWorldRotation(direction, twistReference) {
+  const first = normalizeVector(direction);
+  const third = normalizeVector(rejectVector(twistReference, first));
+  return [first, crossVectors(third, first), third];
+}
+
+function isSkeletonDescendant(node, ancestor) {
+  for (
+    let parent = JIN_SKELETON_PARENTS[node];
+    parent >= 0;
+    parent = JIN_SKELETON_PARENTS[parent]
+  ) {
+    if (parent === ancestor) return true;
+  }
+  return false;
+}
+
+/**
+ * Analytic two-link solve used by PAL routine 0x002CF728. The executable leaves
+ * an overextended chain untouched before entering its law-of-cosines branch.
+ */
+export function solveT5TwoBoneConstraint({
+  hip,
+  target,
+  pole,
+  upperLength,
+  lowerLength,
+  fallbackPole,
+}) {
+  requireFiniteVector(hip, "T5 two-bone hip");
+  requireFiniteVector(target, "T5 two-bone target");
+  requireFiniteVector(pole, "T5 two-bone pole");
+  if (fallbackPole !== undefined) requireFiniteVector(fallbackPole, "T5 two-bone fallback pole");
+  if (!(upperLength > 0) || !Number.isFinite(upperLength)) {
+    throw new Error("T5 two-bone upperLength must be positive and finite");
+  }
+  if (!(lowerLength > 0) || !Number.isFinite(lowerLength)) {
+    throw new Error("T5 two-bone lowerLength must be positive and finite");
+  }
+
+  const targetVector = subtractVectors(target, hip);
+  const targetDistance = vectorLength(targetVector);
+  if (!(targetDistance > Number.EPSILON)) {
+    throw new Error("T5 two-bone target must differ from the hip");
+  }
+
+  const axis = scaleVector(targetVector, 1 / targetDistance);
+  const maximumDistance = upperLength + lowerLength;
+  if (targetDistance >= maximumDistance) {
+    return {
+      hip: [...hip],
+      knee: null,
+      ankle: null,
+      targetDistance,
+      applied: false,
+      branch: "overextended",
+    };
+  }
+  const minimumDistance = Math.abs(upperLength - lowerLength);
+  if (targetDistance <= minimumDistance) {
+    throw new Error("T5 two-bone folded branch is not implemented");
+  }
+
+  const projectedLength =
+    (targetDistance * targetDistance + upperLength * upperLength - lowerLength * lowerLength) /
+    (2 * targetDistance);
+  const bendLength = Math.sqrt(
+    Math.max(0, upperLength * upperLength - projectedLength * projectedLength),
+  );
+  const poleDirection = resolveTwoBonePole(
+    axis,
+    subtractVectors(pole, hip),
+    fallbackPole === undefined ? undefined : subtractVectors(fallbackPole, hip),
+  );
+  const knee = addVectors(
+    addVectors(hip, scaleVector(axis, projectedLength)),
+    scaleVector(poleDirection, bendLength),
+  );
+
+  return {
+    hip: [...hip],
+    knee,
+    ankle: [...target],
+    targetDistance,
+    applied: true,
+    branch: "reachable",
+  };
+}
+
+/**
+ * Applies one recovered 0x002D0308 leg solve and republishes its descendants.
+ * The target/gate remains owned by the separate stateful 0x002CFEC8 stage.
+ */
+export function applyT5TwoBoneConstraintToPose(
+  localRotations,
+  localTranslations,
+  rotations,
+  positions,
+  constraint,
+) {
+  const hipNode = constraint.hipNode;
+  const kneeNode = constraint.kneeNode;
+  const ankleNode = constraint.ankleNode;
+  if (![hipNode, kneeNode, ankleNode].every(Number.isInteger)) {
+    throw new Error("T5 two-bone node indices must be integers");
+  }
+  if (
+    hipNode < 0 ||
+    kneeNode < 0 ||
+    ankleNode < 0 ||
+    hipNode >= rotations.length ||
+    kneeNode >= rotations.length ||
+    ankleNode >= rotations.length
+  ) {
+    throw new Error("T5 two-bone node index exceeds the pose");
+  }
+  if (JIN_SKELETON_PARENTS[kneeNode] !== hipNode || JIN_SKELETON_PARENTS[ankleNode] !== kneeNode) {
+    throw new Error("T5 two-bone nodes must form a direct hierarchy chain");
+  }
+  requireFiniteVector(constraint.target, "T5 two-bone target");
+
+  const upperLength = constraint.upperLength ?? vectorLength(localTranslations[kneeNode]);
+  const lowerLength = constraint.lowerLength ?? vectorLength(localTranslations[ankleNode]);
+  if (
+    constraint.bendSign !== undefined &&
+    constraint.bendSign !== -1 &&
+    constraint.bendSign !== 1
+  ) {
+    throw new Error("T5 two-bone bendSign must be -1 or 1");
+  }
+  const fallbackPole = addVectors(
+    positions[hipNode],
+    scaleVector(rotations[hipNode][1], constraint.bendSign === 1 ? upperLength : -upperLength),
+  );
+  const pole = constraint.pole ?? fallbackPole;
+  const solved = solveT5TwoBoneConstraint({
+    hip: positions[hipNode],
+    target: constraint.target,
+    pole,
+    fallbackPole,
+    upperLength,
+    lowerLength,
+  });
+  if (!solved.applied) return solved;
+
+  const originalAnkleWorldRotation = rotations[ankleNode];
+  rotations[hipNode] = buildT5TwoBoneWorldRotation(
+    subtractVectors(solved.knee, solved.hip),
+    rotations[hipNode][2],
+  );
+  const hipParent = JIN_SKELETON_PARENTS[hipNode];
+  localRotations[hipNode] =
+    hipParent < 0
+      ? rotations[hipNode]
+      : multiplyMatrix3(rotations[hipNode], transposeMatrix3(rotations[hipParent]));
+
+  positions[kneeNode] = solved.knee;
+  rotations[kneeNode] = buildT5TwoBoneWorldRotation(
+    subtractVectors(solved.ankle, solved.knee),
+    rotations[kneeNode][2],
+  );
+  localRotations[kneeNode] = multiplyMatrix3(
+    rotations[kneeNode],
+    transposeMatrix3(rotations[hipNode]),
+  );
+
+  positions[ankleNode] = solved.ankle;
+  rotations[ankleNode] = originalAnkleWorldRotation;
+  localRotations[ankleNode] = multiplyMatrix3(
+    rotations[ankleNode],
+    transposeMatrix3(rotations[kneeNode]),
+  );
+
+  for (let node = ankleNode + 1; node < JIN_SKELETON_NODE_COUNT; node++) {
+    if (!isSkeletonDescendant(node, ankleNode)) continue;
+    const parent = JIN_SKELETON_PARENTS[node];
+    rotations[node] = composeT5WorldRotation(localRotations[node], rotations[parent]);
+    positions[node] = addVectors(
+      positions[parent],
+      rotateRowVector(localTranslations[node], rotations[parent]),
+    );
+  }
+
+  return solved;
+}
+
 /** Applies the PAL node-local correction and row orthonormalization. */
 export function applyT5StaticCorrection(localRotation, correctionBasis, weight) {
   if (!Number.isFinite(weight)) throw new Error("T5 static correction weight must be finite");
@@ -392,6 +604,20 @@ export class JinPoseDeriver {
       );
     }
 
+    const twoBoneConstraints =
+      typeof options.twoBoneConstraints === "function"
+        ? options.twoBoneConstraints({ frame: sample.frame, positions, rotations })
+        : (options.twoBoneConstraints ?? []);
+    for (const constraint of twoBoneConstraints) {
+      applyT5TwoBoneConstraintToPose(
+        localRotations,
+        this.localTranslations,
+        rotations,
+        positions,
+        constraint,
+      );
+    }
+
     return { frame: sample.frame, positions, rotations };
   }
 
@@ -404,6 +630,7 @@ export class JinPoseDeriver {
     const poseOptions = {
       correctionGate: options.correctionGate,
       correctionWeight: options.correctionWeight,
+      twoBoneConstraints: options.twoBoneConstraints,
     };
     const poses = Array.from({ length: finalFrame + 1 }, (_, frame) =>
       this.pose(moveId, frame, poseOptions),

@@ -4,12 +4,14 @@ import test from "node:test";
 import {
   applyT5StaticCorrection,
   applyT5StaticCorrectionPass,
+  applyT5TwoBoneConstraintToPose,
   composeT5WorldRotation,
   composeT5RootTranslation,
   decodePackedHitboxLocations,
   deriveJinTorsoRetarget,
   JIN_ANIMATION_CHANNEL_BY_NODE,
   JIN_HURT_SPHERE_NODES,
+  solveT5TwoBoneConstraint,
   t5QuaternionToRuntimeLocalMatrix,
 } from "./derive-jin-posed-geometry.mjs";
 
@@ -21,6 +23,15 @@ function assertMatrixClose(actual, expected, tolerance = 2e-6) {
         `matrix[${row}][${column}] expected ${expected[row][column]}, got ${actual[row][column]}`,
       );
     }
+  }
+}
+
+function assertPointClose(actual, expected, tolerance = 1e-6) {
+  for (let component = 0; component < expected.length; component++) {
+    assert.ok(
+      Math.abs(actual[component] - expected[component]) <= tolerance,
+      `point[${component}] expected ${expected[component]}, got ${actual[component]}`,
+    );
   }
 }
 
@@ -123,6 +134,105 @@ test("replays the gated static correction while leaving node zero untouched", ()
   const corrected = applyT5StaticCorrectionPass(locals, bases, 3, 1);
   assert.deepEqual(corrected[0], identity);
   assertMatrixClose(corrected[1], expected, 1e-12);
+});
+
+test("solves PAL's reachable two-link law-of-cosines branch", () => {
+  const solved = solveT5TwoBoneConstraint({
+    hip: [0, 0, 0],
+    target: [6, 0, 0],
+    pole: [0, 1, 0],
+    upperLength: 5,
+    lowerLength: 5,
+  });
+
+  assertPointClose(solved.knee, [3, 4, 0]);
+  assertPointClose(solved.ankle, [6, 0, 0]);
+  assert.equal(solved.applied, true);
+  assert.equal(solved.branch, "reachable");
+});
+
+test("leaves PAL's overextended two-link branch untouched", () => {
+  const solved = solveT5TwoBoneConstraint({
+    hip: [1, 2, 3],
+    target: [21, 2, 3],
+    pole: [1, 3, 3],
+    upperLength: 6,
+    lowerLength: 4,
+  });
+
+  assert.equal(solved.knee, null);
+  assert.equal(solved.ankle, null);
+  assert.equal(solved.applied, false);
+  assert.equal(solved.branch, "overextended");
+});
+
+test("reproduces the PAL reaction-160 opening leg solve", () => {
+  const captures = [
+    {
+      hip: [-54955.127434969, 1220.508455753, 210037.224639177],
+      target: [-55129.0078125, 383.552459717, 209957.671875],
+      pole: [-55201.071625219, 1236.467604786, 210401.71944631],
+      nativeKnee: [-55058.3203125, 793.216064453, 210017.921875],
+    },
+    {
+      hip: [-55017.544195414, 1415.197424293, 209978.611004949],
+      target: [-55152.2890625, 568.312072754, 209929.328125],
+      pole: [-55262.812959026, 1432.505577812, 210343.49914179],
+      nativeKnee: [-55098.5234375, 982.77166748, 209971.46875],
+    },
+  ];
+
+  for (const capture of captures) {
+    const solved = solveT5TwoBoneConstraint({
+      hip: capture.hip,
+      target: capture.target,
+      pole: capture.pole,
+      upperLength: 440,
+      lowerLength: 420,
+    });
+    assertPointClose(solved.ankle, capture.target, 1e-6);
+    assert.ok(
+      Math.hypot(...solved.knee.map((value, index) => value - capture.nativeKnee[index])) < 0.55,
+      "reaction-160 knee should stay within sub-millimetre native float/matrix residual",
+    );
+  }
+});
+
+test("publishes a constrained chain while preserving its endpoint orientation", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const locals = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const translations = Array.from({ length: 22 }, () => [0, 0, 0]);
+  translations[14] = [1, 0, 0];
+  translations[15] = [5, 0, 0];
+  translations[16] = [5, 0, 0];
+  translations[17] = [2, 0, 0];
+  const rotations = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const positions = Array.from({ length: 22 }, () => [0, 0, 0]);
+  positions[14] = [1, 0, 0];
+  positions[15] = [6, 0, 0];
+  positions[16] = [11, 0, 0];
+  positions[17] = [13, 0, 0];
+  positions[18] = [99, 98, 97];
+
+  applyT5TwoBoneConstraintToPose(locals, translations, rotations, positions, {
+    hipNode: 14,
+    kneeNode: 15,
+    ankleNode: 16,
+    target: [7, 0, 0],
+    pole: [1, 5, 0],
+    upperLength: 5,
+    lowerLength: 5,
+  });
+
+  assertPointClose(positions[15], [4, 4, 0]);
+  assertPointClose(positions[16], [7, 0, 0]);
+  assertPointClose(positions[17], [9, 0, 0]);
+  assertPointClose(positions[18], [99, 98, 97]);
+  assertMatrixClose(rotations[16], identity, 1e-12);
 });
 
 test("reproduces PAL's idle torso postprocess", () => {

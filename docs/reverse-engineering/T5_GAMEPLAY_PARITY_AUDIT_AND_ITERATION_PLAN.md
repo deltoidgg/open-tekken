@@ -55,7 +55,7 @@ The following slices are measured from the PAL executable and documented:
 | d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`                                           |
 | command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`         | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`                                  |
 | animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`                                          |
-| pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                              |
+| pose builder       | direct locals, torso retarget, static correction, analytic leg solver   | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                              |
 | world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md`                              |
 | hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`                                         |
 | movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`                                         |
@@ -77,11 +77,13 @@ values to average into the original tuning constants.
 
 ### 1. One authoritative pose path
 
-The current geometry derivation still uses standing-calibrated rotation deltas
-for ordinary mapped nodes. Live captures prove those nodes are direct animation
-matrices followed by separately gated postprocesses. Early reaction frames also
-have a later head/lower-chain constraint layer with up to `15.30 mm` error at a
-hurt anchor.
+The geometry derivation now uses direct animation matrices, the recovered torso
+retarget, and an explicit optional static-correction pass. The late lower-chain
+layer is proven to be a stateful ground-target builder followed by analytic
+two-link IK and foot alignment. Its 440/420 reachable solve is implemented and
+covered by two reaction-160 opening-pose oracles, but the frame-specific target
+state is not yet generated. Remaining early-frame head/root constraints still
+produce up to `15.30 mm` error at a hurt anchor.
 
 Until collision and rendering consume the same final pose, hits can be
 numerically plausible while looking mistimed or weightless.
@@ -174,6 +176,12 @@ Implementation slice:
 - Bracket the secondary head/lower-chain constraint layer and reproduce it as a
   separate stage.
 - Feed final published positions to hurt, body-push, strike, and rendering paths.
+
+Checkpoint 2026-08-12: `0x002D0308` maps the two leg chains and gates
+`0x002CF728` through stateful ground-target routine `0x002CFEC8`. The recovered
+law-of-cosines solver and hierarchy republish stage are implemented. The next
+pose slice is the `0x002CFEC8` persistent target state and `0x002D0640` foot
+alignment, followed by regeneration from final constrained positions.
 
 Exit gates:
 

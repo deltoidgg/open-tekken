@@ -1,8 +1,8 @@
 # Tekken 5 PAL pose pipeline and publication order
 
 Status: live pipeline recovered from static `SCES-53202` code and conditional
-PCSX2 breakpoints on 2026-08-11. This document records analysis only; no clone
-runtime changes were made as part of this pass.
+PCSX2 breakpoints on 2026-08-11, with the lower-chain solver recovered and
+implemented on 2026-08-12.
 
 Reference build: Tekken 5 PAL, `SCES-53202` version 1.00, CRC `1F88BECD`,
 running in PCSX2 2.6.3.
@@ -46,23 +46,28 @@ largest measured quaternion angle difference on frame 1 was `0.00151174` degrees
 
 ## Address map
 
-| Stage                         | PAL EE address             | Observed role                                  |
-| ----------------------------- | -------------------------- | ---------------------------------------------- |
-| stripped-0x64 channel decoder | `0x00267398`               | Produces 23 runtime channels                   |
-| quaternion matrix routine     | `0x00269498..0x0026951C`   | Writes one direct local 3x3 matrix             |
-| pose-builder call             | `0x002CE37C -> 0x002CD600` | Builds the scratch local pose                  |
-| raw mapped-node endpoint      | `0x002CD694`               | All mapped direct locals are present           |
-| torso retarget                | `0x002CD694..0x002CDB0C`   | Rebuilds nodes 1 and 2                         |
-| builder endpoint              | `0x002CDB34`               | Also restores unanimated nodes 17 and 21       |
-| first caller helper           | `0x002CE3AC -> 0x0026B500` | Does not mutate scratch locals on sampled path |
-| second caller helper          | `0x002CE3B4 -> 0x0026BCE0` | Does not mutate scratch locals on sampled path |
-| optional-pass gate            | `0x002CE3C0`               | Skips to `0x002CE4A0` when `player+0x7C8 == 0` |
-| optional correction loop      | `0x002CE3E0..0x002CE49C`   | Corrects nodes 1 through 21                    |
-| post-correction boundary      | `0x002CE4A0`               | Scratch locals are complete                    |
-| publication/constraint block  | `0x002CE51C..0x002CE5D4`   | Publishes current skeleton and secondary pose  |
-| global pose scheduler         | `0x001FDFC8 -> 0x0020D228` | Updates all players after pose publication     |
-| per-player geometry routine   | `0x0020C9B0`               | Reads the published skeleton                   |
-| hurt/body writer              | `0x0020CF3C..0x0020D038`   | Writes 14 hurt and 8 body-push records         |
+| Stage                         | PAL EE address             | Observed role                                   |
+| ----------------------------- | -------------------------- | ----------------------------------------------- |
+| stripped-0x64 channel decoder | `0x00267398`               | Produces 23 runtime channels                    |
+| quaternion matrix routine     | `0x00269498..0x0026951C`   | Writes one direct local 3x3 matrix              |
+| pose-builder call             | `0x002CE37C -> 0x002CD600` | Builds the scratch local pose                   |
+| raw mapped-node endpoint      | `0x002CD694`               | All mapped direct locals are present            |
+| torso retarget                | `0x002CD694..0x002CDB0C`   | Rebuilds nodes 1 and 2                          |
+| builder endpoint              | `0x002CDB34`               | Also restores unanimated nodes 17 and 21        |
+| first caller helper           | `0x002CE3AC -> 0x0026B500` | Does not mutate scratch locals on sampled path  |
+| second caller helper          | `0x002CE3B4 -> 0x0026BCE0` | Does not mutate scratch locals on sampled path  |
+| optional-pass gate            | `0x002CE3C0`               | Skips to `0x002CE4A0` when `player+0x7C8 == 0`  |
+| optional correction loop      | `0x002CE3E0..0x002CE49C`   | Corrects nodes 1 through 21                     |
+| post-correction boundary      | `0x002CE4A0`               | Scratch locals are complete                     |
+| publication/constraint block  | `0x002CE51C..0x002CE5D4`   | Publishes current and previous skeletons        |
+| humanoid pose routine         | `0x002D10A0..0x002D3B38`   | Hierarchy publication and secondary constraints |
+| leg dispatch                  | `0x002D0308..0x002D0638`   | Selects the two leg chains and invokes IK       |
+| ground-target builder         | `0x002CFEC8..0x002D0300`   | Stateful ground query, target adjustment, gate  |
+| two-link solver               | `0x002CF728..0x002CFEC0`   | Analytic reachable-chain solve                  |
+| foot alignment                | `0x002D0640..0x002D0904`   | Endpoint/foot orientation after leg IK          |
+| global pose scheduler         | `0x001FDFC8 -> 0x0020D228` | Updates all players after pose publication      |
+| per-player geometry routine   | `0x0020C9B0`               | Reads the published skeleton                    |
+| hurt/body writer              | `0x0020CF3C..0x0020D038`   | Writes 14 hurt and 8 body-push records          |
 
 Corrected call targets matter. The first helper is `0x0026B500`, not
 `0x00268500`; the optional row-scale helper is `0x0021D180`, not
@@ -221,6 +226,79 @@ further update whose maximum magnitude was `0.1643 mm`; the hurt writer consumed
 those final values. This is small but confirms that `0x002CE5D4` is not the final
 global geometry boundary.
 
+## Recovered lower-chain constraint
+
+A fresh unconditioned breakpoint at entry `0x002D10AC` established a stable
+three-call order for each update:
+
+```text
+P1 current skeleton -> P1 previous skeleton -> P2 current skeleton
+```
+
+For the selected P2 call, every local matrix for nodes 0 through 21 remained
+byte-identical at entry, `0x002D21D4`, `0x002D2988`, and `0x002D2C9C`. The
+reaction's lower-chain mutation therefore occurs later in the same invocation,
+not in the channel decoder, torso builder, or first hierarchy publication.
+
+Static disassembly identifies the late block precisely. `0x002D33BC` and
+`0x002D33DC` call `0x002D0308` once per leg. The dispatch uses these chains:
+
+| Side       | Hip | Knee | Ankle | Foot | Virtual end nodes |
+| ---------- | --: | ---: | ----: | ---: | ----------------: |
+| first leg  |  14 |   15 |    16 |   17 |            23, 24 |
+| second leg |  18 |   19 |    20 |   21 |            25, 26 |
+
+`0x002D0308` first calls `0x002CFEC8`. That routine queries ground height via
+`0x00239DC8`, updates persistent state under `0x00176560`, adjusts its target,
+and returns the gate for the solve. On a true result, `0x002D0308` calls
+`0x002CF728`, republishes the changed hip/knee worlds, and counter-rotates the
+ankle endpoint. `0x002D0640`, called afterwards, is a separate foot-alignment
+stage and is not the writer of nodes 14 through 16.
+
+### Analytic solver contract
+
+`0x002CF728` reads the first and second link lengths from the native state
+table, rejects a target at or beyond `L1 + L2`, and uses the reachable branch:
+
+```text
+d = length(target - hip)
+x = (d*d + L1*L1 - L2*L2) / (2*d)
+h = sqrt(max(0, L1*L1 - x*x))
+knee = hip + axis*x + pole*h
+```
+
+The two cosine terms are clamped to `[-1, 1]` before the routine composes the
+hip and knee rotations. The folded branch at `d <= abs(L1 - L2)` negates two
+matrices; its exact use has not yet appeared in a live sample and remains an
+explicit implementation gap. Jin's captured first leg used table lengths
+`440` and `420` native units.
+
+The implementation now exposes `solveT5TwoBoneConstraint` and a hierarchy-safe
+`applyT5TwoBoneConstraintToPose` stage in
+`tools/t5-rom/derive-jin-posed-geometry.mjs`. It preserves the ankle world
+orientation and republishes only descendants of that ankle. It is opt-in until
+the complete `0x002CFEC8` state owner supplies frame-specific targets.
+
+### Reaction-160 oracle
+
+Two paired EE snapshots bracketed the current-skeleton call at
+`0x002CE558 -> 0x002CE56C`. Only current local nodes 14, 15, and 16 changed.
+Rebuilding the unconstrained chain from the newly published node-13 world
+isolates the solve from ordinary frame motion:
+
+| Capture        | Baseline-to-native knee | Baseline-to-native ankle | Native bend |
+| -------------- | ----------------------: | -----------------------: | ----------: |
+| opening pose A |            `25.2046 mm` |              `1.5172 mm` | `6.724 deg` |
+| opening pose B |            `21.2143 mm` |              `1.0621 mm` | `5.658 deg` |
+
+Node 14 remained within `0.0064 mm` of ordinary hierarchy composition, while
+node 16's world orientation was preserved to a maximum matrix-element residual
+below `2.8e-7`. Using the recovered 440/420 solve and the native hip bend basis
+reproduces the captured knee positions within `0.55 mm` in both poses. The
+remaining sub-millimetre residual includes EE float/matrix publication and the
+stateful target basis still owned by `0x002CFEC8`; it must not be hidden by a
+character-specific offset.
+
 ## Secondary pose residual
 
 Direct animation frame 1 plus the exact torso retarget was compared with the
@@ -249,10 +327,10 @@ also occur at root node 0, neck/head nodes 3 and 4, and lower-chain nodes
 14 through 21. Node 4's position differed by about `18.35 mm`, but node 4 is not
 a hurt-record anchor.
 
-This proves a post-builder secondary-pose layer and localizes it to
-`0x002CE51C..0x002CE5D4`. Its exact semantics are not yet recovered. Grounding,
-foot placement, and head constraints are plausible interpretations, but calling
-it IK is currently an inference rather than a proven executable contract.
+This proves a post-builder secondary-pose layer. The lower-chain component is
+now identified as stateful ground-target construction, analytic two-link IK,
+and subsequent foot alignment. The remaining head/root writers and the exact
+state machine that feeds `0x002CFEC8` are not yet recovered.
 
 Later reaction samples naturally reduce this residual: previous coherent
 captures at player frames 8, 12, 20, and 30 were already within roughly
@@ -277,9 +355,11 @@ The eventual implementation should preserve these boundaries:
 3. Apply the exact node-1/node-2 torso retarget.
 4. Restore explicit base locals for unanimated nodes.
 5. Apply the static correction pass only under the recovered gate and weight.
-6. Run secondary constraints as a separate stage once their writers are traced.
-7. Publish world matrices and node positions.
-8. Write hurt/body records after publication, in the same simulation tick.
+6. Run lower-chain constraints as a separate stage when the recovered target
+   builder enables them.
+7. Keep later foot and remaining head/root constraints separate from leg IK.
+8. Publish world matrices and node positions.
+9. Write hurt/body records after publication, in the same simulation tick.
 
 Do not fit one standing-pose delta and reuse it across moves. Do not compare a
 current render root with prior published skeleton data. Do not add a global
