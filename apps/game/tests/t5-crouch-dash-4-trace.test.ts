@@ -112,11 +112,11 @@ describe("Tekken 5 PAL crouch-dash +4 routes", () => {
     expect(defender.hp).toBe(hp - 18);
     expect(defender).toMatchObject({
       action: "launched",
-      actionFrame: 0,
+      actionFrame: 1,
       hitstop: 0,
       t5ReactionMoveId: 615,
       t5AirTrajectoryMoveId: 615,
-      t5AirTrajectoryFrame: 0,
+      t5AirTrajectoryFrame: 1,
     });
     expect(attacker).toMatchObject({
       action: "attack",
@@ -210,7 +210,7 @@ describe("Tekken 5 PAL crouch-dash +4 routes", () => {
     while (defender.action !== "launched") sim.step(pad(), pad());
 
     expect(defender.pos.y).toBe(0);
-    run(sim, 15);
+    run(sim, 14);
     expect(defender).toMatchObject({
       action: "launched",
       t5AirTrajectoryFrame: 15,

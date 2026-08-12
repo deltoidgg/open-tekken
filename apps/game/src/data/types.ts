@@ -176,6 +176,8 @@ export interface MoveDef {
   advance?: [number, number, number];
   /** ROM-backed local root displacement, separate from the logical anchor. */
   t5Animation?: T5NativeAnimationDef;
+  /** Source move shells whose composed root transfers into logical X/Z on entry. */
+  t5LogicalRootHandoffFrom?: readonly string[];
   /**
    * Frames of recovery skipped when the move LANDS (hit, not block) —
    * trip/launcher hit-animations recover faster than their block recovery,

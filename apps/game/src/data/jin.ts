@@ -1326,6 +1326,7 @@ export const JIN_MOVES: MoveDef[] = [
       input: { buttons: B2, dir: "db" },
       t5CancelOrientationMode: 4,
       t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_526_ANIMATION,
+      t5LogicalRootHandoffFrom: ["jin.cd4.earlyRecovery"],
       anim: { clip: "backfistSliceR" },
       followups: [
         {
@@ -1400,6 +1401,7 @@ export const JIN_MOVES: MoveDef[] = [
     ],
     {
       t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_527_ANIMATION,
+      t5LogicalRootHandoffFrom: ["jin.db2.buffered"],
       anim: { clip: "risingBackfist" },
       followups: [
         {
@@ -1461,6 +1463,7 @@ export const JIN_MOVES: MoveDef[] = [
     ],
     {
       t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_528_ANIMATION,
+      t5LogicalRootHandoffFrom: ["jin.db22"],
       anim: { clip: "stabKick" },
       tags: ["wallEnder", "comboEnder"],
     },

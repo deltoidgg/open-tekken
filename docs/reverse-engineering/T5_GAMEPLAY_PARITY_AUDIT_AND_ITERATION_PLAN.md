@@ -326,6 +326,17 @@ error. This is an intermediate gate, not the protocol's `1 mm` exit. The first
 `d/b+2` air contact, reaction replacement, contact-root residual, attacker
 recoil, and remaining horizontal pickup ownership are the next slice.
 
+Third checkpoint 2026-08-12: the controlled pickup trace proves that reset
+handoffs move the composed source root into the logical stage anchor rather
+than retaining it in `t5AnimationOrigin`. Explicit source-target metadata now
+owns the measured `612 -> 526`, `531 -> 527`, and `527 -> 528` transfers; no
+attack range changed. The same trace corrected the native launch clock:
+reaction `615` publishes frame 1 on contact, posed collision samples that
+published counter directly, and the frame-60 landing gate remains unchanged.
+At the recovered pickup clock, frame 47 now intersects the first `d/b+2`
+capsules naturally. Airborne reactions `1`, `1`, and `12`, impact freeze, and
+the complete 43-damage replay remain the next gate.
+
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.
 

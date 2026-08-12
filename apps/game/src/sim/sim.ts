@@ -1258,16 +1258,38 @@ export class Sim {
       f.action === "jump"
         ? t5LocomotionPhase(f.action, f.actionFrame, false, f.t5JumpMoveId)
         : undefined;
-    const sourceAnimation =
-      f.action === "attack" && f.moveId ? moveById(f.moveId).t5Animation : jumpSource?.animation;
-    const sourceFrame = jumpSource?.actionFrame ?? f.actionFrame;
-    if (fromString && sourceAnimation && preserveSourceRoot) {
+    const poseSource = t5PoseState(f);
+    const attackSourceAnimation =
+      poseSource.action === "attack" && poseSource.moveId
+        ? moveById(poseSource.moveId).t5Animation
+        : undefined;
+    const sourceAnimation = attackSourceAnimation ?? jumpSource?.animation;
+    const sourceFrame = jumpSource?.actionFrame ?? poseSource.actionFrame;
+    const logicalHandoffSourceFrame =
+      fromString && transitionMode === "reset" && f.followupAt > 0
+        ? Math.min(sourceFrame, f.followupAt)
+        : sourceFrame;
+    const transfersLogicalRoot =
+      !!poseSource.moveId && move.t5LogicalRootHandoffFrom?.includes(poseSource.moveId);
+    if (transfersLogicalRoot && sourceAnimation) {
+      const sourceRoot = sampleT5PoseRoot(sourceAnimation, logicalHandoffSourceFrame);
+      this.applyT5LocalRootDeltaAtFace(
+        f,
+        [
+          poseSource.t5AnimationOrigin[0] + sourceRoot[0],
+          0,
+          poseSource.t5AnimationOrigin[2] + sourceRoot[2],
+        ],
+        poseSource.t5RootFace,
+      );
+      animationOrigin = [0, 0, 0];
+    } else if (fromString && sourceAnimation && preserveSourceRoot) {
       const sourceRoot = sampleT5RootOffset(sourceAnimation, sourceFrame);
       const targetRoot = sampleT5RootOffset(move.t5Animation, timelineFrame);
       animationOrigin = [
-        f.t5AnimationOrigin[0] + sourceRoot[0] - targetRoot[0],
-        f.t5AnimationOrigin[1] + sourceRoot[1] - targetRoot[1],
-        f.t5AnimationOrigin[2] + sourceRoot[2] - targetRoot[2],
+        poseSource.t5AnimationOrigin[0] + sourceRoot[0] - targetRoot[0],
+        poseSource.t5AnimationOrigin[1] + sourceRoot[1] - targetRoot[1],
+        poseSource.t5AnimationOrigin[2] + sourceRoot[2] - targetRoot[2],
       ];
     }
     this.setAction(f, "attack", move.totalFrames);
@@ -1947,7 +1969,9 @@ export class Sim {
               : defenderPose.t5ReactionOrigin,
         animation: nativeReactionAnimation ?? nativeLocomotion?.animation ?? nativeAttackAnimation,
         actionFrame: nativeReactionPose
-          ? defenderPoseFrame
+          ? defenderPose.action === "launched"
+            ? defenderPose.actionFrame
+            : defenderPoseFrame
           : (nativeLocomotion?.actionFrame ?? defenderPoseFrame),
       };
       const attackerPlacement = {
@@ -2438,6 +2462,12 @@ export class Sim {
       }
     }
     this.setT5Reaction(def, t5ReactionMoveId);
+    const nativeLaunch = t5JinReactionAnimation(t5ReactionMoveId);
+    if (def.action === "launched" && nativeLaunch?.airborneLandingFrame !== undefined) {
+      def.actionFrame = 1;
+      def.t5AirTrajectoryFrame = 1;
+      this.syncT5ReactionOrigin(def);
+    }
     if (recoveredPushback) this.startRecoveredPushback(def, fw, recoveredPushback);
   }
 
@@ -2859,7 +2889,15 @@ export class Sim {
   }
 
   private applyT5LocalRootDelta(f: FighterState, delta: readonly [number, number, number]): void {
-    const fw = this.facingVec(f);
+    this.applyT5LocalRootDeltaAtFace(f, delta, f.face);
+  }
+
+  private applyT5LocalRootDeltaAtFace(
+    f: FighterState,
+    delta: readonly [number, number, number],
+    face: number,
+  ): void {
+    const fw = { x: Math.cos(face), z: Math.sin(face) };
     f.pos.x += fw.x * delta[2] - fw.z * delta[0];
     f.pos.z += fw.z * delta[2] + fw.x * delta[0];
   }

@@ -75,11 +75,23 @@ reset handoff, the first move-527 publication retains the source root exactly:
 
 The rendered root is bit-identical across the first publication while the
 logical anchor moves about `1.40 m`. This is not a larger attack range. PAL
-transfers root continuity into world position on the reset, then publishes the
-target pose. The clone currently leaves its logical anchor fixed and stores the
-continuity entirely in `t5AnimationOrigin`, placing the first pickup roughly
-`0.76 m` too far away. The measured ownership must be implemented at the
-handoff rather than compensated in hit geometry.
+transfers the composed source root into world position on the reset, clears
+transition-local carry, then publishes the target pose. The clone now records
+that ownership as a source-target allowlist on moves `526`, `527`, and `528`.
+It applies the measured `612 -> 526`, `531 -> 527`, and `527 -> 528` handoffs
+without changing authored range or strike geometry. The untraced
+`526 -> 527` and counter-hit `531 -> 532` branches retain the provisional
+transition policy.
+
+The same replay exposed a separate publication-clock error. PAL publishes
+native launch reaction `615` as frame 1 on the Hell Trip contact state. The
+clone previously installed it at frame 0 and then sampled `actionFrame - 1`
+for posed collision, leaving the victim two native samples behind. ROM-backed
+launches now start on the one-based reaction/trajectory clock and native
+reaction collision samples the published counter directly. With no range
+change, reaction-615 frame 47 intersects two recovered hurt spheres while
+frame 46 misses; the corrected route therefore lands the first `d/b+2` for its
+scaled 8 damage.
 
 ## Attack records
 
@@ -150,11 +162,14 @@ semantics; no Savage Sword ID is hard-coded into the simulation.
 6. buffering the final `3` through the hidden intermediate shell;
 7. generated reaction payloads `427`, `529`, `533`, `535`, and `710`; and
 8. a complete close-range normal-hit string publishing reactions
-   `803 -> 797 -> 529` for raw damage `12 + 15 + 21 = 48`.
+   `803 -> 797 -> 529` for raw damage `12 + 15 + 21 = 48`;
+9. logical-root transfer on the measured `612 -> 526`, `531 -> 527`, and
+   `527 -> 528` handoffs; and
+10. one-based native launch publication through reaction-615's frame-60 gate.
 
 The spec's `CD+4, d/b+2,2,3 = 43` test remains visible but skipped. The old
 script used the wrong pickup clock and the clone does not yet publish the live
-root handoffs or airborne reactions. A recorded PAL Hell Trip trace grows from
+airborne reactions. A recorded PAL Hell Trip trace grows from
 about `2.02 m` separation at reaction-615 frame 1 to `2.86 m` at frame 30, then
 the measured `612 -> 526` handoff closes it to `2.20 m`. The
 `531 -> 527` reset closes it further while preserving the rendered root.
@@ -164,8 +179,7 @@ changes in the wrong system.
 ## Open boundaries
 
 - Live-measure timeline freeze for moves `526`, `527`, `528`, `531`, and `532`.
-- Implement the measured logical/render root handoffs on `612 -> 526`,
-  `531 -> 527`, and `527 -> 528`; capture the counter-hit `531 -> 532` variant.
+- Capture the untraced `526 -> 527` and counter-hit `531 -> 532` root policies.
 - Recover move `528`'s four condition-gated `0x2400` command-zero rows.
 - Recover the exact victim state and actionable gates behind reactions `529`
   and `533`; the clone currently retains the DR spec's crumple classification.

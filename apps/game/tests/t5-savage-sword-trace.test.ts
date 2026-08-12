@@ -2,7 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { moveById } from "../src/data/jin.ts";
 import { t5JinReactionAnimation } from "../src/data/t5-jin-reactions-native.ts";
 import type { Sim } from "../src/sim/sim.ts";
-import { B2, B3, B4, fightSim, pad, run } from "./helpers.ts";
+import { sampleT5PoseRoot } from "../src/sim/t5-geometry.ts";
+import { B2, B3, B4, fightSim, pad, run, S } from "./helpers.ts";
 
 function startBackfist(sim: Sim, counterTarget = false): void {
   sim.step(
@@ -46,6 +47,7 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
       ],
     });
     expect(moveById("jin.db2").t5Animation?.romMoveId).toBe(526);
+    expect(moveById("jin.db2").t5LogicalRootHandoffFrom).toEqual(["jin.cd4.earlyRecovery"]);
 
     expect(moveById("jin.db2.buffered")).toMatchObject({
       startup: 16,
@@ -90,6 +92,7 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
       ],
     });
     expect(moveById("jin.db22").t5Animation?.romMoveId).toBe(527);
+    expect(moveById("jin.db22").t5LogicalRootHandoffFrom).toEqual(["jin.db2.buffered"]);
 
     expect(moveById("jin.db22.counter")).toMatchObject({
       startup: 8,
@@ -130,6 +133,94 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
       ],
     });
     expect(moveById("jin.db223").t5Animation?.romMoveId).toBe(528);
+    expect(moveById("jin.db223").t5LogicalRootHandoffFrom).toEqual(["jin.db22"]);
+  });
+
+  it("transfers move-612 frame 51 into the pickup's logical anchor", () => {
+    const sim = fightSim(1.3);
+    const fighter = sim.gs.fighters[0];
+    for (const input of S.cd()) sim.step(pad(input), pad());
+    sim.step(pad({ dx: 1, dy: -1, btns: B4 }), pad());
+    while (!(fighter.moveId === "jin.cd4.earlyRecovery" && fighter.actionFrame === 48)) {
+      sim.step(pad(), pad());
+    }
+
+    const sourcePosition = { ...fighter.pos };
+    const sourceFace = fighter.t5RootFace;
+    const sourceAnimation = moveById(fighter.moveId).t5Animation;
+    const sourceRoot = sampleT5PoseRoot(sourceAnimation, 51);
+    sim.step(pad({ dx: -1, dy: -1, btns: B2 }), pad());
+    runUntilMove(sim, "jin.db2");
+
+    expect(fighter.pos.x).toBeCloseTo(
+      sourcePosition.x +
+        Math.cos(sourceFace) * sourceRoot[2] -
+        Math.sin(sourceFace) * sourceRoot[0],
+      6,
+    );
+    expect(fighter.pos.z).toBeCloseTo(
+      sourcePosition.z +
+        Math.sin(sourceFace) * sourceRoot[2] +
+        Math.cos(sourceFace) * sourceRoot[0],
+      6,
+    );
+    expect(fighter.t5AnimationOrigin).toEqual([0, 0, 0]);
+  });
+
+  it("transfers the measured move-531 root into the logical anchor", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackfist(sim);
+    sim.step(pad(), pad());
+    sim.step(pad({ btns: B2 }), pad());
+    runUntilMove(sim, "jin.db2.buffered");
+
+    const sourcePosition = { ...fighter.pos };
+    const sourceFace = fighter.t5RootFace;
+    const sourceOrigin = fighter.t5AnimationOrigin;
+    const sourceRoot = sampleT5PoseRoot(moveById(fighter.moveId!).t5Animation, 16);
+    runUntilMove(sim, "jin.db22");
+
+    const side = sourceOrigin[0] + sourceRoot[0];
+    const forward = sourceOrigin[2] + sourceRoot[2];
+    expect(fighter.pos.x).toBeCloseTo(
+      sourcePosition.x + Math.cos(sourceFace) * forward - Math.sin(sourceFace) * side,
+      6,
+    );
+    expect(fighter.pos.z).toBeCloseTo(
+      sourcePosition.z + Math.sin(sourceFace) * forward + Math.cos(sourceFace) * side,
+      6,
+    );
+    expect(fighter.t5AnimationOrigin).toEqual([0, 0, 0]);
+  });
+
+  it("transfers the measured move-527 root into the final kick anchor", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    startBackfist(sim);
+    sim.step(pad(), pad());
+    sim.step(pad({ btns: B2 }), pad());
+    sim.step(pad({ btns: B3 }), pad());
+    runUntilMove(sim, "jin.db22");
+    while (fighter.actionFrame < 8) sim.step(pad(), pad());
+
+    const sourcePosition = { ...fighter.pos };
+    const sourceFace = fighter.t5RootFace;
+    const sourceOrigin = fighter.t5AnimationOrigin;
+    const sourceRoot = sampleT5PoseRoot(moveById(fighter.moveId!).t5Animation, 8);
+    runUntilMove(sim, "jin.db223");
+
+    const side = sourceOrigin[0] + sourceRoot[0];
+    const forward = sourceOrigin[2] + sourceRoot[2];
+    expect(fighter.pos.x).toBeCloseTo(
+      sourcePosition.x + Math.cos(sourceFace) * forward - Math.sin(sourceFace) * side,
+      6,
+    );
+    expect(fighter.pos.z).toBeCloseTo(
+      sourcePosition.z + Math.sin(sourceFace) * forward + Math.cos(sourceFace) * side,
+      6,
+    );
+    expect(fighter.t5AnimationOrigin).toEqual([0, 0, 0]);
   });
 
   it("uses the frame 1-15 preserve route through hidden move 531", () => {
