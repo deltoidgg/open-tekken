@@ -54,6 +54,31 @@ describe("throw system (spec 5.8)", () => {
 });
 
 describe("crush system (spec 5.7)", () => {
+  function jabCrouchDashFrame(frame: number): "hit" | "whiff" {
+    const sim = fightSim(1.25);
+    const [attacker, defender] = sim.gs.fighters;
+    Object.assign(attacker, {
+      action: "attack",
+      actionFrame: 10,
+      actionTotal: 26,
+      moveId: "jin.1",
+      hitResolved: [false],
+      t5CancelOrientationMode: 4,
+      t5OrientationTurn: 0,
+      t5OrientationLastFrame: 10,
+    });
+    Object.assign(defender, {
+      action: "CD",
+      actionFrame: frame,
+      actionTotal: TUNING.cdFrames,
+      crouching: false,
+    });
+
+    const before = defender.hp;
+    sim.step(pad(), pad());
+    return defender.hp < before ? "hit" : "whiff";
+  }
+
   it("u/f+4 (TJ) sails over d+4 low and launches", () => {
     const sim = fightSim(1.1);
     // P2 does d+4 (i16 low); P1 does uf+4 (TJ from f3, i15)
@@ -63,17 +88,13 @@ describe("crush system (spec 5.7)", () => {
     expect(sim.gs.fighters[1].action).toBe("launched"); // hopkick CH-launched P2
   });
 
-  it("crouch dash (TC 4–18) goes under a jab", () => {
-    const sim = fightSim(1.2);
-    // P1 starts CD; P2 jabs while P1 is in TC frames
-    sim.step(pad({ dx: 1 }), pad());
-    sim.step(pad(), pad());
-    sim.step(pad({ dy: -1 }), pad());
-    sim.step(pad({ dx: 1, dy: -1 }), pad()); // CD begins
-    run(sim, 2);
-    sim.step(pad(), pad({ btns: B1 })); // P2 jab (i10) → active while P1 TC
-    run(sim, 16);
-    expect(sim.gs.fighters[0].hp).toBe(TUNING.maxHp); // jab whiffed over the CD
+  it.each([
+    [4, "hit"],
+    [5, "whiff"],
+    [17, "whiff"],
+    [18, "hit"],
+  ] as const)("resolves a jab against PAL crouch-dash frame %i as a %s", (frame, result) => {
+    expect(jabCrouchDashFrame(frame)).toBe(result);
   });
 });
 

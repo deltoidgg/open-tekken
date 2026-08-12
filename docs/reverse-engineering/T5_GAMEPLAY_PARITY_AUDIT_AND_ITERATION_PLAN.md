@@ -61,6 +61,7 @@ The following slices are measured from the PAL executable and documented:
 | movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`                                         |
 | crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                                  |
 | crouch dash        | shell graph, repeat route, exits, and exact/late/buffered +2 ownership  | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_WAVEDASH_TRANSITION_TRACE.md` |
+| crouch-dash crush  | live jab hit/whiff boundary: move-524 published frames 5-17             | `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md`                               |
 | lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`                                           |
 | guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                              |
 | combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                                               |
@@ -229,6 +230,13 @@ Use a compact matchup matrix:
 
 Recover tracking windows and status precedence from live state, not from a
 single radial threshold.
+
+Checkpoint 2026-08-12: a Defensive Training jab matrix replaces the provisional
+move-524 `TC 4-18` interval. PAL move 334 hits on published crouch-dash frames 4
+and 18, while it whiffs on frames 5 and 17. The clone now locks the inclusive
+5-17 high-crush window at both boundaries. Throw immunity, alternate high
+capsules, and the internal status writer remain before this crush slice is
+complete.
 
 Exit gate: hit/whiff/block outcome and contact frame match every matrix cell.
 

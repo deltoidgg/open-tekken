@@ -29,7 +29,8 @@ export const TUNING = {
   sidewalkLoopFrames: 36,
   sidewalkStopFrames: 15,
   cdFrames: 20,
-  cdTc: [4, 18] as [number, number],
+  // Live PAL jab probes: move 524 ducks highs on published frames 5-17.
+  cdTc: [5, 17] as [number, number],
 
   // combat (5.4-5.9)
   hitstopHit: 6,

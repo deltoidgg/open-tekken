@@ -1,7 +1,7 @@
 # Tekken 5 PAL Jin crouch-dash runtime
 
-Status: ROM-backed locomotion, +2 ownership, repeat-dash shell, and exit slices
-implemented. Updated 2026-08-12.
+Status: ROM-backed locomotion, +2 ownership, repeat-dash shell, exits, and live
+high-crush boundary implemented. Updated 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. All move IDs, pointers, animation samples, and cancel records below
@@ -185,6 +185,12 @@ frame when released into 256, and hands held back to move 227 after frame 10.
 Rising group 908 owns WS/FC buttons through frame 5 and standing buttons from
 frame 6. See `T5_PAL_CROUCH_DASH_LATE_EXIT_AND_WS_TRACE.md`.
 
+Defensive Training collision probes supersede the provisional `TC 4-18` range.
+P2 jab move 334 hits on published move-524 frame 4, whiffs on frames 5 and 17,
+and hits again on frame 18. The clone therefore uses the directly measured PAL
+high-crush interval 5-17. See `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md` for the
+fixture, frame publications, and the deliberately narrower status claim.
+
 ## Verification and limits
 
 Focused tests establish:
@@ -200,12 +206,15 @@ Focused tests establish:
 8. move-524 frame 10 no longer owns that back exit;
 9. move 258 preserves its frame when neutral selects move 256 and reaches back
    walk 227 after frame 10; and
-10. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6.
+10. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6;
+    and
+11. standing jab hits move-524 frames 4 and 18 but whiffs on frames 5-17.
 
 The following are not yet ROM-complete:
 
-- The clone's tech-crouch interval remains the T5DR-spec provisional 4-18;
-  transition code `0x8002` alone does not prove the vulnerable-frame mask.
+- Move 524's 5-17 high-crush interval is live-measured. Throw immunity and the
+  exact internal status writer remain open, so this is not yet evidence for all
+  semantics commonly grouped under tech crouch.
 - Jump-cancel, low-parry, and unrepresented rising button families still need
   controlled live traces. Late passive guard and neutral `1` WS/standing
   ownership are now measured and implemented.
