@@ -52,22 +52,39 @@ export function renderJinReactionModule(reactions) {
   const payloads = new Map();
   for (const reaction of reactions) {
     const name = payloadName(reaction);
-    if (!payloads.has(name)) payloads.set(name, reaction);
+    const existing = payloads.get(name);
+    if (!existing) {
+      payloads.set(name, reaction);
+    } else if (existing.bodyPushCenters === undefined && reaction.bodyPushCenters !== undefined) {
+      payloads.set(name, { ...existing, bodyPushCenters: reaction.bodyPushCenters });
+    }
   }
   const payloadDefinitions = [...payloads]
-    .map(
-      ([name, reaction]) => `const ${name}_ROOT_OFFSETS = [
+    .map(([name, reaction]) => {
+      const bodyPushDefinition =
+        reaction.bodyPushCenters === undefined
+          ? ""
+          : `
+
+const ${name}_BODY_PUSH_CENTERS = [
+${formatPointFrames(reaction.bodyPushCenters)}
+] as const;`;
+      return `const ${name}_ROOT_OFFSETS = [
 ${formatPoints(reaction.rootOffsets)}
 ] as const;
 
 const ${name}_HURT_SPHERE_CENTERS = [
 ${formatPointFrames(reaction.hurtSphereCenters)}
-] as const;`,
-    )
+] as const;${bodyPushDefinition}`;
+    })
     .join("\n\n");
   const definitions = reactions
-    .map(
-      (reaction) => `export const ${constantName(reaction.romMoveId)} = {
+    .map((reaction) => {
+      const bodyPushProperty =
+        reaction.bodyPushCenters === undefined
+          ? ""
+          : `  bodyPushCenters: ${payloadName(reaction)}_BODY_PUSH_CENTERS,\n`;
+      return `export const ${constantName(reaction.romMoveId)} = {
   romMoveId: ${reaction.romMoveId},
   animationLength: ${reaction.animationLength},
 ${
@@ -84,8 +101,8 @@ ${
           : `  airborneHeightOwner: "${reaction.airborneHeightOwner}",\n`
       }  rootOffsets: ${payloadName(reaction)}_ROOT_OFFSETS,
   hurtSphereCenters: ${payloadName(reaction)}_HURT_SPHERE_CENTERS,
-} as const satisfies T5NativeReactionAnimationDef;`,
-    )
+${bodyPushProperty}} as const satisfies T5NativeReactionAnimationDef;`;
+    })
     .join("\n\n");
   const registry = reactions
     .map((reaction) => `  ${reaction.romMoveId}: ${constantName(reaction.romMoveId)},`)
@@ -157,6 +174,9 @@ async function main() {
       airborneHeightOwner: LOGICAL_AIRBORNE_REACTION_MOVE_IDS.has(moveId) ? "logical" : undefined,
       rootOffsets: geometry.rootOffsets,
       hurtSphereCenters: geometry.hurtSphereCenters,
+      bodyPushCenters: LOGICAL_AIRBORNE_REACTION_MOVE_IDS.has(moveId)
+        ? geometry.bodyPushCenters
+        : undefined,
     };
   });
   await writeFile(resolve(outputPath), renderJinReactionModule(reactions), "utf8");

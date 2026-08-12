@@ -262,6 +262,11 @@ node tools/t5-rom/generate-jin-locomotion-data.mjs \
   /path/to/pcsx2-ee.bin apps/game/src/data/t5-jin-locomotion-native.ts
 ```
 
+The reaction generator emits posed body-push centres only for reaction shells
+whose runtime ownership has been established. Reactions `1` and `12` currently
+form that measured logical-air slice; other reactions retain the existing body
+fallback until a live trace proves their collision state.
+
 Runtime ownership and the measured Jin curves are documented in
 `docs/reverse-engineering/T5_PAL_ANIMATION_RUNTIME.md` and
 `docs/reverse-engineering/T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md`. The live

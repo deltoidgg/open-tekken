@@ -349,18 +349,22 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
   });
 
   it("replays the measured Hell Trip pickup with PAL relaunch heights and damage", () => {
-    const sim = fightSim(1.3);
+    const sim = fightSim(1.8845);
     const [attacker, defender] = sim.gs.fighters;
     const hp = defender.hp;
     const reactions: number[] = [];
     const damage: number[] = [];
     const relaunchHeights: number[] = [];
+    const contactSeparations: number[] = [];
 
     const step = (input: Parameters<typeof pad>[0] = {}): void => {
       sim.step(pad(input), pad());
       if (!sim.gs.events.some((event) => event.type === "hit")) return;
       reactions.push(defender.t5ReactionMoveId!);
       damage.push(attacker.lastContact!.damage);
+      contactSeparations.push(
+        Math.hypot(attacker.pos.x - defender.pos.x, attacker.pos.z - defender.pos.z),
+      );
       if (defender.t5ReactionMoveId === 1 || defender.t5ReactionMoveId === 12) {
         relaunchHeights.push(defender.pos.y);
         expect(attacker.hitstop).toBe(0);
@@ -381,6 +385,7 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     };
 
     for (const input of S.cd()) step(input);
+    for (let frame = 0; frame < 3; frame++) step({ dx: 1, dy: -1 });
     step({ dx: 1, dy: -1, btns: B4 });
     waitFor(
       () => attacker.moveId === "jin.cd4.earlyRecovery" && attacker.actionFrame === 48,
@@ -403,6 +408,12 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     expect(relaunchHeights[0]).toBeCloseTo(0.256, 6);
     expect(relaunchHeights[1]).toBeCloseTo(0.996, 6);
     expect(relaunchHeights[2]).toBeCloseTo(0.791, 6);
+    expect(contactSeparations).toEqual([
+      expect.closeTo(2.072318, 6),
+      expect.closeTo(1.052003, 6),
+      expect.closeTo(1.240452, 6),
+      expect.closeTo(2.792506, 6),
+    ]);
     expect(hp - defender.hp).toBe(43);
   });
 

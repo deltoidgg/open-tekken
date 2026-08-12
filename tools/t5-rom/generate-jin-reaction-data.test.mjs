@@ -46,14 +46,40 @@ test("renders deterministic typed reaction data", () => {
       airborneHeightOwner: "logical",
       rootOffsets: [[0, 0, 0]],
       hurtSphereCenters: [[[0.1, 0.2, 0.3]]],
+      bodyPushCenters: [[[0.4, 0.5, 0.6]]],
     },
   ]);
 
   assert.match(output, /export const T5_JIN_REACTION_160 =/);
   assert.match(output, /\[0\.1, 0\.2, 0\.3\],/);
   assert.match(output, /hurtSphereCenters: T5_JIN_REACTION_ANIMATION_MOVE_160/);
+  assert.match(output, /bodyPushCenters: T5_JIN_REACTION_ANIMATION_MOVE_160/);
+  assert.match(output, /\[0\.4, 0\.5, 0\.6\],/);
   assert.match(output, /airborneGroundFrame: 37/);
   assert.match(output, /airborneHeightOwner: "logical"/);
   assert.match(output, /160: T5_JIN_REACTION_160/);
   assert.match(output, /satisfies T5NativeReactionAnimationDef/);
+});
+
+test("retains an optional body-push payload discovered on a shared animation", () => {
+  const output = renderJinReactionModule([
+    {
+      romMoveId: 1,
+      animationAddress: "0x1234",
+      animationLength: 1,
+      rootOffsets: [[0, 0, 0]],
+      hurtSphereCenters: [[[0.1, 0.2, 0.3]]],
+    },
+    {
+      romMoveId: 12,
+      animationAddress: "0x1234",
+      animationLength: 1,
+      rootOffsets: [[0, 0, 0]],
+      hurtSphereCenters: [[[0.1, 0.2, 0.3]]],
+      bodyPushCenters: [[[0.4, 0.5, 0.6]]],
+    },
+  ]);
+
+  assert.equal(output.match(/const T5_JIN_REACTION_ANIMATION_1234_BODY_PUSH_CENTERS/g)?.length, 1);
+  assert.match(output, /bodyPushCenters: T5_JIN_REACTION_ANIMATION_1234_BODY_PUSH_CENTERS/);
 });

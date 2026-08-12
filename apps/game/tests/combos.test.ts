@@ -102,7 +102,7 @@ describe("combo book (spec 6.9) — damage must land within ±15%", () => {
 
   // #5: CD+4, d/b+2,2,3 = 43
   it("combo 5 = 43 exactly", () => {
-    const sim = fightSim(1.3);
+    const sim = fightSim(1.8845);
     const [attacker, defender] = sim.gs.fighters;
     const before = defender.hp;
     const step = (input: Parameters<typeof pad>[0] = {}): void => {
@@ -121,6 +121,7 @@ describe("combo book (spec 6.9) — damage must land within ±15%", () => {
     };
 
     for (const input of S.cd()) step(input);
+    for (let frame = 0; frame < 3; frame++) step({ dx: 1, dy: -1 });
     step({ dx: 1, dy: -1, btns: B4 });
     waitFor(() => attacker.moveId === "jin.cd4.earlyRecovery" && attacker.actionFrame === 48, 120);
 

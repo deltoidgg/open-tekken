@@ -3001,8 +3001,13 @@ export class Sim {
     const [a, b] = this.gs.fighters;
     const skip = (f: FighterState) => {
       if (this.hasJumpStatus(f)) return true;
+      if (
+        f.action === "launched" &&
+        t5JinReactionAnimation(f.t5ReactionMoveId)?.airborneHeightOwner !== "logical"
+      ) {
+        return true;
+      }
       return [
-        "launched",
         "grounded",
         "wallsplat",
         "techroll",

@@ -352,6 +352,18 @@ active spec replay now publishes `615 -> 1 -> 1 -> 12` and deals
 General side/back/downed selection and the post-frame-50 victim options remain
 the next air-state slices.
 
+Fifth checkpoint 2026-08-12: PAL's logical X/Z curve proves that airborne
+pushback is composed with posed body collision after reaction `1` takes
+ownership. The clone previously skipped body collision whenever either fighter
+was launched, leaving only `2.2632 m` separation at the final contact. Generated
+reaction-1/12 payloads now include their eight ROM-derived body-sphere centres;
+the shared deepest-overlap resolver runs for those logical-height shells while
+reaction `615` remains excluded. From the trace's exact `1.8845 m` setup, all
+four contacts land and the final separation is `2.7925 m` against PAL's
+`2.7779 m`. Earlier contact residuals remain as large as `124.1 mm`, so exact
+sub-frame body/pushback publication order is still open and no range was
+expanded to conceal it.
+
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.
 

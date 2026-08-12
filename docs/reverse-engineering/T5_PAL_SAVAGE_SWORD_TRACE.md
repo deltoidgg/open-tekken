@@ -162,6 +162,37 @@ contacts. The clone consequently suppresses its provisional timeline freeze
 for airborne `d/b+2`, `2`, and `3` contacts while leaving unmeasured standing,
 block, and counter-hit outcomes unchanged.
 
+### Airborne body collision
+
+Pushback alone does not explain the live logical X/Z curve. While reaction
+`615` remains active, both anchors stay fixed after its recovered pushback
+finishes. Once the victim publishes logical-height reaction `1`, posed body
+collision starts moving both fighters. From move-527 frame 1 to frame 8, PAL's
+attacker logical anchor moves about `0.175 m` opposite the victim while the
+victim receives both its pushback envelope and the paired body correction.
+
+The clone previously skipped body collision whenever either fighter was
+launched. That left the final contact at only `2.2632 m` separation. Reactions
+`1/12` now carry their ROM-derived eight body-sphere centres, and the shared
+deepest-overlap resolver runs only for logical-height air shells. Animation-
+height-owned reaction `615` and legacy unmapped launches retain their existing
+no-body-push behavior.
+
+Replaying the native move-524 delay from the trace's exact `1.8845 m` starting
+separation now gives these post-contact logical distances:
+
+| Contact          | PAL distance | Clone distance |   Residual |
+| ---------------- | -----------: | -------------: | ---------: |
+| Hell Trip        | `2.019097 m` |   `2.072318 m` |  `53.2 mm` |
+| buffered `d/b+2` | `0.927942 m` |   `1.052003 m` | `124.1 mm` |
+| second `2`       | `1.181302 m` |   `1.240452 m` |  `59.2 mm` |
+| final `3`        | `2.777894 m` |   `2.792506 m` |  `14.6 mm` |
+
+All four native posed contacts now land from the PAL setup, and the final
+spacing error is down by about `500 mm`. The earlier contact residuals remain
+open evidence, likely in pre-contact body/root publication order; they must not
+be hidden with range inflation.
+
 ## Attack records
 
 | Move | Role                    | Active | Damage | Level | Recovery | Animation | Length |
@@ -239,10 +270,12 @@ semantics; no Savage Sword ID is hard-coded into the simulation.
     `0.256/0.996/0.791 m`, six-unit gravity, frame-37 grounding, and frame-50
     landing;
 12. the two measured composed pushback profiles, reset-root headings, and zero
-    timeline freeze on all three airborne contacts; and
+    timeline freeze on all three airborne contacts;
 13. the complete `CD+4, d/b+2,2,3` replay, including reactions
     `615 -> 1 -> 1 -> 12`, scaled damage `18 + 8 + 7 + 10 = 43`, and natural
-    native posed collision with no range inflation.
+    native posed collision with no range inflation; and
+14. the exact `1.8845 m` PAL setup, move-524 delay, ROM-derived reaction-1/12
+    body spheres, and all four post-contact separation checkpoints.
 
 The spec's former skipped 43-damage combo is now active in `combos.test.ts`.
 The detailed trace regression additionally locks each reaction, damage event,
@@ -260,6 +293,9 @@ first relaunch height, and timeline-freeze result.
   including side reaction `530`.
 - Trace reaction `1/12` post-frame-50 get-up, tech, and stay-down options. The
   measured route currently closes at the landing gate.
+- Reduce the remaining `124.1/59.2/14.6 mm` air-contact spacing residuals by
+  recovering body correction and pushback publication order at sub-frame state
+  transitions.
 
 ## Reproduction
 
