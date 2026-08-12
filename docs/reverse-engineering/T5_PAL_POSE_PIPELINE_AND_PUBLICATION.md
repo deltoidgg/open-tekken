@@ -281,8 +281,52 @@ and `420.0` for the two link lengths.
 `advanceT5GroundTargetState` and `applyT5GroundedLegConstraintsToPose` now
 implement this captured branch. Generated gameplay geometry enables it only
 when a virtual probe penetrates the flat floor. Clear-air target history,
-uneven-floor discontinuity handling, and the rotational branch of `0x002D0640`
-remain deliberately unchanged until separately bracketed.
+and uneven-floor discontinuity handling remain deliberately unchanged until
+separately bracketed.
+
+### Stable flat-floor foot-alignment contract
+
+The rotational branch of `0x002D0640..0x002D0904` is now independently
+bracketed. The caller runs both `0x002D0308` leg solves first, then calls the
+alignment routine once per foot. Its side-specific setup is:
+
+| Side       | Ankle | Foot | Virtual end | Sole probe      |
+| ---------- | ----: | ---: | ----------: | --------------- |
+| first leg  |    16 |   17 |          24 | `[120, 0, +60]` |
+| second leg |    20 |   21 |          26 | `[120, 0, -60]` |
+
+The virtual end starts at foot-local `[0, 50, 0]`. PAL adds the actual vertical
+ankle displacement produced by the preceding leg solve, transforms the sole
+probe, and exits without changing the foot when the probe is at or above the
+flat floor. On contact it clamps only probe Y, inverse-transforms that point,
+and derives a local-Z correction from the clamped local Y, horizontal X/Z
+length, and `-ankleWorld[0][1]`. `0x002EFD98` supplies the executable's
+transformed-ratio angle lookup; `0x00268DA8` builds the corrective rotation;
+`0x00268E28` left-multiplies it into the foot local matrix.
+
+Two P1 second-foot captures provide independent active-branch oracles:
+
+| Idle frame |     Probe Y | Observed correction | Native local row 0 after        |
+| ---------: | ----------: | ------------------: | ------------------------------- |
+|          1 | `-0.900498` |    `0.00671281 rad` | `[-0.00671240, -0.99997747, 0]` |
+|         17 | `-0.422938` |    `0.00316443 rad` | `[-0.00316407, -0.99999493, 0]` |
+
+A P2 first-foot bracket exercised the clear branch: virtual-end world Y moved
+from `-0.0000153` to `3.978333`, then nodes 16 and 17 remained byte-identical.
+`deriveT5FlatFloorFootAlignment` and
+`applyT5FlatFloorFootAlignmentToPose` reproduce both outcomes and republish the
+foot subtree after contact. Across the two active captures, the largest
+corrective-angle residual is `1.3e-5 rad`; the remaining difference is confined
+to the PAL VU trigonometric approximation and does not change branch ownership.
+The implementation therefore uses the recovered angle-table interpolation but
+retains standard sine/cosine for matrix construction until `0x00268A20` has an
+independent non-planar output oracle.
+
+The current generated collision schema contains ankle nodes but no foot or
+virtual-end anchor, so regenerating body, hurt, and strike modules produces no
+causal gameplay-data change from this rotation alone. Visible foot planting
+will begin consuming it when rendering is moved onto this authoritative final
+skeleton pose.
 
 ### Analytic solver contract
 

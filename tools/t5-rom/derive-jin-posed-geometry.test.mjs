@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   advanceT5GroundTargetState,
+  applyT5FlatFloorFootAlignmentToPose,
   applyT5GroundedLegConstraintsToPose,
   applyT5StaticCorrection,
   applyT5StaticCorrectionPass,
@@ -10,6 +11,7 @@ import {
   composeT5WorldRotation,
   composeT5RootTranslation,
   decodePackedHitboxLocations,
+  deriveT5FlatFloorFootAlignment,
   deriveJinTorsoRetarget,
   JIN_ANIMATION_CHANNEL_BY_NODE,
   JIN_HURT_SPHERE_NODES,
@@ -243,6 +245,128 @@ test("reproduces consecutive PAL flat-floor target transitions", () => {
     if (state) assert.deepEqual(target.nextState.previousTarget, state.target);
     state = target.nextState;
   }
+});
+
+test("reproduces PAL second-foot flat-floor rotations at idle frames 1 and 17", () => {
+  const captures = [
+    {
+      ankleRotation: [
+        [-0.014615006744861603, -0.9998924136161804, 0.000894591212272644],
+        [-0.9158557057380676, 0.013745784759521484, 0.4012707471847534],
+        [-0.4012403190135956, 0.005045562982559204, -0.9159590005874634],
+      ],
+      foot: [-64008.8828125, 49.994598388671875, 110752.6328125],
+      footRotation: [
+        [0.9158556461334229, -0.013746141456067562, -0.40127071738243103],
+        [-0.014615333639085293, -0.9998923540115356, 0.0008947346941567957],
+        [-0.4012403190135956, 0.005045562982559204, -0.9159590005874634],
+      ],
+      solverLift: 1.0517923831939697,
+      nativePenetration: 0.9004976823925972,
+      nativeCorrection: 0.006712807472424975,
+    },
+    {
+      ankleRotation: [
+        [-0.018060646951198578, -0.9998316764831543, 0.0025981515645980835],
+        [-0.9176086783409119, 0.017607443034648895, 0.3970888555049896],
+        [-0.39706873893737793, 0.0047877877950668335, -0.9177749156951904],
+      ],
+      foot: [-64009.890625, 49.99156188964844, 110754.3515625],
+      footRotation: [
+        [0.9176085591316223, -0.01760779693722725, -0.39708879590034485],
+        [-0.018060972914099693, -0.9998315572738647, 0.002598293125629425],
+        [-0.39706873893737793, 0.0047877877950668335, -0.9177749156951904],
+      ],
+      solverLift: 1.9772803783416748,
+      nativePenetration: 0.4229384958744049,
+      nativeCorrection: 0.0031644293340367113,
+    },
+  ];
+
+  for (const capture of captures) {
+    const alignment = deriveT5FlatFloorFootAlignment({
+      ...capture,
+      soleProbeZ: -60,
+      groundHeight: 0,
+    });
+    assert.equal(alignment.applied, true);
+    assert.equal(alignment.branch, "flat-floor-contact");
+    assert.ok(Math.abs(alignment.penetration - capture.nativePenetration) < 3e-5);
+    assert.ok(
+      Math.abs(alignment.correctionAngle - capture.nativeCorrection) < 1.5e-5,
+      `expected ${capture.nativeCorrection}, got ${alignment.correctionAngle}`,
+    );
+  }
+});
+
+test("leaves a clear PAL sole probe unrotated", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const alignment = deriveT5FlatFloorFootAlignment({
+    ankleRotation: identity,
+    foot: [0, 50, 0],
+    footRotation: identity,
+    soleProbeZ: 60,
+    groundHeight: 0,
+  });
+
+  assert.equal(alignment.applied, false);
+  assert.equal(alignment.branch, "clear-ground");
+  assert.equal(alignment.correctionRotation, null);
+});
+
+test("left-multiplies and republishes a captured PAL foot correction", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const locals = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const translations = Array.from({ length: 22 }, () => [0, 0, 0]);
+  const rotations = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const positions = Array.from({ length: 22 }, () => [0, 0, 0]);
+  locals[21] = [
+    [3.576278402306343e-7, -0.9999999403953552, 0],
+    [0.9999999403953552, 3.576278402306343e-7, 0],
+    [0, 0, 1],
+  ];
+  rotations[20] = [
+    [-0.018060646951198578, -0.9998316764831543, 0.0025981515645980835],
+    [-0.9176086783409119, 0.017607443034648895, 0.3970888555049896],
+    [-0.39706873893737793, 0.0047877877950668335, -0.9177749156951904],
+  ];
+  rotations[21] = [
+    [0.9176085591316223, -0.01760779693722725, -0.39708879590034485],
+    [-0.018060972914099693, -0.9998315572738647, 0.002598293125629425],
+    [-0.39706873893737793, 0.0047877877950668335, -0.9177749156951904],
+  ];
+  positions[21] = [-64009.890625, 49.99156188964844, 110754.3515625];
+
+  const alignment = applyT5FlatFloorFootAlignmentToPose(
+    locals,
+    translations,
+    rotations,
+    positions,
+    {
+      ankleNode: 20,
+      footNode: 21,
+      soleProbeZ: -60,
+      solverLift: 1.9772803783416748,
+      groundHeight: 0,
+    },
+  );
+
+  assert.equal(alignment.applied, true);
+  const nativeAfter = [
+    [-0.003164066234603524, -0.9999949336051941, 0],
+    [0.9999949336051941, -0.003164066234603524, 0],
+    [0, 0, 1],
+  ];
+  assertMatrixClose(locals[21], nativeAfter, 1.3e-5);
+  assertMatrixClose(rotations[21], composeT5WorldRotation(locals[21], rotations[20]), 1e-12);
 });
 
 test("publishes both stable flat-floor leg target stages through the pose", () => {

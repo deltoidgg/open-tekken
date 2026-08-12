@@ -241,8 +241,11 @@ reproduces that construction before evaluating their descendants.
 The deriver also applies the recovered stable flat-floor leg stage. It forms
 Jin's virtual ankle and foot probes, raises a penetrated ankle by the deepest
 probe penetration, runs the native 440/420 two-link solve, and republishes the
-affected descendants. Clear-air target history and rotational foot alignment
-remain unchanged until their native branches are separately captured.
+affected descendants. After both leg solves it tests PAL's side-specific
+`[120, 0, +/-60]` sole probes, applies the recovered local-Z foot correction,
+and republishes each foot subtree. Clear-air target history and uneven-floor
+discontinuities remain unchanged until their native branches are separately
+captured.
 
 Derive Jin's calibrated 22-node root, body-push centres, hurt-sphere centres,
 and active hitbox capsules with:

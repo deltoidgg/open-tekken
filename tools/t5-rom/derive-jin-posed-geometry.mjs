@@ -37,11 +37,27 @@ const WORLD_MATRIX_OFFSET = 0x40;
 const MATRIX_TRANSLATION_OFFSET = 0x30;
 const NATIVE_UNITS_PER_METRE = 1000;
 const T5_GROUND_TARGET_GATE_DISTANCE_SQUARED = 1;
+const T5_ANGLE_LOOKUP_HALF_PI = 1.570796251296997;
+const T5_ANGLE_LOOKUP_NEGATIVE_PI = -3.141592502593994;
 const T5_ANKLE_PROBE_OFFSET = Object.freeze([130, 0, 0]);
 const T5_FOOT_PROBE_OFFSET = Object.freeze([0, 50, 0]);
+const T5_SOLE_PROBE_FORWARD = 120;
+const T5_SOLE_PROBE_SIDE = 60;
 const T5_LEG_CHAINS = Object.freeze([
-  Object.freeze({ hipNode: 14, kneeNode: 15, ankleNode: 16, footNode: 17 }),
-  Object.freeze({ hipNode: 18, kneeNode: 19, ankleNode: 20, footNode: 21 }),
+  Object.freeze({
+    hipNode: 14,
+    kneeNode: 15,
+    ankleNode: 16,
+    footNode: 17,
+    soleProbeZ: T5_SOLE_PROBE_SIDE,
+  }),
+  Object.freeze({
+    hipNode: 18,
+    kneeNode: 19,
+    ankleNode: 20,
+    footNode: 21,
+    soleProbeZ: -T5_SOLE_PROBE_SIDE,
+  }),
 ]);
 
 export const JIN_SKELETON_PARENTS = Object.freeze([
@@ -201,6 +217,190 @@ export function advanceT5GroundTargetState(
       target: [...persistentTarget],
     },
   };
+}
+
+function t5AtanLookupValue(index) {
+  if (index <= 0) return 0;
+  if (index >= 1024) return T5_ANGLE_LOOKUP_HALF_PI;
+  return Math.fround(Math.atan(index / (1024 - index)));
+}
+
+function t5AtanLookupSlope(index) {
+  if (index === 1024) return 0.0009756088256835938;
+  return Math.fround(t5AtanLookupValue(index + 1) - t5AtanLookupValue(index));
+}
+
+/** PAL 0x002EFD98's transformed-ratio angle lookup, including float32 staging. */
+function t5ApproximateAtan2(y, x) {
+  const inputY = Math.fround(y);
+  const inputX = Math.fround(x);
+  let offset = 0;
+  let ratio;
+
+  if (inputY >= 0) {
+    if (inputX >= 0) {
+      const denominator = Math.fround(inputX + inputY);
+      if (denominator === 0) return 0;
+      ratio = Math.fround(inputY / denominator);
+    } else {
+      offset = T5_ANGLE_LOOKUP_HALF_PI;
+      ratio = Math.fround(inputX / Math.fround(inputX - inputY));
+    }
+  } else if (inputX < 0) {
+    offset = T5_ANGLE_LOOKUP_NEGATIVE_PI;
+    ratio = Math.fround(inputY / Math.fround(inputX + inputY));
+  } else {
+    offset = -T5_ANGLE_LOOKUP_HALF_PI;
+    ratio = Math.fround(inputX / Math.fround(inputX - inputY));
+  }
+
+  const scaled = Math.fround(ratio * 1024);
+  const index = Math.max(0, Math.min(1024, Math.round(scaled)));
+  const base = t5AtanLookupValue(index);
+  const slope = t5AtanLookupSlope(index);
+  const interpolation = Math.fround(Math.fround(scaled - index) * slope);
+  return Math.fround(Math.fround(offset + base) + interpolation);
+}
+
+/**
+ * Reproduces the stable flat-floor branch of PAL foot routine 0x002D0640.
+ * The virtual toe endpoint receives the preceding leg solve's vertical lift
+ * before its side-specific sole probe is tested against the floor.
+ */
+export function deriveT5FlatFloorFootAlignment({
+  ankleRotation,
+  foot,
+  footRotation,
+  soleProbeZ,
+  solverLift = 0,
+  groundHeight = 0,
+}) {
+  requireFiniteMatrix3(ankleRotation, "T5 foot-alignment ankle rotation");
+  requireFiniteVector(foot, "T5 foot-alignment foot");
+  requireFiniteMatrix3(footRotation, "T5 foot-alignment foot rotation");
+  if (!Number.isFinite(soleProbeZ)) throw new Error("T5 soleProbeZ must be finite");
+  if (!Number.isFinite(solverLift)) throw new Error("T5 solverLift must be finite");
+  if (!Number.isFinite(groundHeight)) throw new Error("T5 groundHeight must be finite");
+
+  const virtualEnd = transformLocalPoint(T5_FOOT_PROBE_OFFSET, footRotation, foot);
+  virtualEnd[1] += solverLift;
+  const soleProbe = [T5_SOLE_PROBE_FORWARD, 0, soleProbeZ];
+  const probe = transformLocalPoint(soleProbe, footRotation, virtualEnd);
+  const penetration = groundHeight - probe[1];
+  if (!(penetration > 0)) {
+    return {
+      applied: false,
+      branch: "clear-ground",
+      virtualEnd,
+      soleProbe,
+      probe,
+      penetration,
+      correctionAngle: 0,
+      correctionRotation: null,
+    };
+  }
+
+  const clampedProbe = [probe[0], groundHeight, probe[2]];
+  const clampedLocal = rotateRowVector(
+    subtractVectors(clampedProbe, virtualEnd),
+    transposeMatrix3(footRotation),
+  );
+  const horizontalLength = Math.hypot(clampedLocal[0], clampedLocal[2]);
+  const ankleAxisY = -ankleRotation[0][1];
+  if (Math.abs(ankleAxisY) <= Number.EPSILON || horizontalLength <= Number.EPSILON) {
+    return {
+      applied: false,
+      branch: "degenerate",
+      virtualEnd,
+      soleProbe,
+      probe,
+      penetration,
+      clampedProbe,
+      clampedLocal,
+      horizontalLength,
+      ankleAxisY,
+      correctionAngle: 0,
+      correctionRotation: null,
+    };
+  }
+
+  const adjustedHeight = clampedLocal[1] / ankleAxisY;
+  const correctionAngle = -t5ApproximateAtan2(adjustedHeight, horizontalLength);
+  const cosine = Math.cos(correctionAngle);
+  const sine = Math.sin(correctionAngle);
+  const correctionRotation = [
+    [cosine, -sine, 0],
+    [sine, cosine, 0],
+    [0, 0, 1],
+  ];
+
+  return {
+    applied: true,
+    branch: "flat-floor-contact",
+    virtualEnd,
+    soleProbe,
+    probe,
+    penetration,
+    clampedProbe,
+    clampedLocal,
+    horizontalLength,
+    ankleAxisY,
+    adjustedHeight,
+    correctionAngle,
+    correctionRotation,
+  };
+}
+
+/** Applies one recovered foot rotation and republishes its pose subtree. */
+export function applyT5FlatFloorFootAlignmentToPose(
+  localRotations,
+  localTranslations,
+  rotations,
+  positions,
+  constraint,
+) {
+  const ankleNode = constraint.ankleNode;
+  const footNode = constraint.footNode;
+  if (![ankleNode, footNode].every(Number.isInteger)) {
+    throw new Error("T5 foot-alignment node indices must be integers");
+  }
+  if (
+    ankleNode < 0 ||
+    footNode < 0 ||
+    ankleNode >= rotations.length ||
+    footNode >= rotations.length
+  ) {
+    throw new Error("T5 foot-alignment node index exceeds the pose");
+  }
+  if (JIN_SKELETON_PARENTS[footNode] !== ankleNode) {
+    throw new Error("T5 foot-alignment nodes must form a direct hierarchy chain");
+  }
+
+  const alignment = deriveT5FlatFloorFootAlignment({
+    ankleRotation: rotations[ankleNode],
+    foot: positions[footNode],
+    footRotation: rotations[footNode],
+    soleProbeZ: constraint.soleProbeZ,
+    solverLift: constraint.solverLift,
+    groundHeight: constraint.groundHeight,
+  });
+  if (!alignment.applied) return alignment;
+
+  localRotations[footNode] = multiplyMatrix3(
+    alignment.correctionRotation,
+    localRotations[footNode],
+  );
+  for (let node = footNode; node < JIN_SKELETON_NODE_COUNT; node++) {
+    if (node !== footNode && !isSkeletonDescendant(node, footNode)) continue;
+    const parent = JIN_SKELETON_PARENTS[node];
+    rotations[node] = composeT5WorldRotation(localRotations[node], rotations[parent]);
+    positions[node] = addVectors(
+      positions[parent],
+      rotateRowVector(localTranslations[node], rotations[parent]),
+    );
+  }
+
+  return alignment;
 }
 
 function resolveTwoBonePole(axis, poleVector, fallbackPoleVector) {
@@ -402,8 +602,8 @@ export function applyT5TwoBoneConstraintToPose(
 }
 
 /**
- * Runs both recovered Jin leg chains through the stable flat-floor target
- * stage and PAL two-link solver, carrying each leg's persistent target state.
+ * Runs both recovered Jin leg chains through PAL's stable flat-floor target,
+ * two-link solve, and subsequent foot-alignment passes.
  */
 export function applyT5GroundedLegConstraintsToPose(
   localRotations,
@@ -417,8 +617,9 @@ export function applyT5GroundedLegConstraintsToPose(
   if (!Array.isArray(priorState)) throw new Error("T5 grounded leg state must be an array");
 
   const legs = T5_LEG_CHAINS.map((chain, index) => {
+    const sourceAnkle = [...positions[chain.ankleNode]];
     const targetStage = advanceT5GroundTargetState(priorState[index], {
-      ankle: positions[chain.ankleNode],
+      ankle: sourceAnkle,
       ankleRotation: rotations[chain.ankleNode],
       foot: positions[chain.footNode],
       footRotation: rotations[chain.footNode],
@@ -444,8 +645,27 @@ export function applyT5GroundedLegConstraintsToPose(
           applied: false,
           branch: targetStage.enabled ? "clear-ground" : "target-gate",
         };
-    return { ...targetStage, recoveredFlatContact, solve };
+    return { ...targetStage, recoveredFlatContact, sourceAnkle, solve };
   });
+
+  for (let index = 0; index < T5_LEG_CHAINS.length; index++) {
+    const chain = T5_LEG_CHAINS[index];
+    const solverLift = positions[chain.ankleNode][1] - legs[index].sourceAnkle[1];
+    legs[index].solverLift = solverLift;
+    legs[index].footAlignment = applyT5FlatFloorFootAlignmentToPose(
+      localRotations,
+      localTranslations,
+      rotations,
+      positions,
+      {
+        ankleNode: chain.ankleNode,
+        footNode: chain.footNode,
+        soleProbeZ: chain.soleProbeZ,
+        solverLift,
+        groundHeight,
+      },
+    );
+  }
 
   return {
     legs,

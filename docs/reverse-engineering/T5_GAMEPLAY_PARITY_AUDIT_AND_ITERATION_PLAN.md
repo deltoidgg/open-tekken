@@ -181,9 +181,12 @@ Checkpoint 2026-08-12: `0x002D0308` maps the two leg chains and gates
 `0x002CF728` through stateful ground-target routine `0x002CFEC8`. The recovered
 law-of-cosines solver, hierarchy republish stage, and stable flat-floor
 penetration target are implemented. All generated gameplay geometry now uses
-that measured contact branch. The next pose slice is clear-air target history,
-uneven-floor discontinuities, and the rotational branch of `0x002D0640`,
-followed by a fresh multi-frame hurt-writer residual report.
+that measured contact branch. The later rotational branch of `0x002D0640` is
+also implemented from two active second-foot captures and one clear first-foot
+capture: PAL's `[120, 0, +/-60]` sole probes now drive a local-Z foot correction
+after both leg solves. The next pose slice is clear-air target history and
+uneven-floor discontinuities, followed by renderer ownership of the final foot
+rotations and a fresh multi-frame hurt-writer residual report.
 
 Exit gates:
 
