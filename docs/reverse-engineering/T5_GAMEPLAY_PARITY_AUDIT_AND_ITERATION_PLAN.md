@@ -46,29 +46,29 @@ unstable: one native subsystem exposes the error in the next provisional one.
 
 The following slices are measured from the PAL executable and documented:
 
-| Area               | Recovered foundation                                                     | Detailed note                                                          |
-| ------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11     | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
-| pose/control split | measured jab and reaction shells continue after actionable recovery      | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
-| jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails     | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`                                      |
-| d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails             | `T5_PAL_DF1_CONTACT_TRACE.md`                                          |
-| d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return         | `T5_PAL_D3_CONTACT_TRACE.md`                                           |
-| command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`          | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`                                  |
-| animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                  | `T5_PAL_ANIMATION_RUNTIME.md`                                          |
-| pose builder       | direct local matrices, torso retarget, optional static correction        | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                              |
-| world placement    | logical root, rendered root, and skeleton-facing pivots separated        | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md`                              |
-| hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                    | `T5_PAL_HURT_RECORD_WRITER.md`                                         |
-| movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves  | `T5_PAL_LOCOMOTION_RUNTIME.md`                                         |
-| crouch states      | lowering, full crouch, directional crouch, and rising shells             | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                                  |
-| crouch dash        | shell graph, repeat route, exits, and exact/late/buffered +2 ownership   | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_WAVEDASH_TRANSITION_TRACE.md` |
-| crouch-dash crush  | live jab hit/whiff boundary: move-524 published frames 5-17              | `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md`                               |
-| crouch-dash +4     | completion-edge fallback, three delayed branches, reactions, recoveries  | `T5_PAL_CROUCH_DASH_4_TRACE.md`                                        |
-| Savage Sword       | moves 526-532, split input window, CH branch, native poses and reactions | `T5_PAL_SAVAGE_SWORD_TRACE.md`                                         |
-| lateral movement   | quick-step and sidewalk shell graph and attack gate                      | `T5_PAL_SIDESTEP_RUNTIME.md`                                           |
-| guard/orientation  | measured guard and facing state slice                                    | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                              |
-| combat data        | live move records, hit records, strings, reactions, pushback curves      | `T5_PAL_LIVE_MOVESET.md`                                               |
-| Kazama Fury route  | standing `1,3,2,1,4`, stop recoveries, contacts, reset-root boundary     | `T5_PAL_KAZAMA_FURY_TRACE.md`                                          |
-| launch/collision   | posed strike capsules, reaction roots, and mapped launchers              | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md`                              |
+| Area               | Recovered foundation                                                    | Detailed note                                                          |
+| ------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| clock/input edge   | 50 Hz output, 60 Hz player clock; i10 publishes on attacker frame 11    | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
+| pose/control split | measured jab and reaction shells continue after actionable recovery     | `T5_PAL_JAB_CONTACT_CLOCK.md`                                          |
+| jab-string cadence | `1,2` parent settlement, child contacts, reactions, and native tails    | `T5_PAL_ONE_TWO_CONTACT_TRACE.md`                                      |
+| d/f+1 cadence      | move `469` whiff, block, hit, CH reactions, and native tails            | `T5_PAL_DF1_CONTACT_TRACE.md`                                          |
+| d+3 low cadence    | move `458` whiff, crouch block, hit, CH, and crouch-guard return        | `T5_PAL_D3_CONTACT_TRACE.md`                                           |
+| command priority   | direct move-220 `d/b+4 -> 461` shadows group-587 `d/b+4 -> 460`         | `T5_PAL_CANCEL_SCHEDULER_PRIORITY.md`                                  |
+| animation decoder  | exact 23-channel stripped-0x64 decoder and frame domain                 | `T5_PAL_ANIMATION_RUNTIME.md`                                          |
+| pose builder       | direct local matrices, torso retarget, optional static correction       | `T5_PAL_POSE_PIPELINE_AND_PUBLICATION.md`                              |
+| world placement    | logical root, rendered root, and skeleton-facing pivots separated       | `T5_PAL_ROOT_PIVOT_AND_STRIKE_RUNTIME.md`                              |
+| hurt/body writer   | selected node tables and exact +120/+60 mm exceptions                   | `T5_PAL_HURT_RECORD_WRITER.md`                                         |
+| movement roots     | walk, dash, backdash, run, crouch dash, sidestep, sidewalk, jump curves | `T5_PAL_LOCOMOTION_RUNTIME.md`                                         |
+| crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                                  |
+| crouch dash        | shell graph, repeat route, exits, and exact/late/buffered +2 ownership  | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_WAVEDASH_TRANSITION_TRACE.md` |
+| crouch-dash crush  | live jab hit/whiff boundary: move-524 published frames 5-17             | `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md`                               |
+| crouch-dash +4     | completion-edge fallback, three delayed branches, reactions, recoveries | `T5_PAL_CROUCH_DASH_4_TRACE.md`                                        |
+| Savage Sword       | moves 526-532, complete 43-damage Hell Trip route and air relaunches    | `T5_PAL_SAVAGE_SWORD_TRACE.md`                                         |
+| lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`                                           |
+| guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                              |
+| combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                                               |
+| Kazama Fury route  | standing `1,3,2,1,4`, stop recoveries, contacts, reset-root boundary    | `T5_PAL_KAZAMA_FURY_TRACE.md`                                          |
+| launch/collision   | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md`                              |
 
 This foundation should be treated as executable specification, not as a pool of
 values to average into the original tuning constants.
@@ -89,9 +89,9 @@ numerically plausible while looking mistimed or weightless.
 ### 2. Native and fallback simulation are interleaved
 
 Mapped moves use recovered capsules, reactions, and pushback. Unmapped attacks,
-air relifts, walls, grounded behavior, and some movement transitions still use
-coarse range checks or authored ballistics. A player encounters both models in a
-single short exchange, so cadence and spacing change depending on the move.
+most air relifts, walls, grounded behavior, and some movement transitions still
+use coarse range checks or authored ballistics. A player encounters both models
+in a single short exchange, so cadence and spacing change depending on the move.
 
 ### 3. Movement transitions remain more important than top speed
 
@@ -290,9 +290,9 @@ move-531 counter-hit condition replaces that fallback with `532`; and both
 second-hit shells accept `3` on frames 1-35 before resetting to move `528` at
 gate 8. Generated attack and reaction poses, exact attack records, front
 reactions, pushback, same-command window arbitration, and conditional-over-
-default transition priority are protected by focused traces. The no-movement
-43-damage Hell Trip script remains outside the gate until Phase 6 recovers its
-actual PAL pickup movement and airborne horizontal ownership.
+default transition priority are protected by focused traces. Phase 6 now closes
+the measured 43-damage Hell Trip route with its actual pickup clock and airborne
+horizontal ownership.
 
 Exit gate: normal WHF, electric, failed electric, repeated CD, and buffered CD
 follow-ups route to the same moves on the same frames as the reference.
@@ -335,7 +335,22 @@ reaction `615` publishes frame 1 on contact, posed collision samples that
 published counter directly, and the frame-60 landing gate remains unchanged.
 At the recovered pickup clock, frame 47 now intersects the first `d/b+2`
 capsules naturally. Airborne reactions `1`, `1`, and `12`, impact freeze, and
-the complete 43-damage replay remain the next gate.
+the complete 43-damage replay were the next gate, closed by the checkpoint
+below.
+
+Fourth checkpoint 2026-08-12: a complete raw player trace recovers the three
+airborne contacts through landing. The victim publishes reactions `1`, `1`, and
+`12`; their logical Y starts at `0.256`, `0.996`, and `0.791 m`, loses six native
+units of vertical displacement each frame, reaches ground on frame 37, and
+retains the shared 50-frame reaction shell. The first two relaunches use the
+runtime-generated samples `[100,50,10,0,0,0,0,0]` plus a 30-unit composed drift;
+the final relaunch selects native profile
+`P35/30 [150,150,130,120,100,70,60,30]`. Reset cancels refresh the attack-root
+heading, and none of the three air contacts freezes either player timeline. The
+active spec replay now publishes `615 -> 1 -> 1 -> 12` and deals
+`18 + 8 + 7 + 10 = 43` through native posed collision without range inflation.
+General side/back/downed selection and the post-frame-50 victim options remain
+the next air-state slices.
 
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.

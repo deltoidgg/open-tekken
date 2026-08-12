@@ -73,6 +73,7 @@ const T5_NO_TIMELINE_FREEZE_MOVES = new Set([
   "jin.cd4.mid",
   "jin.cd4.late",
 ]);
+const T5_NO_AIRBORNE_TIMELINE_FREEZE_MOVES = new Set(["jin.db2.buffered", "jin.db22", "jin.db223"]);
 const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.1",
   "jin.12",
@@ -1294,7 +1295,7 @@ export class Sim {
     }
     this.setAction(f, "attack", move.totalFrames);
     f.actionFrame = timelineFrame;
-    if (!fromString) f.t5RootFace = f.face;
+    if (!fromString || transitionMode === "reset") f.t5RootFace = f.face;
     f.t5PreviousFace = f.face;
     f.t5AnimationOrigin = animationOrigin;
     f.t5CancelOrientationMode = move.t5CancelOrientationMode ?? null;
@@ -1923,6 +1924,23 @@ export class Sim {
     const defenderPose = t5PoseState(def);
     const defenderPoseFrame = Math.max(0, defenderPose.actionFrame - 1);
     const nativeReactionAnimation = t5JinReactionAnimation(defenderPose.t5ReactionMoveId);
+    const logicalReactionHeight = nativeReactionAnimation?.airborneHeightOwner === "logical";
+    const logicalReactionFrame = Math.max(1, defenderPose.actionFrame - 1);
+    const lastPushback = def.pushback?.lastDisplacement ?? 0;
+    const logicalReactionPosition = logicalReactionHeight
+      ? {
+          x: def.pos.x - (def.pushback?.directionX ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
+          y: Math.max(0, def.pos.y - def.vel.y * T5_FRAME_DT),
+          z: def.pos.z - (def.pushback?.directionZ ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
+        }
+      : def.pos;
+    const logicalReactionRoot =
+      logicalReactionHeight && nativeReactionAnimation
+        ? sampleT5PoseRoot(nativeReactionAnimation, logicalReactionFrame)
+        : undefined;
+    const logicalReactionOrigin = logicalReactionRoot
+      ? ([-logicalReactionRoot[0], -logicalReactionRoot[1], -logicalReactionRoot[2]] as const)
+      : undefined;
     const released =
       (defenderPose.action === "walkF" || defenderPose.action === "walkB") &&
       defenderPose.actionTotal > 0;
@@ -1956,12 +1974,17 @@ export class Sim {
             ? sampleT5RootOffset(nativeLocomotion.animation, nativeLocomotion.actionFrame)
             : undefined;
       const defenderPlacement = {
-        pos: nativeReactionPose ? { ...def.pos, y: 0 } : def.pos,
+        pos:
+          nativeReactionPose && !logicalReactionHeight
+            ? { ...def.pos, y: 0 }
+            : logicalReactionPosition,
         face: defenderPose.face,
         t5RootFace: defenderPose.t5RootFace,
         t5PreviousFace: defenderPose.t5PreviousFace,
         t5AnimationOrigin: nativeReactionPose
-          ? defenderPose.t5ReactionOrigin
+          ? logicalReactionHeight
+            ? logicalReactionOrigin!
+            : defenderPose.t5ReactionOrigin
           : locomotionRoot
             ? ([-locomotionRoot[0], -locomotionRoot[1], -locomotionRoot[2]] as const)
             : nativeAttackAnimation
@@ -1970,7 +1993,9 @@ export class Sim {
         animation: nativeReactionAnimation ?? nativeLocomotion?.animation ?? nativeAttackAnimation,
         actionFrame: nativeReactionPose
           ? defenderPose.action === "launched"
-            ? defenderPose.actionFrame
+            ? logicalReactionHeight
+              ? logicalReactionFrame
+              : defenderPose.actionFrame
             : defenderPoseFrame
           : (nativeLocomotion?.actionFrame ?? defenderPoseFrame),
       };
@@ -2310,7 +2335,10 @@ export class Sim {
     atk.moveHitLanded = true;
     // Direct player traces disprove timeline freeze for the measured jab-string
     // links. Other impacts retain their provisional behavior until measured.
-    if (!T5_NO_TIMELINE_FREEZE_MOVES.has(c.move.id)) {
+    const freezesTimeline =
+      !T5_NO_TIMELINE_FREEZE_MOVES.has(c.move.id) &&
+      !(airborneVictim && T5_NO_AIRBORNE_TIMELINE_FREEZE_MOVES.has(c.move.id));
+    if (freezesTimeline) {
       atk.hitstop = isCH ? T.hitstopCH : T.hitstopHit;
       def.hitstop = atk.hitstop;
     }
@@ -2323,7 +2351,11 @@ export class Sim {
 
     const reaction: number | Reaction = isCH ? hd.onCH : hd.onHit;
     const recoveredPushback = isCH ? hd.pushback?.counterHit : hd.pushback?.normal;
-    const t5ReactionMoveId = isCH ? hd.t5ReactionMoves?.counterHit : hd.t5ReactionMoves?.normal;
+    const t5ReactionMoveId = airborneVictim
+      ? hd.t5ReactionMoves?.airborne
+      : isCH
+        ? hd.t5ReactionMoves?.counterHit
+        : hd.t5ReactionMoves?.normal;
     const advDisplay = reaction;
     atk.lastContact = {
       moveId: c.move.id,
@@ -2340,8 +2372,9 @@ export class Sim {
     if (hd.flags?.forceOC) def.crouching = true;
     if (hd.flags?.selfRC) atk.crouching = true;
 
-    // A new reaction replaces the prior reaction's native pushback state.
-    // Standing outcomes below install the newly recovered envelope.
+    // A new reaction replaces the prior reaction's native pushback state. Keep
+    // the old envelope long enough to restore its pre-contact logical position.
+    const replacedPushback = def.pushback;
     def.pushback = null;
 
     // wall splat +1 handled at wall pass via velocity; grounded victims just take the hit
@@ -2364,6 +2397,16 @@ export class Sim {
 
     if (airborneVictim) {
       // juggle re-lift
+      const sourceReaction = t5JinReactionAnimation(def.t5ReactionMoveId);
+      const logicalSource = sourceReaction?.airborneHeightOwner === "logical";
+      const sourceHeight = logicalSource
+        ? Math.max(0, def.pos.y - def.vel.y * T5_FRAME_DT)
+        : t5AirborneHeight(def);
+      if (logicalSource && replacedPushback) {
+        const previousDisplacement = replacedPushback.lastDisplacement / T.t5WorldUnitsPerMeter;
+        def.pos.x -= replacedPushback.directionX * previousDisplacement;
+        def.pos.z -= replacedPushback.directionZ * previousDisplacement;
+      }
       let lift = hd.launch?.vy ?? T.juggleLiftDefault * Math.pow(T.juggleLiftDecay, def.juggleHits);
       const carryBase = hd.launch?.vxCarry ?? T.juggleCarryBase;
       const carry =
@@ -2383,7 +2426,22 @@ export class Sim {
       if (hd.flags?.spike) def.vel.y = -6;
       this.setT5Reaction(def, t5ReactionMoveId, true);
       def.action = "launched";
-      def.actionFrame = 0;
+      const nativeAirReaction = t5JinReactionAnimation(t5ReactionMoveId);
+      if (nativeAirReaction?.airborneHeightOwner === "logical") {
+        const firstDisplacement = (hd.t5AirborneVerticalDisplacement ?? 0) / T.t5WorldUnitsPerMeter;
+        def.pos.y = Math.max(sourceHeight, T.t5GroundRootHeight) + firstDisplacement;
+        def.vel.y = firstDisplacement / T5_FRAME_DT;
+        if (hd.t5AirbornePushback) {
+          this.startRecoveredPushback(def, fw, hd.t5AirbornePushback);
+          def.vel.x = 0;
+          def.vel.z = 0;
+        }
+        def.actionFrame = 1;
+        def.t5AirTrajectoryFrame = 1;
+        this.syncT5ReactionOrigin(def);
+      } else {
+        def.actionFrame = 0;
+      }
       def.stunKind = typeof reaction === "string" ? reaction : "KND";
       return;
     }
@@ -2499,8 +2557,10 @@ export class Sim {
               sourceWorldRoot[2] - targetRoot[2],
             ]
           : [0, 0, 0];
-      // PAL keeps player+0x04 on the ground plane; the reaction pose owns height.
-      fighter.pos.y = 0;
+      if (target.airborneHeightOwner !== "logical") {
+        // Animation-owned launches keep player+0x04 on the ground plane.
+        fighter.pos.y = 0;
+      }
     } else if (!preserveRoot) {
       fighter.t5AirTrajectoryMoveId = null;
       fighter.t5AirTrajectoryFrame = 0;
@@ -2514,6 +2574,11 @@ export class Sim {
     }
 
     const targetRoot = sampleT5PoseRoot(target, 0);
+    if (target.airborneHeightOwner === "logical") {
+      fighter.t5AirTrajectoryOrigin = [0, 0, 0];
+      fighter.t5ReactionOrigin = [-targetRoot[0], -targetRoot[1], -targetRoot[2]];
+      return;
+    }
     const trajectory = t5JinReactionAnimation(fighter.t5AirTrajectoryMoveId);
     const trajectoryRoot = trajectory
       ? sampleT5PoseRoot(trajectory, fighter.t5AirTrajectoryFrame)
@@ -2541,6 +2606,10 @@ export class Sim {
     if (!reaction || !trajectory) return;
 
     const reactionRoot = sampleT5PoseRoot(reaction, fighter.actionFrame);
+    if (reaction.airborneHeightOwner === "logical") {
+      fighter.t5ReactionOrigin = [-reactionRoot[0], -reactionRoot[1], -reactionRoot[2]];
+      return;
+    }
     const trajectoryRoot = sampleT5PoseRoot(trajectory, fighter.t5AirTrajectoryFrame);
     fighter.t5ReactionOrigin = [
       fighter.t5AirTrajectoryOrigin[0] + trajectoryRoot[0] - reactionRoot[0],
@@ -2585,6 +2654,23 @@ export class Sim {
     const trajectory = t5JinReactionAnimation(f.t5AirTrajectoryMoveId);
     if (trajectory?.airborneLandingFrame !== undefined) {
       f.t5AirTrajectoryFrame++;
+      if (trajectory.airborneHeightOwner === "logical") {
+        f.vel.y -= T.t5AirGravityPerFrame / T5_FRAME_DT;
+        f.pos.x += f.vel.x * T5_FRAME_DT;
+        f.pos.z += f.vel.z * T5_FRAME_DT;
+        if (
+          trajectory.airborneGroundFrame !== undefined &&
+          f.t5AirTrajectoryFrame >= trajectory.airborneGroundFrame
+        ) {
+          f.pos.y = 0;
+          f.vel.y = 0;
+        } else {
+          f.pos.y = Math.max(0, f.pos.y + f.vel.y * T5_FRAME_DT);
+        }
+        this.syncT5ReactionOrigin(f);
+        if (f.t5AirTrajectoryFrame >= trajectory.airborneLandingFrame) this.landVictim(f);
+        return;
+      }
       const current = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame);
       const previous = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame - 1);
       f.vel.y = (current[1] - previous[1]) / T5_FRAME_DT;
@@ -2682,6 +2768,7 @@ export class Sim {
     if (pushback.sampleIndex < pushback.samples.length) {
       displacement += pushback.samples[pushback.sampleIndex++]!;
     }
+    pushback.lastDisplacement = displacement;
 
     const metres = displacement / T.t5WorldUnitsPerMeter;
     fighter.pos.x += pushback.directionX * metres;
@@ -2707,6 +2794,7 @@ export class Sim {
       displacement: definition.displacement,
       samples: definition.samples,
       sampleIndex: 0,
+      lastDisplacement: 0,
       directionX: direction.x * cos - direction.z * sin,
       directionZ: direction.x * sin + direction.z * cos,
     };

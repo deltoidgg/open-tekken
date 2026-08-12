@@ -31696,6 +31696,26 @@ export const T5_JIN_REACTION_898 = {
   hurtSphereCenters: T5_JIN_REACTION_ANIMATION_16FA2B0_HURT_SPHERE_CENTERS,
 } as const satisfies T5NativeReactionAnimationDef;
 
+export const T5_JIN_REACTION_1 = {
+  romMoveId: 1,
+  animationLength: 50,
+  airborneLandingFrame: 50,
+  airborneGroundFrame: 37,
+  airborneHeightOwner: "logical",
+  rootOffsets: T5_JIN_REACTION_ANIMATION_5B7820_ROOT_OFFSETS,
+  hurtSphereCenters: T5_JIN_REACTION_ANIMATION_5B7820_HURT_SPHERE_CENTERS,
+} as const satisfies T5NativeReactionAnimationDef;
+
+export const T5_JIN_REACTION_12 = {
+  romMoveId: 12,
+  animationLength: 50,
+  airborneLandingFrame: 50,
+  airborneGroundFrame: 37,
+  airborneHeightOwner: "logical",
+  rootOffsets: T5_JIN_REACTION_ANIMATION_5B7820_ROOT_OFFSETS,
+  hurtSphereCenters: T5_JIN_REACTION_ANIMATION_5B7820_HURT_SPHERE_CENTERS,
+} as const satisfies T5NativeReactionAnimationDef;
+
 export const T5_JIN_REACTION_ANIMATIONS = {
   159: T5_JIN_REACTION_159,
   160: T5_JIN_REACTION_160,
@@ -31749,6 +31769,8 @@ export const T5_JIN_REACTION_ANIMATIONS = {
   896: T5_JIN_REACTION_896,
   897: T5_JIN_REACTION_897,
   898: T5_JIN_REACTION_898,
+  1: T5_JIN_REACTION_1,
+  12: T5_JIN_REACTION_12,
 } as const satisfies Readonly<Partial<Record<number, T5NativeReactionAnimationDef>>>;
 
 export function t5JinReactionAnimation(

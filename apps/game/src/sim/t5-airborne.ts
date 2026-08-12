@@ -6,6 +6,7 @@ import { sampleT5ReactionRootOffset } from "./t5-geometry.ts";
 export function t5AirborneHeight(fighter: FighterState): number {
   const trajectory = t5JinReactionAnimation(fighter.t5AirTrajectoryMoveId);
   if (trajectory?.airborneLandingFrame === undefined) return Math.max(0, fighter.pos.y);
+  if (trajectory.airborneHeightOwner === "logical") return Math.max(0, fighter.pos.y);
 
   const root = sampleT5ReactionRootOffset(trajectory, fighter.t5AirTrajectoryFrame);
   return Math.max(0, fighter.t5AirTrajectoryOrigin[1] + root[1]);

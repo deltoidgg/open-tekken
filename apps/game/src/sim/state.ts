@@ -68,6 +68,8 @@ export interface ActivePushback {
   displacement: number;
   samples: readonly number[];
   sampleIndex: number;
+  /** Native units applied by the most recent player update. */
+  lastDisplacement: number;
   directionX: number;
   directionZ: number;
 }

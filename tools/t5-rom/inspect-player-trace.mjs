@@ -11,7 +11,13 @@ const SKELETON_ANGLE_OFFSET = 0x74;
 const PLAYER_FRAME_OFFSET = 0x96;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
+const PUSHBACK_DURATION_OFFSET = 0x2a4;
+const PUSHBACK_SAMPLE_COUNT_OFFSET = 0x2a6;
+const PUSHBACK_DIRECTION_OFFSET = 0x2a8;
+const PUSHBACK_SAMPLE_POINTER_OFFSET = 0x2ac;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
+const PUSHBACK_BASE_DISPLACEMENT_OFFSET = 0x2dc;
+const PUSHBACK_POINTER_OFFSET = 0x2f0;
 const RENDER_ROOT_OFFSET = 0x750;
 export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
 export const T5_MOVE_RECORD_SIZE = 0x4c;
@@ -40,6 +46,17 @@ function readPlayer(buffer, offset) {
     nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
     dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
     impactCounter: buffer.readInt16LE(offset + IMPACT_COUNTER_OFFSET),
+    pushback: {
+      pointer: buffer.readUInt32LE(offset + PUSHBACK_POINTER_OFFSET),
+      remainingDuration: buffer.readUInt16LE(offset + PUSHBACK_DURATION_OFFSET),
+      remainingSamples: buffer.readUInt16LE(offset + PUSHBACK_SAMPLE_COUNT_OFFSET),
+      directionFields: [
+        buffer.readInt16LE(offset + PUSHBACK_DIRECTION_OFFSET),
+        buffer.readInt16LE(offset + PUSHBACK_DIRECTION_OFFSET + 2),
+      ],
+      samplePointer: buffer.readUInt32LE(offset + PUSHBACK_SAMPLE_POINTER_OFFSET),
+      baseDisplacement: buffer.readFloatLE(offset + PUSHBACK_BASE_DISPLACEMENT_OFFSET),
+    },
     renderRoot: {
       x: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET),
       y: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET + 4),
@@ -101,6 +118,10 @@ function timelineKey(sample) {
       player.dynamicMoveId,
       player.playerFrame,
       player.impactCounter,
+      player.pushback.pointer,
+      player.pushback.remainingDuration,
+      player.pushback.remainingSamples,
+      player.pushback.samplePointer,
     ])
     .join(":");
 }

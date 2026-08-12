@@ -46,6 +46,10 @@ export const TUNING = {
   crouchHeight: 1.2,
   // juggle ballistics: DR floats are long enough to fit 3-4 hit strings
   launchGravity: 20,
+  // Live PAL air shells subtract 6 native world units from vertical travel each frame.
+  t5AirGravityPerFrame: 0.006,
+  // Reaction 615's composed root is clamped to this height before a logical relift.
+  t5GroundRootHeight: 0.14,
   juggleLiftDefault: 4.2,
   juggleKbGrowth: 1.1,
   juggleLiftDecay: 0.97,

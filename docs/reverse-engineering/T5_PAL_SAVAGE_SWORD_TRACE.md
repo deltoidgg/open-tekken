@@ -1,7 +1,7 @@
 # Tekken 5 PAL Savage Sword trace
 
-Status: ROM-backed graph plus controlled live Hell Trip pickup trace,
-2026-08-12.
+Status: ROM-backed graph, complete controlled live Hell Trip route, and clone
+parity checkpoint, 2026-08-12.
 
 This note recovers Jin's `d/b+2,2,3` attack graph from the loaded PAL Tekken 5
 moveset. It replaces the clone's former three authored attacks with native
@@ -19,10 +19,10 @@ skeleton.
 Computer Use enumerated the running Tekken 5 window, but its action context was
 unavailable. The repository's synchronized PCSX2 trace helper then supplied a
 controlled live pad route and sampled both complete player records. Cancel rows,
-frame data, reaction IDs, pushback, and geometry remain snapshot evidence;
-pickup timing, airborne reaction selection, and the measured root handoffs below
-are live evidence. Timeline freeze and the final victim state graph remain
-follow-ups.
+frame data and geometry remain snapshot evidence. Pickup timing, airborne
+reaction selection, logical trajectory, pushback state, timeline clocks, and
+the measured root handoffs below are live evidence. Orientation-specific
+selection and the post-landing victim action graph remain follow-ups.
 
 ## Controlled Hell Trip pickup
 
@@ -93,6 +93,75 @@ change, reaction-615 frame 47 intersects two recovered hurt spheres while
 frame 46 misses; the corrected route therefore lands the first `d/b+2` for its
 scaled 8 damage.
 
+### Airborne logical trajectory
+
+Reaction `615` is animation-height-owned: `player+0x04` remains on the ground
+plane while its native root supplies the visible arc. The three follow-up
+contacts switch to reactions `1`, `1`, and `12`, which share animation payload
+`0x5B7820` but are logical-height-owned. Their contact publications are:
+
+| Contact          | Source logical Y | First displacement | Published Y | Reaction |
+| ---------------- | ---------------: | -----------------: | ----------: | -------: |
+| buffered `d/b+2` |        `0.140 m` |              `116` |   `0.256 m` |        1 |
+| second `2`       |        `0.900 m` |               `96` |   `0.996 m` |        1 |
+| final `3`        |        `0.690 m` |              `101` |   `0.791 m` |       12 |
+
+The displacement decreases by exactly six native world units on each later
+player frame. For example, the first relaunch rises by `116`, `110`, `104`,
+`98`, and so on. Both logical reactions clamp Y to zero on native frame 37 and
+retain their reaction shell through the frame-50 recovery gate. The clone now
+models these as explicit reaction ownership, first displacement, gravity,
+ground, and landing fields rather than routing them through the legacy shared
+juggle parabola.
+
+### Airborne horizontal state
+
+The upgraded player trace parser reads the live pushback state at these player
+offsets:
+
+|          Offset | Meaning                        |
+| --------------: | ------------------------------ |
+|        `+0x2A4` | remaining duration             |
+|        `+0x2A6` | remaining sample count         |
+| `+0x2A8/+0x2AA` | packed direction fields        |
+|        `+0x2AC` | current sample pointer         |
+|        `+0x2DC` | base displacement float        |
+|        `+0x2F0` | active pushback record pointer |
+
+The first and second relaunches consume a runtime-generated eight-sample buffer
+at EE `0x00478254`:
+
+```text
+[100, 50, 10, 0, 0, 0, 0, 0]
+```
+
+Their live record publishes duration `0` and base `0`, while the composed
+logical path continues a measured 30-unit drift. The clean second relaunch
+therefore moves `130`, `80`, `40`, then `30` native units per frame. The clone
+stores that composed result as `P35/30 [100,50,10,0,0,0,0,0]`; this is an
+equivalent simulation profile, not a claim that the raw runtime stores the
+steady component in `+0x2DC` for these generated buffers.
+
+The final relaunch selects pushback record `0x01599048`, direction `-25002`,
+and the static eight-sample profile starting at `0x015998E0`:
+
+```text
+P35/30 [150, 150, 130, 120, 100, 70, 60, 30]
+```
+
+The first two directions are `-24457` and `-24970`. Those changes agree with a
+second root-ownership finding: PAL refreshes the attack root heading from the
+current skeleton heading on both reset cancels, `531 -> 527` and `527 -> 528`.
+Retaining Hell Trip's old attack-root heading makes the final posed strike miss
+even at the correct logical separation. The clone now refreshes root heading on
+all reset-mode string transitions and preserves it only on compatible timeline
+handoffs.
+
+No attacker or victim player-frame stall appears on the three airborne
+contacts. The clone consequently suppresses its provisional timeline freeze
+for airborne `d/b+2`, `2`, and `3` contacts while leaving unmeasured standing,
+block, and counter-hit outcomes unchanged.
+
 ## Attack records
 
 | Move | Role                    | Active | Damage | Level | Recovery | Animation | Length |
@@ -160,32 +229,37 @@ semantics; no Savage Sword ID is hard-coded into the simulation.
 4. counter-hit replacement of the default route with move `532`;
 5. preservation of a buffered final `3` when that counter-hit branch is selected;
 6. buffering the final `3` through the hidden intermediate shell;
-7. generated reaction payloads `427`, `529`, `533`, `535`, and `710`; and
+7. generated reaction payloads `1`, `12`, `427`, `529`, `533`, `535`, and `710`;
 8. a complete close-range normal-hit string publishing reactions
    `803 -> 797 -> 529` for raw damage `12 + 15 + 21 = 48`;
 9. logical-root transfer on the measured `612 -> 526`, `531 -> 527`, and
-   `527 -> 528` handoffs; and
-10. one-based native launch publication through reaction-615's frame-60 gate.
+   `527 -> 528` handoffs;
+10. one-based native launch publication through reaction-615's frame-60 gate;
+11. airborne selectors `1`, `1`, and `12`, logical relaunch heights
+    `0.256/0.996/0.791 m`, six-unit gravity, frame-37 grounding, and frame-50
+    landing;
+12. the two measured composed pushback profiles, reset-root headings, and zero
+    timeline freeze on all three airborne contacts; and
+13. the complete `CD+4, d/b+2,2,3` replay, including reactions
+    `615 -> 1 -> 1 -> 12`, scaled damage `18 + 8 + 7 + 10 = 43`, and natural
+    native posed collision with no range inflation.
 
-The spec's `CD+4, d/b+2,2,3 = 43` test remains visible but skipped. The old
-script used the wrong pickup clock and the clone does not yet publish the live
-airborne reactions. A recorded PAL Hell Trip trace grows from
-about `2.02 m` separation at reaction-615 frame 1 to `2.86 m` at frame 30, then
-the measured `612 -> 526` handoff closes it to `2.20 m`. The
-`531 -> 527` reset closes it further while preserving the rendered root.
-Reducing Hell Trip pushback or enlarging hit range would encode these ownership
-changes in the wrong system.
+The spec's former skipped 43-damage combo is now active in `combos.test.ts`.
+The detailed trace regression additionally locks each reaction, damage event,
+first relaunch height, and timeline-freeze result.
 
 ## Open boundaries
 
-- Live-measure timeline freeze for moves `526`, `527`, `528`, `531`, and `532`.
+- Live-measure timeline freeze for standing, blocked, and counter-hit outcomes
+  of moves `526`, `527`, `528`, `531`, and `532`.
 - Capture the untraced `526 -> 527` and counter-hit `531 -> 532` root policies.
 - Recover move `528`'s four condition-gated `0x2400` command-zero rows.
 - Recover the exact victim state and actionable gates behind reactions `529`
   and `533`; the clone currently retains the DR spec's crumple classification.
-- Add side/back/downed selection, including side reaction `530`.
-- Decode the native airborne/downed reaction selector behind measured reactions
-  `1`, `1`, and `12`, then reproduce their complete relift/landing graph.
+- Recover the general airborne/downed selector and add side/back/downed outcomes,
+  including side reaction `530`.
+- Trace reaction `1/12` post-frame-50 get-up, tech, and stay-down options. The
+  measured route currently closes at the landing gate.
 
 ## Reproduction
 
@@ -199,5 +273,8 @@ node tools/t5-rom/generate-jin-move-geometry.mjs <idle-ee.bin> \
 node tools/t5-rom/generate-jin-reaction-data.mjs <idle-ee.bin> \
   apps/game/src/data/t5-jin-reactions-native.ts
 
-vp test apps/game/tests/t5-savage-sword-trace.test.ts
+node tools/t5-rom/inspect-player-trace.mjs <hell-trip-route.bin> --json
+
+vp test apps/game/tests/t5-savage-sword-trace.test.ts \
+  apps/game/tests/combos.test.ts --run
 ```

@@ -39,6 +39,7 @@ function nativeRootOffset(fighter: FighterState): readonly [number, number, numb
   }
   const reaction = t5JinReactionAnimation(pose.t5ReactionMoveId);
   if (reaction) {
+    if (reaction.airborneHeightOwner === "logical") return [0, 0, 0];
     const sampled = sampleT5RootOffset(reaction, pose.actionFrame);
     return [
       pose.t5ReactionOrigin[0] + sampled[0],

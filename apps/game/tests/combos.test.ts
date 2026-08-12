@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vite-plus/test";
-import { fightSim, hpOf, pad, run, setSeparation, B1, B2, B3, B4, type Script } from "./helpers.ts";
+import {
+  fightSim,
+  hpOf,
+  pad,
+  run,
+  setSeparation,
+  S,
+  B1,
+  B2,
+  B3,
+  B4,
+  type Script,
+} from "./helpers.ts";
 import type { Sim } from "../src/sim/sim.ts";
 
 /**
@@ -16,7 +28,7 @@ function damageOf(sim: Sim, script: Script, extraFrames = 240): number {
 const N = (n: number): Script => Array.from({ length: n }, () => ({}));
 
 describe("combo book (spec 6.9) — damage must land within ±15%", () => {
-  // These scripts predate native pushback and contain no dash/walk correction.
+  // The remaining skipped scripts predate native pushback and contain no dash/walk correction.
   // Keep them visible until movement/root-transfer parity supplies verified inputs.
   // #1: CD+1, b,f+2,1, d/b+2,2,3 = 62 (exact per scaling model)
   it.skip("combo 1 = 62 exactly (pending native movement timing)", () => {
@@ -89,22 +101,38 @@ describe("combo book (spec 6.9) — damage must land within ±15%", () => {
   });
 
   // #5: CD+4, d/b+2,2,3 = 43
-  it.skip("combo 5 = 43 exactly (pending verified PAL pickup movement)", () => {
+  it("combo 5 = 43 exactly", () => {
     const sim = fightSim(1.3);
-    const script: Script = [
-      { dx: 1 },
-      {},
-      { dy: -1 },
-      { dx: 1, dy: -1 }, // enter PAL move 524; final-edge +4 would be d/f+4
-      { dx: 1, dy: -1, btns: B4 }, // delayed +4 selects early Hell Trip (move 607)
-      ...N(36),
-      { dx: -1, dy: -1, btns: B2 },
-      ...N(8),
-      { btns: B2 },
-      ...N(9),
-      { btns: B3 },
-    ];
-    expect(damageOf(sim, script)).toBe(43);
+    const [attacker, defender] = sim.gs.fighters;
+    const before = defender.hp;
+    const step = (input: Parameters<typeof pad>[0] = {}): void => {
+      sim.step(pad(input), pad());
+    };
+    const waitFor = (
+      condition: () => boolean,
+      maxFrames: number,
+      input: Parameters<typeof pad>[0] = {},
+    ): void => {
+      for (let frame = 0; frame <= maxFrames; frame++) {
+        if (condition()) return;
+        step(input);
+      }
+      throw new Error("measured combo state was not reached");
+    };
+
+    for (const input of S.cd()) step(input);
+    step({ dx: 1, dy: -1, btns: B4 });
+    waitFor(() => attacker.moveId === "jin.cd4.earlyRecovery" && attacker.actionFrame === 48, 120);
+
+    step({ dx: -1, dy: -1, btns: B2 });
+    waitFor(() => attacker.moveId === "jin.db2", 30);
+    waitFor(() => attacker.actionFrame >= 10, 15, { dx: -1, dy: -1 });
+    step({ dx: -1, dy: -1, btns: B2 });
+    step({ dx: -1, dy: -1 });
+    step({ dx: -1, dy: -1, btns: B3 });
+    run(sim, 160);
+
+    expect(before - defender.hp).toBe(43);
   });
 
   // #3: d+3+4, 1,2, 1,2,4 = 50 target, ±15% tolerance (spec: lands ~44)

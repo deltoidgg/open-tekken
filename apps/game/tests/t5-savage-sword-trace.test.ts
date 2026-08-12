@@ -67,6 +67,15 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
       },
     });
     expect(moveById("jin.db2.buffered").t5Animation?.romMoveId).toBe(531);
+    expect(moveById("jin.db2.buffered").hits[0]).toMatchObject({
+      t5ReactionMoves: { airborne: 1 },
+      t5AirborneVerticalDisplacement: 116,
+      t5AirbornePushback: {
+        duration: 35,
+        displacement: 30,
+        samples: [100, 50, 10, 0, 0, 0, 0, 0],
+      },
+    });
 
     expect(moveById("jin.db22")).toMatchObject({
       startup: 8,
@@ -87,6 +96,13 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
             counterHit: 794,
             block: 427,
             crouchBlock: 704,
+            airborne: 1,
+          },
+          t5AirborneVerticalDisplacement: 96,
+          t5AirbornePushback: {
+            duration: 35,
+            displacement: 30,
+            samples: [100, 50, 10, 0, 0, 0, 0, 0],
           },
         },
       ],
@@ -128,6 +144,13 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
             counterHit: 529,
             block: 693,
             crouchBlock: 701,
+            airborne: 12,
+          },
+          t5AirborneVerticalDisplacement: 101,
+          t5AirbornePushback: {
+            duration: 35,
+            displacement: 30,
+            samples: [150, 150, 130, 120, 100, 70, 60, 30],
           },
         },
       ],
@@ -325,8 +348,68 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     expect(defender.action).toBe("crumple");
   });
 
+  it("replays the measured Hell Trip pickup with PAL relaunch heights and damage", () => {
+    const sim = fightSim(1.3);
+    const [attacker, defender] = sim.gs.fighters;
+    const hp = defender.hp;
+    const reactions: number[] = [];
+    const damage: number[] = [];
+    const relaunchHeights: number[] = [];
+
+    const step = (input: Parameters<typeof pad>[0] = {}): void => {
+      sim.step(pad(input), pad());
+      if (!sim.gs.events.some((event) => event.type === "hit")) return;
+      reactions.push(defender.t5ReactionMoveId!);
+      damage.push(attacker.lastContact!.damage);
+      if (defender.t5ReactionMoveId === 1 || defender.t5ReactionMoveId === 12) {
+        relaunchHeights.push(defender.pos.y);
+        expect(attacker.hitstop).toBe(0);
+        expect(defender.hitstop).toBe(0);
+      }
+    };
+    const waitFor = (
+      condition: () => boolean,
+      label: string,
+      maxFrames: number,
+      input: Parameters<typeof pad>[0] = {},
+    ): void => {
+      for (let frame = 0; frame <= maxFrames; frame++) {
+        if (condition()) return;
+        step(input);
+      }
+      throw new Error(`did not reach ${label}`);
+    };
+
+    for (const input of S.cd()) step(input);
+    step({ dx: 1, dy: -1, btns: B4 });
+    waitFor(
+      () => attacker.moveId === "jin.cd4.earlyRecovery" && attacker.actionFrame === 48,
+      "Hell Trip recovery frame 48",
+      120,
+    );
+
+    step({ dx: -1, dy: -1, btns: B2 });
+    waitFor(() => attacker.moveId === "jin.db2", "Savage Sword pickup", 30);
+    waitFor(() => attacker.actionFrame >= 10, "Savage Sword buffer frame", 15, { dx: -1, dy: -1 });
+    step({ dx: -1, dy: -1, btns: B2 });
+    step({ dx: -1, dy: -1 });
+    step({ dx: -1, dy: -1, btns: B3 });
+
+    for (let frame = 0; frame < 160 && reactions.length < 4; frame++) step();
+
+    expect(reactions).toEqual([615, 1, 1, 12]);
+    expect(damage).toEqual([18, 8, 7, 10]);
+    expect(relaunchHeights).toHaveLength(3);
+    expect(relaunchHeights[0]).toBeCloseTo(0.256, 6);
+    expect(relaunchHeights[1]).toBeCloseTo(0.996, 6);
+    expect(relaunchHeights[2]).toBeCloseTo(0.791, 6);
+    expect(hp - defender.hp).toBe(43);
+  });
+
   it("registers each newly used native reaction payload", () => {
     for (const [moveId, animationLength] of [
+      [1, 50],
+      [12, 50],
       [427, 40],
       [529, 80],
       [533, 80],

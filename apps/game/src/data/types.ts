@@ -37,6 +37,10 @@ export interface T5NativeAnimationDef {
 export interface T5NativeReactionAnimationDef extends T5NativeAnimationDef {
   /** First frame at which the native cancel table permits ground transitions. */
   airborneLandingFrame?: number;
+  /** First native frame that clamps logical Y to the ground plane. */
+  airborneGroundFrame?: number;
+  /** Whether visible airborne height comes from the animation root or logical Y. */
+  airborneHeightOwner?: "animation" | "logical";
   /** Fourteen skeleton-node anchors used to materialize player+0x378 hurt records. */
   hurtSphereCenters: readonly (readonly T5LocalPoint[])[];
 }
@@ -46,6 +50,8 @@ export interface T5ReactionMoveIds {
   counterHit: number;
   block?: number;
   crouchBlock?: number;
+  /** Native victim shell selected when this hit replaces an airborne reaction. */
+  airborne?: number;
 }
 
 export interface T5MoveTransition {
@@ -119,6 +125,10 @@ export interface HitDef {
   t5Hitbox?: T5NativeHitboxDef;
   /** Native victim animation selected by the move's front-hit reaction record. */
   t5ReactionMoves?: T5ReactionMoveIds;
+  /** First logical-Y displacement installed on airborne contact, in native units per frame. */
+  t5AirborneVerticalDisplacement?: number;
+  /** Native logical-X/Z envelope installed when this hit replaces an airborne reaction. */
+  t5AirbornePushback?: PushbackDef;
   launch?: { vy: number; vxCarry: number };
   flags?: Partial<{
     jails: true;

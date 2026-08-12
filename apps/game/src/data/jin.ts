@@ -73,6 +73,8 @@ interface HitOpts {
   pushback?: HitPushbacks;
   t5Hitbox?: T5NativeHitboxDef;
   t5ReactionMoves?: T5ReactionMoveIds;
+  t5AirborneVerticalDisplacement?: number;
+  t5AirbornePushback?: PushbackDef;
   launch?: { vy: number; vxCarry: number };
   flags?: HitDef["flags"];
 }
@@ -101,6 +103,8 @@ function hit(
     pushback: opts.pushback,
     t5Hitbox: opts.t5Hitbox,
     t5ReactionMoves: opts.t5ReactionMoves,
+    t5AirborneVerticalDisplacement: opts.t5AirborneVerticalDisplacement,
+    t5AirbornePushback: opts.t5AirbornePushback,
     launch: opts.launch,
     flags: opts.flags,
   };
@@ -151,6 +155,8 @@ const CD4_REACTION_DIRECTION = 0xd556;
 const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0], CD4_REACTION_DIRECTION);
 const PB_CD4_BLOCK = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0], CD4_REACTION_DIRECTION);
 const PB_SAVAGE_SWORD = t5Pushback(20, 20, [300, 250, 200, 150, 100, 50, 25, 5]);
+const PB_AIR_RELAUNCH = t5Pushback(35, 30, [100, 50, 10, 0, 0, 0, 0, 0]);
+const PB_AIR_SAVAGE_SWORD = t5Pushback(35, 30, [150, 150, 130, 120, 100, 70, 60, 30]);
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
 const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
@@ -1359,7 +1365,15 @@ export const JIN_MOVES: MoveDef[] = [
         blockstun: 28,
         hitstun: 30,
         t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_531_HITBOX,
-        t5ReactionMoves: { normal: 803, counterHit: 854, block: 710, crouchBlock: 160 },
+        t5ReactionMoves: {
+          normal: 803,
+          counterHit: 854,
+          block: 710,
+          crouchBlock: 160,
+          airborne: 1,
+        },
+        t5AirborneVerticalDisplacement: 116,
+        t5AirbornePushback: PB_AIR_RELAUNCH,
       }),
     ],
     {
@@ -1396,7 +1410,15 @@ export const JIN_MOVES: MoveDef[] = [
         hitstun: 30,
         counterHitstun: 30,
         t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_527_HITBOX,
-        t5ReactionMoves: { normal: 797, counterHit: 794, block: 427, crouchBlock: 704 },
+        t5ReactionMoves: {
+          normal: 797,
+          counterHit: 794,
+          block: 427,
+          crouchBlock: 704,
+          airborne: 1,
+        },
+        t5AirborneVerticalDisplacement: 96,
+        t5AirbornePushback: PB_AIR_RELAUNCH,
       }),
     ],
     {
@@ -1457,7 +1479,15 @@ export const JIN_MOVES: MoveDef[] = [
         activeLen: 1,
         blockstun: 19,
         t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_528_HITBOX,
-        t5ReactionMoves: { normal: 529, counterHit: 529, block: 693, crouchBlock: 701 },
+        t5ReactionMoves: {
+          normal: 529,
+          counterHit: 529,
+          block: 693,
+          crouchBlock: 701,
+          airborne: 12,
+        },
+        t5AirborneVerticalDisplacement: 101,
+        t5AirbornePushback: PB_AIR_SAVAGE_SWORD,
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],

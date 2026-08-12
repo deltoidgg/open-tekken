@@ -28,6 +28,13 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   );
   buffer.writeUInt16LE(dynamicMoveId, offset + 0x158);
   buffer.writeInt16LE(impactCounter, offset + 0x2b6);
+  buffer.writeUInt16LE(21, offset + 0x2a4);
+  buffer.writeUInt16LE(5, offset + 0x2a6);
+  buffer.writeInt16LE(-8191, offset + 0x2a8);
+  buffer.writeInt16LE(8191, offset + 0x2aa);
+  buffer.writeUInt32LE(0x015993d2, offset + 0x2ac);
+  buffer.writeFloatLE(30, offset + 0x2dc);
+  buffer.writeUInt32LE(0x01598acc, offset + 0x2f0);
   buffer.writeFloatLE(400.25, offset + 0x750);
   buffer.writeFloatLE(500.5, offset + 0x754);
   buffer.writeFloatLE(600.75, offset + 0x758);
@@ -85,6 +92,14 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     nativeMoveId: 370,
     dynamicMoveId: 783,
     impactCounter: 6,
+    pushback: {
+      pointer: 0x01598acc,
+      remainingDuration: 21,
+      remainingSamples: 5,
+      directionFields: [-8191, 8191],
+      samplePointer: 0x015993d2,
+      baseDisplacement: 30,
+    },
     renderRoot: { x: 400.25, y: 500.5, z: 600.75 },
   });
 });
