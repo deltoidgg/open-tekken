@@ -176,25 +176,35 @@ backward before handing off to native back walk 227/228. Source frame 10 rejects
 that branch. See `T5_PAL_CROUCH_DASH_BACK_EXIT_TRACE.md` for the live timeline,
 static `0x1080` record, and remaining late-route boundary.
 
+The late route is now measured too. Neutral completion publishes move 256 frame
+1 directly; late held back publishes guarded rise 258 frame 1, preserves its
+frame when released into 256, and hands held back to move 227 after frame 10.
+Rising group 908 owns WS/FC buttons through frame 5 and standing buttons from
+frame 6. See `T5_PAL_CROUCH_DASH_LATE_EXIT_AND_WS_TRACE.md`.
+
 ## Verification and limits
 
 Focused tests establish:
 
 1. action frames 1-20 sum to move 524's generated `1.367081 m` root travel;
 2. the canonical four-frame command enters CD at action frame 1;
-3. move 524 hands off to crouch, and neutral begins rising on the next tick;
+3. move 524 publishes neutral rise 256 or late-back rise 258 directly after
+   frame 19;
 4. a stale motion event advances normally instead of resetting CD; and
 5. a newly completed repeated motion restarts the shell exactly once;
 6. held back on move-524 frame 9 enters reverse move 253 frame 8; and
-7. move-524 frame 10 no longer owns that back exit.
+7. move-524 frame 10 no longer owns that back exit;
+8. move 258 preserves its frame when neutral selects move 256 and reaches back
+   walk 227 after frame 10; and
+9. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6.
 
 The following are not yet ROM-complete:
 
 - The clone's tech-crouch interval remains the T5DR-spec provisional 4-18;
   transition code `0x8002` alone does not prove the vulnerable-frame mask.
-- Late guard, jump-cancel, low-parry, and WS-button precedence still need
-  controlled live traces. The early held-back branch and same-tick attack
-  priority are now measured and implemented.
+- Jump-cancel, low-parry, and unrepresented rising button families still need
+  controlled live traces. Late passive guard and neutral `1` WS/standing
+  ownership are now measured and implemented.
 - Repeated CD currently resets the native shell without recovered transition
   blend/root-compensation flags. Its displacement is monotonic and no longer
   authored, but exact wavedash spacing still needs a controlled trace.

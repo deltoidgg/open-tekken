@@ -76,6 +76,7 @@ needing to flatten their distinct vulnerability words.
 |     255 | `0x0167A3B2` |     10 |     `0x23029` |            `0x00F3` | `d/b` crouch entry     |
 |     256 | `0x005ECBEE` |     10 |      `0x1952` |            `0x8001` | neutral rise           |
 |     257 | `0x004F4604` |     10 |     `0x10842` |            `0x00DE` | forward rise           |
+|     258 | `0x0167A632` |     10 |     `0x21052` |            `0x00E3` | back/guard rise        |
 
 Moves 254 and 255 share animation data but retain distinct vulnerability and
 transition words. They therefore remain separate runtime shells even though
@@ -97,6 +98,7 @@ The head hurt sphere is player hurt location 8.
 | 254/255 | `[0.028592, -0.233636, -0.095459]` |           `1.438 -> 1.026` |
 |     256 | `[-0.029390, 0.232611, 0.098649]`  |           `1.037 -> 1.447` |
 |     257 | `[-0.029390, 0.232611, 0.290751]`  |           `1.039 -> 1.447` |
+|     258 | `[-0.029390, 0.232611, -0.098117]` |           `1.036 -> 1.447` |
 
 The old clone set a crouching boolean while continuing to test strikes and
 body push against one standing skeleton. The native lowering shell moves the
@@ -115,6 +117,7 @@ The shell vulnerability words distinguish crouching from crouch guarding:
 | held `d/b`, 243-245/255 |     `0x23029` | crouch guard                    |
 | neutral rise 256        |      `0x1952` | standing auto-guard shell       |
 | forward rise 257        |     `0x10842` | advancing standing shell        |
+| back rise 258           |     `0x21052` | retreating auto-guard shell     |
 
 The clone previously returned crouch guard for both `d` and `d/b`. It now
 returns no guard for `d` and crouch guard only for `d/b`. A focused combat test
@@ -143,13 +146,15 @@ incorrectly.
 ## Implemented behavior
 
 Generated payloads provide every frame's composed root, eight body-push
-centres, and 14 hurt-sphere centres for moves 234-245 and 250-257. The sim
+centres, and 14 hurt-sphere centres for moves 234-245 and 250-258. The sim
 uses them for:
 
 1. ten frames of ordinary lowering before cycling crouch alias 234;
 2. descending `251..253` early-release bridges before the frame-10 commitment;
-3. direct alias-234 entry after crouch dash or crouch-recovering moves;
-4. neutral move-256 and forward move-257 rising timelines;
+3. direct alias-234 entry after crouch-recovering moves and direct rise-shell
+   publication after a released crouch dash;
+4. neutral move-256, forward move-257, and guarded-back move-258 rising
+   timelines, including compatible frame preservation;
 5. source-facing logical transfer for the mapped directional shells; and
 6. native posed strike and body collision throughout crouch and rise.
 
@@ -174,6 +179,6 @@ pose.
    condition rather than relying on their currently identical pose data.
 3. Recover transition blending/origin compensation at the 10 -> 1 shell
    boundaries. The current posed endpoints are native, but blend policy is not.
-4. Verify exact crouch status, low-guard, low-parry, WS-input, and throw-whiff
-   precedence against controlled live traces when stateful PCSX2 input becomes
-   available again.
+4. Verify exact crouch status, low-guard, low-parry, and throw-whiff precedence
+   across the remaining directional/button families. Neutral WS1 ownership and
+   the frame-5/frame-6 rising split are now live-traced.

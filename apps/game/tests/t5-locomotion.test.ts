@@ -659,7 +659,7 @@ describe("Tekken 5 PAL locomotion roots", () => {
     });
 
     sim.step(pad(), pad());
-    expect(fighter).toMatchObject({ action: "rising", actionFrame: 0, t5CrouchMoveId: 256 });
+    expect(fighter).toMatchObject({ action: "rising", actionFrame: 1, t5CrouchMoveId: 256 });
     run(sim, 10);
     expect(fighter.action).toBe("idle");
     expect(fighter.pos.x).toBeCloseTo(startX, 9);
@@ -672,10 +672,10 @@ describe("Tekken 5 PAL locomotion roots", () => {
     const startX = fighter.pos.x;
 
     sim.step(pad({ dx: 1 }), pad());
-    expect(fighter).toMatchObject({ action: "rising", actionFrame: 0, t5CrouchMoveId: 257 });
+    expect(fighter).toMatchObject({ action: "rising", actionFrame: 1, t5CrouchMoveId: 257 });
     run(sim, 10, { dx: 1 });
 
-    expect(fighter.action).toBe("idle");
+    expect(fighter.action).toBe("walkF");
     expect(fighter.pos.x - startX).toBeCloseTo(T5_JIN_LOCOMOTION_257.rootOffsets.at(-1)![2], 4);
   });
 
@@ -1472,6 +1472,31 @@ describe("Tekken 5 PAL locomotion roots", () => {
         actionTotal: 10,
         t5JumpMoveId: moveId,
         t5LocomotionReverse: true,
+      });
+
+      const before = hpOf(sim)[1];
+      sim.step(pad(), pad(defenderPad));
+
+      expect(sim.gs.fighters[0].lastContact?.result).toBe(result);
+      expect(hpOf(sim)[1] === before).toBe(result === "block");
+    },
+  );
+
+  it.each([
+    { moveId: 256, defenderPad: {}, result: "block" },
+    { moveId: 257, defenderPad: { dx: 1 }, result: "hit" },
+    { moveId: 258, defenderPad: { dx: -1 }, result: "block" },
+  ] as const)(
+    "resolves rising shell $moveId passive guard as $result",
+    ({ moveId, defenderPad, result }) => {
+      const sim = fightSim(1);
+      const defender = sim.gs.fighters[1];
+      putJabOnNextFrame(sim);
+      Object.assign(defender, {
+        action: "rising",
+        actionFrame: 3,
+        actionTotal: 10,
+        t5CrouchMoveId: moveId,
       });
 
       const before = hpOf(sim)[1];

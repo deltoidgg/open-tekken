@@ -253,8 +253,11 @@ buffers standing `d/f+2` rather than inventing move-673 ownership. Native frame
 data, posed hitboxes, pushback, block reactions, and recovery/pose-tail splits
 are installed for moves `677` and `679`. The early held-back boundary is also
 implemented: move-524 frames 1-9 reverse through move `253`, while frame 10
-rejects that route. Late guard/WS ownership and exact repeated-root transfer
-remain before this phase's full exit gate is closed.
+rejects that route. The late route now publishes neutral rise `256` or guarded
+back rise `258`, preserves compatible rise frames, and gives WS/FC buttons
+ownership through frame 5 before standing commands win from frame 6. Exact
+repeated-root transfer and the remaining jump/low-parry branches remain before
+this phase's full exit gate is closed.
 
 Exit gate: normal WHF, electric, failed electric, repeated CD, and buffered CD
 follow-ups route to the same moves on the same frames as the reference.

@@ -466,6 +466,12 @@ export class Sim {
       return;
     }
 
+    if (f.action === "rising" && inp.pressed) {
+      if (this.tryStartT5RisingCommand(f, opp, inp)) return;
+      this.decideMovement(f, inp);
+      return;
+    }
+
     // buffered move during recovery: executes on the first actionable frame (spec 5.1)
     if (!isActionable(f)) {
       const bufferable =
@@ -571,6 +577,20 @@ export class Sim {
           : inp.pressedDir === "n"
             ? "WS"
             : null;
+    return this.tryStartCommand(f, opp, inp, moveStance, true);
+  }
+
+  private tryStartT5RisingCommand(f: FighterState, opp: FighterState, inp: FrameInput): boolean {
+    // PAL group 908 is the inverse of the reverse-shell table: WS/FC owns
+    // frames 1..5, then the ordinary standing table wins from frame 6.
+    const moveStance: FighterStance =
+      f.actionFrame <= 5
+        ? DIR_HAS_D[inp.pressedDir]
+          ? "FC"
+          : inp.pressedDir === "n"
+            ? "WS"
+            : "stand"
+        : "stand";
     return this.tryStartCommand(f, opp, inp, moveStance, true);
   }
 
@@ -1095,9 +1115,33 @@ export class Sim {
     f.t5CrouchMoveId = moveId;
   }
 
-  private enterRising(f: FighterState, moveId: 256 | 257): void {
+  private enterRising(f: FighterState, moveId: 256 | 257 | 258, targetFrame = 1): void {
     this.setAction(f, "rising", 10);
     f.t5CrouchMoveId = moveId;
+    f.actionFrame = targetFrame;
+  }
+
+  private finishT5Rising(f: FighterState, moveId: 256 | 257 | 258): void {
+    const target = moveId === 257 ? "walkF" : moveId === 258 ? "walkB" : "idle";
+    this.setAction(f, target, 0);
+    f.actionFrame = 1;
+    this.applyT5Locomotion(f);
+  }
+
+  private updateT5RisingShell(f: FighterState, dir: FrameInput["dir"]): void {
+    const sourceFrame = f.actionFrame - 1;
+    let moveId = f.t5CrouchMoveId as 256 | 257 | 258;
+
+    if (sourceFrame <= 9) {
+      const compatibleMoveId = dir === "b" ? 258 : dir === "f" ? 257 : dir === "n" ? 256 : moveId;
+      if (compatibleMoveId !== moveId) {
+        moveId = compatibleMoveId;
+        f.t5CrouchMoveId = compatibleMoveId;
+      }
+    }
+
+    this.applyT5Locomotion(f);
+    if (f.actionFrame > 10) this.finishT5Rising(f, moveId);
   }
 
   private updateT5CrouchShell(f: FighterState, dir: FrameInput["dir"]): void {
@@ -1339,8 +1383,7 @@ export class Sim {
           this.enterCrouch(f, this.t5CrouchEntryMoveId(inp.dir));
           break;
         }
-        this.applyT5Locomotion(f);
-        if (f.actionFrame >= 10) this.setAction(f, "idle", 0);
+        this.updateT5RisingShell(f, inp.dir);
         break;
       case "dash": {
         this.applyT5Locomotion(f);
@@ -1487,9 +1530,13 @@ export class Sim {
         }
         this.applyT5Locomotion(f);
         if (f.actionFrame >= T.cdFrames) {
-          // PAL move 524 always auto-transitions to crouch alias 0x8002.
-          // A released direction begins the rising shell on the following tick.
-          this.enterCrouch(f);
+          // The internal crouch alias resolves before the next published
+          // player state. Neutral and late back therefore expose rise shells
+          // 256 and 258 directly rather than a one-tick move-234 surrogate.
+          if (inp.dir === "b") this.enterRising(f, 258, 1);
+          else if (inp.dir === "f") this.enterRising(f, 257, 1);
+          else if (!DIR_HAS_D[inp.dir]) this.enterRising(f, 256, 1);
+          else this.enterCrouch(f);
         }
         break;
       }
@@ -1956,13 +2003,13 @@ export class Sim {
     const passiveT5StandingGuard =
       (def.action === "backdash" &&
         (def.t5BackdashMoveId === 230 || def.t5BackdashMoveId === 232)) ||
+      (def.action === "rising" && (def.t5CrouchMoveId === 256 || def.t5CrouchMoveId === 258)) ||
       (def.action === "jump" &&
         def.t5LocomotionReverse &&
         (def.t5JumpMoveId === 251 || def.t5JumpMoveId === 253));
     const guardableAction =
       def.action === "idle" ||
       def.action === "walkB" ||
-      def.action === "rising" ||
       def.action === "turn" ||
       passiveT5StandingGuard ||
       (def.action === "ss" && def.ssPhase === "walkStop") ||

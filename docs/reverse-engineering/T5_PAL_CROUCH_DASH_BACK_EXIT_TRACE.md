@@ -1,6 +1,7 @@
 # Tekken 5 PAL Jin crouch-dash back-exit trace
 
-Status: early held-back exit implemented. Updated 2026-08-12.
+Status: early held-back exit implemented. Updated 2026-08-12. The late branch
+is now continued in `T5_PAL_CROUCH_DASH_LATE_EXIT_AND_WS_TRACE.md`.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. Both live player records were sampled at 1,000 Hz. A fresh
@@ -70,9 +71,8 @@ Moving the back edge one player frame later rejected the branch:
 524 frame 9 -> 524 frame 10 -> ... -> 524 frame 19 -> 258 -> 256
 ```
 
-The exact late route remains open: the capture proves that frame 10 no longer
-owns move `253`, but it does not yet establish every directional wrapper and
-button-precedence boundary after move `524` completes.
+Subsequent captures closed the late neutral/back route and WS-to-standing
+button boundary. See `T5_PAL_CROUCH_DASH_LATE_EXIT_AND_WS_TRACE.md`.
 
 ## Clone contract
 
@@ -84,5 +84,6 @@ The implemented slice requires:
 4. source frame 10 remaining in move `524`; and
 5. same-tick button commands taking priority over the movement exit.
 
-Late back through `258 -> 256`, neutral release, low guard, low parry, and exact
-WS-button ownership remain separate Phase 5 measurements.
+Late back through `258 -> 256`, neutral release, passive guard, and exact
+WS-button ownership are now implemented in the follow-up trace. Low parry and
+the remaining directional/button families remain separate Phase 5 measurements.

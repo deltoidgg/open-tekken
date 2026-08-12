@@ -72,4 +72,80 @@ describe("Tekken 5 PAL crouch-dash exit routes", () => {
     expect(fighter.moveId).not.toBeNull();
     expect(fighter.t5LocomotionReverse).toBe(false);
   });
+
+  it("publishes neutral rise 256 directly after move 524 frame 19", () => {
+    const sim = enterCrouchDashFrame(19);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad(), pad());
+
+    expect(fighter).toMatchObject({
+      action: "rising",
+      actionFrame: 1,
+      t5CrouchMoveId: 256,
+    });
+  });
+
+  it("publishes late held back as guarded rise 258 before back walk", () => {
+    const sim = enterCrouchDashFrame(19);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter).toMatchObject({
+      action: "rising",
+      actionFrame: 1,
+      t5CrouchMoveId: 258,
+    });
+    expect(t5LocomotionPhase(fighter.action, fighter.actionFrame, false, 258)).toMatchObject({
+      animation: { romMoveId: 258 },
+      actionFrame: 1,
+      transfersRoot: false,
+    });
+
+    run(sim, 9, { dx: -1 });
+    expect(fighter).toMatchObject({ action: "rising", actionFrame: 10, t5CrouchMoveId: 258 });
+
+    sim.step(pad({ dx: -1 }), pad());
+    expect(fighter).toMatchObject({ action: "walkB", actionFrame: 1 });
+    expect(t5LocomotionPhase(fighter.action, fighter.actionFrame)?.animation.romMoveId).toBe(227);
+  });
+
+  it("preserves the late back-rise frame when release selects move 256", () => {
+    const sim = enterCrouchDashFrame(19);
+    const fighter = sim.gs.fighters[0];
+    sim.step(pad({ dx: -1 }), pad());
+    run(sim, 5, { dx: -1 });
+    expect(fighter).toMatchObject({ action: "rising", actionFrame: 6, t5CrouchMoveId: 258 });
+
+    sim.step(pad(), pad());
+
+    expect(fighter).toMatchObject({ action: "rising", actionFrame: 7, t5CrouchMoveId: 256 });
+    expect(t5LocomotionPhase(fighter.action, fighter.actionFrame, false, 256)).toMatchObject({
+      animation: { romMoveId: 256 },
+      actionFrame: 7,
+    });
+  });
+
+  it("gives neutral 1 to WS1 through rise frame 5, then standing jab from frame 6", () => {
+    const whileStanding = enterCrouchDashFrame(19);
+    const standing = enterCrouchDashFrame(19);
+    whileStanding.step(pad(), pad());
+    standing.step(pad(), pad());
+    run(whileStanding, 4);
+    run(standing, 5);
+
+    whileStanding.step(pad({ btns: B1 }), pad());
+    standing.step(pad({ btns: B1 }), pad());
+
+    expect(whileStanding.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.ws1",
+    });
+    expect(standing.gs.fighters[0]).toMatchObject({
+      action: "attack",
+      actionFrame: 1,
+      moveId: "jin.1",
+    });
+  });
 });
