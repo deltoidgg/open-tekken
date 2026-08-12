@@ -40,6 +40,7 @@ import {
   t5LocomotionPhase,
   t5LocomotionRootDelta,
   t5LocomotionRootDeltaBetween,
+  t5LocomotionResetRootCommit,
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
@@ -360,6 +361,36 @@ describe("Tekken 5 PAL locomotion roots", () => {
 
     run(sim, 14);
     expect(fighter.action).toBe("idle");
+  });
+
+  it("publishes the preserved walk root base on the 672 -> 673 reset", () => {
+    expect(t5LocomotionResetRootCommit(672, 673)).toEqual([0.000984, 0, 0.00433]);
+    expect(t5LocomotionResetRootCommit(225, 673)).toEqual([0, 0, 0]);
+
+    const sim = fightSim(1.884462334998626);
+    const [attacker, defender] = sim.gs.fighters;
+    run(sim, 4, { dx: 1 });
+    run(sim, 3);
+    sim.step(pad({ dy: -1 }), pad());
+
+    expect(attacker).toMatchObject({ action: "crouch", actionFrame: 1, t5CrouchMoveId: 673 });
+    expect(
+      Math.abs(
+        Math.hypot(attacker.pos.x - defender.pos.x, attacker.pos.z - defender.pos.z) - 1.656312025,
+      ),
+    ).toBeLessThan(0.0002);
+
+    run(sim, 3, { dy: -1 });
+    run(sim, 4, { dx: 1, dy: -1 });
+    sim.step(pad({ dx: 1, dy: -1, btns: B4 }), pad());
+
+    expect(attacker).toMatchObject({ action: "attack", actionFrame: 1, moveId: "jin.cd4" });
+    expect(
+      Math.abs(
+        Math.hypot(attacker.pos.x - defender.pos.x, attacker.pos.z - defender.pos.z) -
+          1.3607993604610118,
+      ),
+    ).toBeLessThan(0.0001);
   });
 
   it("plays the complete 35-frame backdash curve", () => {

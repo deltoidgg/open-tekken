@@ -404,8 +404,18 @@ pushback vector. The clone matches the completed contact exactly and reaches
 residual. The `524 -> 607/605/603` branches also commit move 524's missing
 `0.022 m` frame-zero forward root. All four contacts and Hell Trip's pushback
 endpoint now clear the `1 mm` gate. The remaining upstream route discrepancy
-is about `4.4 mm` during move-607 frames 1-5, before the first measured body
-edge, and belongs to the preserved `222 -> 672 -> 673` transition base.
+at that checkpoint was about `4.4 mm` during move-607 frames 1-5, before the
+first measured body edge, and belonged to the preserved `222 -> 672 -> 673`
+transition base.
+
+Preserved-release root checkpoint 2026-08-12: the high-rate trace and executable
+root-publication path identify that base directly. Move 672 preserves move
+222's relative timeline; the `672 -> 673` reset then commits move 222 frame 1's
+raw node-0 planar root `(0.000984, 0.004330) m`. The trace inspector now retains
+the pending-transfer and four-tick carry sub-phases instead of collapsing them.
+The clone derives the commit from generated pose data and reaches move-673
+frame 1 within `0.100 mm` and move-607 frame 1 within `0.063 mm`, closing the
+former `4.4 mm` upstream route discrepancy before body collision begins.
 
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.

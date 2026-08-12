@@ -1,7 +1,7 @@
 import { t5JinLocomotionAnimation } from "../data/t5-jin-locomotion-native.ts";
 import type { T5LocalPoint, T5NativeAnimationDef } from "../data/types.ts";
 import type { Action } from "./state.ts";
-import { sampleT5RootOffset, T5_ZERO_ROOT_OFFSET } from "./t5-geometry.ts";
+import { sampleT5PoseRoot, sampleT5RootOffset, T5_ZERO_ROOT_OFFSET } from "./t5-geometry.ts";
 
 export interface T5LocomotionPhase {
   animation: T5NativeAnimationDef;
@@ -211,6 +211,23 @@ export function t5LocomotionRootDeltaBetween(
   const fromRoot = sampleT5RootOffset(from.animation, from.actionFrame);
   const toRoot = sampleT5RootOffset(to.animation, to.actionFrame);
   return [toRoot[0] - fromRoot[0], toRoot[1] - fromRoot[1], toRoot[2] - fromRoot[2]];
+}
+
+const T5_RESET_ROOT_COMMIT_SOURCE = new Map([
+  // The compatible 222 -> 672 release carries move 222's relative curve. The
+  // following reset commits its previously unowned raw frame-zero root.
+  ["672:673", { moveId: 222, actionFrame: 1 }],
+]);
+
+/** Planar frame-zero root published when a native locomotion chain resets. */
+export function t5LocomotionResetRootCommit(
+  sourceMoveId: number | undefined,
+  targetMoveId: number,
+): T5LocalPoint {
+  const source = T5_RESET_ROOT_COMMIT_SOURCE.get(`${sourceMoveId}:${targetMoveId}`);
+  if (!source) return T5_ZERO_ROOT_OFFSET;
+  const root = sampleT5PoseRoot(t5JinLocomotionAnimation(source.moveId), source.actionFrame);
+  return [root[0], 0, root[2]];
 }
 
 const SIDESTEP_MOVES = {

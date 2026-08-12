@@ -45,6 +45,7 @@ import {
   t5LocomotionPhase,
   t5LocomotionRootDelta,
   t5LocomotionRootDeltaBetween,
+  t5LocomotionResetRootCommit,
   t5SidestepAnimationPhase,
   t5SidestepRootDelta,
   t5SidestepRootOffset,
@@ -682,6 +683,13 @@ export class Sim {
     const inForwardRelease = f.action === "walkF" && f.actionTotal > 0;
     const inDashRelease = f.action === "dash" && f.t5DashMoveId === 225;
     if (inp.dir === "d" && (inForwardRelease || inDashRelease)) {
+      const sourceMoveId = t5LocomotionPhase(
+        f.action,
+        f.actionFrame,
+        inForwardRelease,
+        this.t5NativeLocomotionMoveId(f),
+      )?.animation.romMoveId;
+      this.applyT5LocalRootDelta(f, t5LocomotionResetRootCommit(sourceMoveId, 673));
       this.enterCrouch(f, 673);
       return;
     }

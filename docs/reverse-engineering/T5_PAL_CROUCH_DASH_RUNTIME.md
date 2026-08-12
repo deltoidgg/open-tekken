@@ -160,6 +160,13 @@ The runtime now uses generated move-524 data for:
   crouch lowering shell; and
 - the measured repeated route through native moves 224, 225, and 673.
 
+The first `222 -> 672 -> 673` route has one additional split-root boundary.
+Move 672 preserves move 222's relative timeline, and the move-673 reset commits
+move 222's still-unowned raw frame-zero planar root `(0.000984, 0.004330) m`.
+This is generated pose data recovered from the executable's root-publication
+path, not added crouch-dash travel. It closes the controlled pre-attack route to
+within `0.11 mm` at move-673 frame 1 and `0.07 mm` at move-607 frame 1.
+
 The input fix is behavioral as well as numeric. Before this slice, the `d`
 stage changed the clone to ordinary crouch, and `decideMovement` rejected
 crouching actions before it could consume the final CD event. Bare crouch dash

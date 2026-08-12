@@ -57,9 +57,12 @@ local lunge remains separate from the logical stage anchor.
 ## Recovered root curves
 
 Values below are animation-local displacement relative to frame zero. The
-runtime root is the component-wise sum of translation channels 0 and 1. Each
-per-frame delta is rotated by fighter orientation and transferred into the
-logical world root; vertical values remain pose data for these grounded states.
+runtime root is the component-wise sum of translation channels 0 and 1. PAL
+keeps that animated/rendered root separate from the logical stage anchor and
+can publish several relative samples before committing them at a reset. The
+clone's one-anchor equivalent transfers each relative delta as it is sampled,
+then applies any frame-zero root left unowned by the preserved chain. Vertical
+values remain pose data for these grounded states.
 
 | State                       | PAL moves    | Frames |   End (m) | Peak (m @ zero-based frame) |
 | --------------------------- | ------------ | -----: | --------: | --------------------------: |
@@ -186,6 +189,50 @@ stop animation.
 The exact shell records, side requirements, and root-composition disassembly
 are documented in `T5_PAL_SIDESTEP_RUNTIME.md`.
 
+## Preserved-release root publication
+
+The high-rate Hell Trip setup exposes both phases of the forward-release
+handoff. `inspect-player-trace.mjs` now decodes root-transfer byte `+0x1B8` and
+the transition state at `+0x7C8/+0x7E0/+0x7E8/+0x7FC/+0x804`, so the two
+publications no longer collapse into one timeline row:
+
+| Time (ms) | State                  | Logical X/Z               | Composed X/Z       | Pending | Carry X/Z         |        Weight |
+| --------: | ---------------------- | ------------------------- | ------------------ | ------: | ----------------- | ------------: |
+| `596.636` | `222 f4`               | `-49469.844 / 216727.219` | `12.919 / -63.438` |     `0` | `7.426 / 6.986`   |     `0/16384` |
+| `616.636` | `672 f5`, source phase | `-49469.469 / 216731.828` | `12.919 / -63.438` |     `1` | `7.426 / 6.986`   |     `0/16384` |
+| `617.639` | `672 f5`, target phase | `-49476.512 / 216771.047` | `0 / -155.601`     |     `0` | `12.919 / 37.693` | `12288/16384` |
+| `656.636` | `672 f7`               | `-49476.512 / 216771.047` | `0 / -270.371`     |     `0` | `12.919 / 37.693` |  `4096/16384` |
+| `658.636` | `673 f1`               | `-49517.000 / 216503.719` | `0.840 / 4.980`    |     `0` | `2.390 / 4.443`   | `12288/16384` |
+
+Executable `0x002CE774..0x002CE8A4` samples the target root while `+0x1B8` is
+set and republishes the logical anchor from the previous rendered root. With
+`theta = -rootAngle * pi / 32768`, the planar operation is:
+
+```text
+rootWorldX = rootX * cos(theta) + rootZ * sin(theta)
+rootWorldZ = rootX * sin(theta) - rootZ * cos(theta)
+logicalX   = previousRenderX - rootWorldX
+logicalZ   = previousRenderZ - rootWorldZ
+```
+
+For `222 -> 672`, the sampled target is move-672's preceding frame root,
+approximately `(0, -105.744)` native units, while the four-tick carry decays
+through weights `3/4`, `2/4`, `1/4`, and zero. At the following `672 -> 673`
+reset, the final quarter of the old carry and the new full carry cancel in the
+single-anchor displacement. What remains outside the generated relative curves
+is move 222 frame 1's raw node-0 root:
+
+```text
+(side, up, forward) = (0.000984, 1.067438, 0.004330) m
+planar reset commit = (0.000984, 0,        0.004330) m
+```
+
+The clone now derives this value from move 222's generated pose rather than a
+distance constant and publishes it only on the measured `672 -> 673` reset.
+The controlled route reaches `1.656412 m` on `673 f1` versus PAL
+`1.656312 m`, then `1.360862 m` on `607 f1` versus `1.360799 m`. Residuals are
+`0.100 mm` and `0.063 mm`, respectively, before any measured body correction.
+
 ## Posed body ownership
 
 Generated locomotion data includes all eight body-push sphere centres for every
@@ -229,6 +276,8 @@ Focused tests verify:
 - first-frame `d/b` cancellation into move `255` without stale root transfer;
 - held dash entering run at frame 12;
 - the complete move-524 crouch-dash curve and crouch handoff;
+- the `222 -> 672 -> 673` preserved-release frame-zero root commit and
+  sub-`0.11 mm` pre-collision route checkpoints;
 - the measured `524 -> 224 -> 225 -> 673 -> 524` repeat route and exact
   `1.272412 m` transferred displacement;
 - both complete 27-frame quick-step curves;
@@ -261,6 +310,7 @@ Focused tests verify:
    collision, and logical displacement share one source. Jump root height is
    already rendered, but its limb pose remains procedural.
 
-Future controlled traces should add logical root, render root, root-transfer
-flag, and all eight body-sphere centres to the input edge, current move, and
-player frame already captured in the backdash/KBD slice.
+Future controlled traces should retain the logical root, render root,
+root-transfer flag, transition carry/weight, and all eight body-sphere centres
+alongside the input edge, current move, and player frame already captured in
+the backdash/KBD slice.

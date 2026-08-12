@@ -88,9 +88,10 @@ Trip. At the captured move-524 frame-4 branch, the generated relative curve has
 already transferred `0.273550 m`; PAL also commits the animation's `22` native
 unit frame-zero forward root. The clone now records that `0.022 m` base on all
 three `524 -> 607/605/603` attack entries instead of dropping it at the action
-boundary. The long-pulse setup still enters move 607 about `4.4 mm` from PAL on
-frames 1-5 because the earlier `222 -> 672 -> 673` base transition is not yet
-exact; the first measured body solve on frame 6 closes that upstream residual.
+boundary. Upstream, the preserved `222 -> 672` release leaves move 222's raw
+frame-zero planar root for the `672 -> 673` reset to commit. Deriving that
+`(0.000984, 0.004330) m` base from the generated pose reduces the former
+`4.4 mm` pre-body discrepancy to `0.063 mm` on move-607 frame 1.
 
 The same replay exposed a separate publication-clock error. PAL publishes
 native launch reaction `615` as frame 1 on the Hell Trip contact state. The
@@ -381,8 +382,6 @@ first relaunch height, and timeline-freeze result.
   including side reaction `530`.
 - Trace reaction `1/12` post-frame-50 get-up, tech, and stay-down options. The
   measured route currently closes at the landing gate.
-- Recover the remaining `222 -> 672 -> 673` transition base; the controlled
-  long-pulse route is about `4.4 mm` off before move-607 frame 6.
 - Replace the phase-aligned body-edge profiles with PAL's complete secondary
   pose/constraint stage so arbitrary spacings and defender poses resolve from
   generated collision inputs rather than measured route pairs.

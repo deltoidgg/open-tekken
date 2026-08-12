@@ -12,6 +12,7 @@ const PLAYER_FRAME_OFFSET = 0x96;
 const LOGICAL_DISPLACEMENT_OFFSET = 0x11c;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
+const ROOT_TRANSFER_PENDING_OFFSET = 0x1b8;
 const PUSHBACK_DURATION_OFFSET = 0x2a4;
 const PUSHBACK_SAMPLE_COUNT_OFFSET = 0x2a6;
 const PUSHBACK_DIRECTION_OFFSET = 0x2a8;
@@ -26,6 +27,12 @@ const BODY_PUSH_ORIGIN_OFFSET = 0x510;
 const COMPOSED_DISPLACEMENT_OFFSET = 0x640;
 const BODY_CORRECTION_OFFSET = 0x690;
 const RENDER_ROOT_OFFSET = 0x750;
+const ROOT_TRANSITION_MODE_OFFSET = 0x7c8;
+const ROOT_TRANSITION_X_OFFSET = 0x7e0;
+const ROOT_TRANSITION_Z_OFFSET = 0x7e8;
+const ROOT_TRANSITION_WEIGHT_DENOMINATOR_OFFSET = 0x7fc;
+const ROOT_TRANSITION_WEIGHT_NUMERATOR_OFFSET = 0x804;
+const MINIMUM_PLAYER_SIZE = ROOT_TRANSITION_WEIGHT_NUMERATOR_OFFSET + 4;
 export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
 export const T5_MOVE_RECORD_SIZE = 0x4c;
 
@@ -66,6 +73,16 @@ function readPlayer(buffer, offset) {
     currentMovePointer,
     nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
     dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
+    rootTransition: {
+      transferPending: buffer.readUInt8(offset + ROOT_TRANSFER_PENDING_OFFSET) !== 0,
+      mode: buffer.readUInt32LE(offset + ROOT_TRANSITION_MODE_OFFSET),
+      offset: {
+        x: buffer.readFloatLE(offset + ROOT_TRANSITION_X_OFFSET),
+        z: buffer.readFloatLE(offset + ROOT_TRANSITION_Z_OFFSET),
+      },
+      weightDenominator: buffer.readInt32LE(offset + ROOT_TRANSITION_WEIGHT_DENOMINATOR_OFFSET),
+      weightNumerator: buffer.readInt32LE(offset + ROOT_TRANSITION_WEIGHT_NUMERATOR_OFFSET),
+    },
     impactCounter: buffer.readInt16LE(offset + IMPACT_COUNTER_OFFSET),
     pushback: {
       pointer: buffer.readUInt32LE(offset + PUSHBACK_POINTER_OFFSET),
@@ -114,8 +131,7 @@ export function parsePlayerTrace(buffer) {
   const playerSize = buffer.readUInt32LE(32);
   const sampleCount = buffer.readUInt32LE(36);
   if (frequency <= 0n) throw new Error("Player trace frequency must be positive");
-  if (playerSize <= IMPACT_COUNTER_OFFSET + 2)
-    throw new Error("Player trace structs are too small");
+  if (playerSize < MINIMUM_PLAYER_SIZE) throw new Error("Player trace structs are too small");
 
   const recordSize = 8 + playerSize * 2;
   const expectedSize = HEADER_SIZE + recordSize * sampleCount;
@@ -160,6 +176,12 @@ function timelineKey(sample) {
       player.pushback.remainingDuration,
       player.pushback.remainingSamples,
       player.pushback.samplePointer,
+      Number(player.rootTransition.transferPending),
+      player.rootTransition.mode,
+      player.rootTransition.offset.x,
+      player.rootTransition.offset.z,
+      player.rootTransition.weightDenominator,
+      player.rootTransition.weightNumerator,
     ])
     .join(":");
 }
