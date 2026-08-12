@@ -3,6 +3,7 @@ import type { Rng } from "../core/rng.ts";
 import { B1, B2, B3, B4, emptyPad, type Pad } from "../input/pad.ts";
 import { moveById, JIN_THROWS } from "../data/jin.ts";
 import type { GameState, FighterState } from "../sim/state.ts";
+import { t5AirborneHeight } from "../sim/t5-airborne.ts";
 
 export type Difficulty = "beginner" | "warrior" | "master" | "lord";
 
@@ -155,7 +156,12 @@ export class GhostAI {
     }
 
     // ukemi: tech sometimes when launched & falling
-    if (me.action === "launched" && me.vel.y < 0 && me.pos.y < 0.45 && this.rng.chance(0.35)) {
+    if (
+      me.action === "launched" &&
+      me.vel.y < 0 &&
+      t5AirborneHeight(me) < 0.45 &&
+      this.rng.chance(0.35)
+    ) {
       return { ...emptyPad(), btns: this.rng.chance(0.5) ? B1 : B2 };
     }
 
@@ -209,7 +215,7 @@ export class GhostAI {
     if (!this.canAct(me)) return emptyPad();
 
     // juggle: opponent launched → combo
-    if (opp.action === "launched" && opp.pos.y > 0.2 && me.action !== "attack") {
+    if (opp.action === "launched" && t5AirborneHeight(opp) > 0.2 && me.action !== "attack") {
       this.aiState = "juggle";
       if (!this.rng.chance(this.params.comboDrop)) {
         this.queueJuggle();

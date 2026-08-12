@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { clamp, damp } from "../core/math.ts";
 import { TUNING as T } from "../data/tuning.ts";
+import { t5AirborneHeight } from "../sim/t5-airborne.ts";
 import type { GameState } from "../sim/state.ts";
 
 const H_FOV = 62; // constant horizontal FOV degrees; vertical derives from aspect
@@ -41,7 +42,7 @@ export class CameraRig {
     const [a, b] = gs.fighters;
     const mid = new THREE.Vector3(
       (a.pos.x + b.pos.x) / 2,
-      1.0 + Math.min(1.2, Math.max(a.pos.y, b.pos.y) * 0.35),
+      1.0 + Math.min(1.2, Math.max(t5AirborneHeight(a), t5AirborneHeight(b)) * 0.35),
       (a.pos.z + b.pos.z) / 2,
     );
     const dx = b.pos.x - a.pos.x;
@@ -84,7 +85,7 @@ export class CameraRig {
     if (gs.phase === "koFreeze" || gs.phase === "koSlow") {
       // dolly toward the loser for the KO shot
       const loser = gs.koWinner >= 0 ? gs.fighters[gs.koWinner === 0 ? 1 : 0] : a;
-      lookAt = new THREE.Vector3(loser.pos.x, 1.0 + loser.pos.y * 0.5, loser.pos.z);
+      lookAt = new THREE.Vector3(loser.pos.x, 1.0 + t5AirborneHeight(loser) * 0.5, loser.pos.z);
       dist = 2.7;
       height = 1.2;
     } else if (gs.phase === "replay") {

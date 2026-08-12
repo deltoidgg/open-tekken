@@ -26,6 +26,7 @@ import {
   type SimEvent,
   type T5PoseTail,
 } from "./state.ts";
+import { t5AirborneHeight } from "./t5-airborne.ts";
 import { selectMove, selectThrow, stanceOf } from "./select.ts";
 import {
   sampleT5PoseRoot,
@@ -2099,7 +2100,7 @@ export class Sim {
     const rem = Math.max(0, atk.actionTotal - c.contactFrame);
     const impact = {
       x: def.pos.x - fw.x * 0.25,
-      y: 1.05 + (def.pos.y ?? 0),
+      y: 1.05 + t5AirborneHeight(def),
       z: def.pos.z - fw.z * 0.25,
     };
 
@@ -2342,7 +2343,9 @@ export class Sim {
         T.juggleCarryBonus[hd.flags?.knockback ?? "small"];
       if (hd.flags?.knockback !== "big") {
         // keep the juggle apex near chest height so strings keep connecting
-        const cap = Math.sqrt(Math.max(0.25, 2 * T.launchGravity * (T.juggleApex - def.pos.y)));
+        const cap = Math.sqrt(
+          Math.max(0.25, 2 * T.launchGravity * (T.juggleApex - t5AirborneHeight(def))),
+        );
         lift = Math.min(lift, cap);
       }
       def.vel.y = Math.max(lift, 2.2);
@@ -2462,6 +2465,8 @@ export class Sim {
               sourceWorldRoot[2] - targetRoot[2],
             ]
           : [0, 0, 0];
+      // PAL keeps player+0x04 on the ground plane; the reaction pose owns height.
+      fighter.pos.y = 0;
     } else if (!preserveRoot) {
       fighter.t5AirTrajectoryMoveId = null;
       fighter.t5AirTrajectoryFrame = 0;
@@ -2549,7 +2554,7 @@ export class Sim {
       const current = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame);
       const previous = sampleT5ReactionRootOffset(trajectory, f.t5AirTrajectoryFrame - 1);
       f.vel.y = (current[1] - previous[1]) / T5_FRAME_DT;
-      f.pos.y = Math.max(0, f.t5AirTrajectoryOrigin[1] + current[1]);
+      f.pos.y = 0;
       this.syncT5ReactionOrigin(f);
       if (f.t5AirTrajectoryFrame >= trajectory.airborneLandingFrame) {
         f.pos.y = 0;
@@ -2942,7 +2947,13 @@ export class Sim {
       const hitWallZ = pz !== f.pos.z;
       if ((hitWallX || hitWallZ) && (f.action === "launched" || f.action === "ko")) {
         const speed = Math.hypot(f.vel.x, f.vel.z);
-        if (f.action === "launched" && speed > 1.0 && f.pos.y > 0.12 && f.wallHits < T.wallHitCap) {
+        const airborneHeight = t5AirborneHeight(f);
+        if (
+          f.action === "launched" &&
+          speed > 1.0 &&
+          airborneHeight > 0.12 &&
+          f.wallHits < T.wallHitCap
+        ) {
           // W! wall splat
           f.pos.x = px;
           f.pos.z = pz;
@@ -2950,7 +2961,7 @@ export class Sim {
           const lateralV = hitWallX ? Math.abs(f.vel.z) : Math.abs(f.vel.x);
           f.wallSplatSide = lateralV > axial ? "side" : "front";
           f.vel.x = f.vel.y = f.vel.z = 0;
-          f.pos.y = Math.max(0.8, Math.min(1.15, f.pos.y));
+          f.pos.y = Math.max(0.8, Math.min(1.15, airborneHeight));
           this.setAction(f, "wallsplat", T.wallSplatFrames);
           f.hp = Math.max(0, f.hp - T.wallSplatBonus);
           f.comboDamage += T.wallSplatBonus;

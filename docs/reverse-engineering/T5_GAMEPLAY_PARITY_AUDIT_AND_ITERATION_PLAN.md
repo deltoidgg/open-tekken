@@ -307,6 +307,16 @@ Replace provisional shared ballistics one vertical slice at a time:
 4. grounded stay-down, quickstand, tech roll, and one get-up kick;
 5. side/back/downed pushback and orientation variants.
 
+First checkpoint 2026-08-12: three live PAL Hell Trip captures keep the victim's
+player-struct Y coordinate at zero throughout reaction `615`. Its generated
+reaction root instead owns the visible vertical trajectory, reaching a
+`0.254063 m` local apex at frame 15 before the native frame-60 landing gate.
+The clone now preserves that split: logical `pos.y` stays on the ground plane,
+render and posed collision consume the reaction root once, and camera, wall,
+impact, AI, and relift systems query an explicit effective airborne height.
+Legacy unmapped launches retain physics-owned Y. The first `d/b+2` air contact,
+reaction replacement, and horizontal pickup ownership remain the next slice.
+
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.
 

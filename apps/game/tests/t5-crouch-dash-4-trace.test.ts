@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { moveById } from "../src/data/jin.ts";
 import { t5JinReactionAnimation } from "../src/data/t5-jin-reactions-native.ts";
+import { t5AirborneHeight } from "../src/sim/t5-airborne.ts";
 import { t5CrouchDashFourRoute } from "../src/sim/t5-crouch-dash.ts";
 import type { Sim } from "../src/sim/sim.ts";
 import { B4, fightSim, measureAdvantage, pad, run, S } from "./helpers.ts";
@@ -192,8 +193,18 @@ describe("Tekken 5 PAL crouch-dash +4 routes", () => {
     sim.step(pad({ dx: 1, dy: -1, btns: B4 }), pad());
     while (defender.action !== "launched") sim.step(pad(), pad());
 
-    run(sim, 59);
+    expect(defender.pos.y).toBe(0);
+    run(sim, 15);
+    expect(defender).toMatchObject({
+      action: "launched",
+      t5AirTrajectoryFrame: 15,
+      pos: { y: 0 },
+    });
+    expect(t5AirborneHeight(defender)).toBeCloseTo(0.254063, 6);
+
+    run(sim, 44);
     expect(defender).toMatchObject({ action: "launched", t5AirTrajectoryFrame: 59 });
+    expect(defender.pos.y).toBe(0);
     sim.step(pad(), pad());
     expect(defender.action).toBe("grounded");
     expect(defender.pos.y).toBe(0);
