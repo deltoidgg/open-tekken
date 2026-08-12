@@ -500,8 +500,8 @@ describe("Tekken 5 PAL ROM parity", () => {
       ["jin.13.entry", [10], [6], 26],
       ["jin.13", [14], [10], 15],
       ["jin.132", [32], [10], 33],
-      ["jin.1321", [42], [10], 43],
-      ["jin.13214", [59], [10], 80],
+      ["jin.t5.346", [42], [10], 43],
+      ["jin.t5.349", [59], [10], 80],
     ] as const;
     for (const [id, activeFrames, damage, recovery] of route) {
       const move = moveById(id);
@@ -509,6 +509,57 @@ describe("Tekken 5 PAL ROM parity", () => {
       expect(move.hits.map((hit) => hit.damage)).toEqual(damage);
       expect(move.totalFrames).toBe(recovery);
     }
+    expect(moveById("jin.13").autoTransition).toEqual({
+      moveId: "jin.t5.340",
+      startingFrame: 15,
+      transitionMode: "reset",
+    });
+    expect(moveById("jin.13.entry")).toMatchObject({
+      hits: [
+        {
+          t5ReactionMoves: {
+            normal: 783,
+            counterHit: 780,
+            block: 689,
+            crouchBlock: 701,
+          },
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.13",
+        startingFrame: 10,
+        transitionMode: "reset",
+        compensateRoot: false,
+      },
+    });
+    expect(moveById("jin.13").hits[0]?.t5ReactionMoves).toEqual({
+      normal: 797,
+      counterHit: 794,
+      block: 339,
+      crouchBlock: 701,
+    });
+    expect(moveById("jin.t5.340")).toMatchObject({
+      totalFrames: 25,
+      hits: [],
+      t5Animation: { romMoveId: 340, animationLength: 40 },
+    });
+    expect(moveById("jin.132")).toMatchObject({
+      t5Animation: { romMoveId: 341, animationLength: 95 },
+      followups: [
+        {
+          moveId: "jin.t5.346",
+          buttons: B1,
+          window: [1, 32],
+          startingFrame: 32,
+          transitionMode: "preserve",
+        },
+      ],
+      autoTransition: {
+        moveId: "jin.t5.345",
+        startingFrame: 33,
+        transitionMode: "reset",
+      },
+    });
 
     const sim = fightSim(1.0);
     const before = hpOf(sim)[1];
@@ -516,12 +567,24 @@ describe("Tekken 5 PAL ROM parity", () => {
       sim.step(pad({ btns: button }), pad({ dx: 1 }));
     }
     const entryFrames = new Map<string, number>();
+    const entryOrigins = new Map<string, readonly number[]>();
+    const contacts: Array<[string, number, number]> = [];
     let previousMove = sim.gs.fighters[0].moveId;
     for (let i = 0; i < 140; i++) {
       sim.step(pad(), pad({ dx: 1 }));
       const fighter = sim.gs.fighters[0];
+      for (const event of sim.gs.events) {
+        if ((event.type === "hit" || event.type === "ch") && event.fighter === 0) {
+          contacts.push([
+            fighter.moveId!,
+            fighter.actionFrame,
+            sim.gs.fighters[1].t5ReactionMoveId!,
+          ]);
+        }
+      }
       if (fighter.moveId && fighter.moveId !== previousMove) {
         entryFrames.set(fighter.moveId, fighter.actionFrame);
+        entryOrigins.set(fighter.moveId, fighter.t5AnimationOrigin);
       }
       previousMove = fighter.moveId;
     }
@@ -531,10 +594,69 @@ describe("Tekken 5 PAL ROM parity", () => {
       "jin.13.entry": 10,
       "jin.13": 1,
       "jin.132": 15,
-      "jin.1321": 33,
-      "jin.13214": 43,
+      "jin.t5.346": 33,
+      "jin.t5.349": 43,
     });
+    expect(contacts).toEqual([
+      ["jin.13", 1, 783],
+      ["jin.132", 15, 797],
+      ["jin.t5.346", 33, 342],
+      ["jin.t5.349", 43, 897],
+      ["jin.t5.349", 60, 351],
+    ]);
+    expect(entryOrigins.get("jin.13")).toEqual([0, 0, 0]);
+    expect(entryOrigins.get("jin.132")).toEqual([0, 0, 0]);
+    expect(entryOrigins.get("jin.t5.349")).toEqual([0, 0, 0]);
   });
+
+  it.each([
+    ["1,3", [B1, B3], ["jin.1", "jin.13.entry", "jin.13", "jin.t5.340"], "jin.t5.340", 340],
+    [
+      "1,3,2",
+      [B1, B3, B2],
+      ["jin.1", "jin.13.entry", "jin.13", "jin.132", "jin.t5.345"],
+      "jin.t5.345",
+      345,
+    ],
+    [
+      "1,3,2,1",
+      [B1, B3, B2, B1],
+      ["jin.1", "jin.13.entry", "jin.13", "jin.132", "jin.t5.346", "jin.t5.348"],
+      "jin.t5.348",
+      348,
+    ],
+  ] as const)(
+    "routes standing Kazama Fury prefix %s into its native recovery",
+    (_command, buttons, expectedMoves, recoveryMoveId, recoveryRomMoveId) => {
+      const sim = fightSim(8);
+      const visited = new Map<string, number>();
+      let previousMove: string | null = null;
+
+      const recordMove = (): void => {
+        const fighter = sim.gs.fighters[0];
+        if (fighter.moveId && fighter.moveId !== previousMove) {
+          visited.set(fighter.moveId, fighter.actionFrame);
+        }
+        previousMove = fighter.moveId;
+      };
+
+      for (const button of buttons) {
+        sim.step(pad({ btns: button }), pad());
+        recordMove();
+      }
+      for (let frame = 0; frame < 120 && !visited.has(recoveryMoveId); frame++) {
+        sim.step(pad(), pad());
+        recordMove();
+      }
+
+      expect([...visited.keys()]).toEqual(expectedMoves);
+      expect(visited.get(recoveryMoveId)).toBe(1);
+      expect(moveById(recoveryMoveId)).toMatchObject({
+        hits: [],
+        t5Animation: { romMoveId: recoveryRomMoveId },
+      });
+    },
+  );
 
   it("resets both child timelines for 1,3~3,d/f+3", () => {
     const body = moveById("jin.13");

@@ -123,6 +123,8 @@ export interface FighterState {
   followupTargetFrame: number | null;
   /** ROM cancel mode used to preserve or compensate animation-local strike space. */
   followupTransitionMode: "reset" | "preserve" | null;
+  /** Whether the queued handoff keeps the source root continuous with its target. */
+  followupCompensateRoot: boolean;
   /** Route-specific PAL facing setup retained while a jump cancel waits for its gate. */
   t5QueuedCancelOrientationMode: number | null;
   followupAutomatic: boolean;
@@ -282,6 +284,7 @@ export function createFighter(id: 0 | 1): FighterState {
     followupAt: 0,
     followupTargetFrame: null,
     followupTransitionMode: null,
+    followupCompensateRoot: false,
     t5QueuedCancelOrientationMode: null,
     followupAutomatic: false,
     followupChain: [],

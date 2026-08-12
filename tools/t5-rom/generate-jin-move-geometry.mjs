@@ -9,7 +9,9 @@ import { JinPoseDeriver } from "./derive-jin-posed-geometry.mjs";
 import { parseMove } from "./inspect-ee-snapshot.mjs";
 
 export const DEFAULT_MOVE_IDS = Object.freeze([322, 465, 467, 509, 677]);
-export const COMBAT_MOVE_IDS = Object.freeze([334, 376, 337, 338, 368, 374, 369, 577, 578, 579]);
+export const COMBAT_MOVE_IDS = Object.freeze([
+  334, 376, 337, 338, 340, 341, 368, 374, 369, 577, 578, 579,
+]);
 export const BASIC_MOVE_IDS = Object.freeze([
   395, 397, 404, 418, 423, 399, 469, 494, 496, 502, 563, 456, 458, 462, 455, 526, 592, 460, 461,
   587, 593,

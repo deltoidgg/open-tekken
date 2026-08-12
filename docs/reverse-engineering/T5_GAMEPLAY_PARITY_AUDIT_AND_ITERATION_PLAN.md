@@ -64,6 +64,7 @@ The following slices are measured from the PAL executable and documented:
 | lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`              |
 | guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md` |
 | combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                  |
+| Kazama Fury route  | standing `1,3,2,1,4`, stop recoveries, contacts, reset-root boundary    | `T5_PAL_KAZAMA_FURY_TRACE.md`             |
 | launch/collision   | posed strike capsules, reaction roots, and mapped launchers             | `T5_PAL_POSED_COLLISION_AND_LAUNCHERS.md` |
 
 This foundation should be treated as executable specification, not as a pool of
@@ -450,6 +451,17 @@ lock the command boundaries, alternate whiff recovery, conditional block
 recovery, reaction 701, charge event, and buff lifetime. Native hit-freeze for
 this branch still needs a controlled live trace; the test locks the proven
 relative `-8` without treating the current shared freeze as ROM evidence.
+
+Eighth checkpoint: the ordinary standing `1,3,2,1,4` command now follows its
+native `334 -> 337 -> 338 -> 341 -> 346 -> 349` graph and reuses the recovered
+optional tail. Generated pose and strike data now include recovery move `340`
+and third-hit move `341`. A controlled live trace fixes target frames
+`10 -> 1 -> 15 -> 33 -> 43`, five normal-hit publications, and the 46-damage
+total. It also disproves persistent source-root carry for the measured
+`337 -> 338` reset: move 338 uses its decoded target root directly, while the
+separately required `1,2` and jump-shell compensation paths remain intact.
+Stop tests cover native recoveries `340`, `345`, and `348`; the move-349 block
+and charge branches remain shared with the seventh checkpoint.
 
 ## Rules for future tuning
 

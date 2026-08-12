@@ -241,10 +241,12 @@ posed contact and lets the roots cross, which is not a useful correction. The
 current evidence therefore supports keeping both systems and withdrawing the
 old assertion that the optional ender must produce 41 damage.
 
-What remains unverified is transition compensation over the long string. The
-clone carries a constant local origin across reset transitions to prevent a
-pose pop. The PAL executable may blend, decay, or transfer part of that origin.
-Live logical/render/body-sphere traces are required before changing this.
+Transition compensation is now known to vary by route. A controlled standing
+`1,3,2,1,4` trace proves that move `337 -> 338` uses the decoded child root
+directly; the clone's former persistent reset origin made its final low miss.
+That measured handoff now clears the origin. This does not resolve the two
+resets in `1,3~3,d/f+3`: they retain provisional source-root continuity until
+their logical/render/body-sphere boundaries are captured directly.
 
 ## Legacy combo quarantine
 
@@ -314,8 +316,8 @@ vp build
 
 ## Next implementation slices
 
-1. Recover transition blend/root compensation and remeasure long-string body
-   spacing before changing `t5AnimationOrigin` ownership.
+1. Trace and classify the two `1,3~3,d/f+3` reset-root handoffs, then remeasure
+   its long-string body spacing without generalizing from `337 -> 338`.
 2. Map airborne horizontal root/pushback and join it to wall collision without
    relying on legacy velocity.
 3. Expand generated attacker and reaction geometry to the moves used by one

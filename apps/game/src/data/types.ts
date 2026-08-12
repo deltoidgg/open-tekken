@@ -50,6 +50,8 @@ export interface T5MoveTransition {
   moveId: string;
   startingFrame: number;
   transitionMode: "reset" | "preserve";
+  /** Keep source/target roots continuous; reset transitions default true until traced otherwise. */
+  compensateRoot?: boolean;
 }
 
 export interface T5ContactTransition extends T5MoveTransition {
@@ -145,6 +147,8 @@ export interface FollowupDef {
   startingFrame?: number;
   /** Cancel extra-data behavior for the target animation timeline. */
   transitionMode?: "reset" | "preserve";
+  /** Keep source/target roots continuous; reset transitions default true until traced otherwise. */
+  compensateRoot?: boolean;
   /** slide input (3~3): replaces the pending parent before it comes out */
   slide?: boolean;
   requiresContact?: boolean;

@@ -26,6 +26,9 @@ import {
   T5_JIN_13_ENTRY_ANIMATION,
   T5_JIN_13_ENTRY_HITBOX,
   T5_JIN_13_HITBOX,
+  T5_JIN_13_RECOVERY_ANIMATION,
+  T5_JIN_132_ANIMATION,
+  T5_JIN_132_HITBOX,
   T5_JIN_133_ANIMATION,
   T5_JIN_133DF3_ANIMATION,
   T5_JIN_133DF3_HITBOX,
@@ -166,6 +169,7 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
+  "jin.132": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
   "jin.t5.346": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
   "jin.t5.349": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.ss.db4": outcomes(PB_730, PB_133DF3_CH, PB_BLOCK),
@@ -650,7 +654,7 @@ export const JIN_MOVES: MoveDef[] = [
         activeLen: 0,
         pushback: outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
         t5Hitbox: T5_JIN_13_ENTRY_HITBOX,
-        t5ReactionMoves: { normal: 783, counterHit: 780 },
+        t5ReactionMoves: { normal: 783, counterHit: 780, block: 689, crouchBlock: 701 },
         flags: { nc: true, knockback: "small" },
       }),
     ],
@@ -662,6 +666,7 @@ export const JIN_MOVES: MoveDef[] = [
         moveId: "jin.13",
         startingFrame: 10,
         transitionMode: "reset",
+        compensateRoot: false,
       },
     },
   ),
@@ -680,7 +685,7 @@ export const JIN_MOVES: MoveDef[] = [
         counterHitstun: 30,
         pushback: outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
         t5Hitbox: T5_JIN_13_HITBOX,
-        t5ReactionMoves: { normal: 797, counterHit: 794 },
+        t5ReactionMoves: { normal: 797, counterHit: 794, block: 339, crouchBlock: 701 },
         flags: { nc: true, knockback: "small" },
       }),
     ],
@@ -705,13 +710,14 @@ export const JIN_MOVES: MoveDef[] = [
         },
       ],
       autoTransition: {
-        moveId: "jin.13.recover",
+        moveId: "jin.t5.340",
         startingFrame: 15,
         transitionMode: "reset",
       },
     },
   ),
-  mv("jin.13.recover", "", "Knee Popper Recovery", 0, 25, [], {
+  mv("jin.t5.340", "", "Knee Popper Recovery", 0, 25, [], {
+    t5Animation: T5_JIN_13_RECOVERY_ANIMATION,
     anim: { clip: "snapKickL" },
   }),
   mv(
@@ -727,13 +733,17 @@ export const JIN_MOVES: MoveDef[] = [
         blockstun: 25,
         hitstun: 29,
         counterHitstun: 29,
+        t5Hitbox: T5_JIN_132_HITBOX,
+        t5ReactionMoves: { normal: 342, counterHit: 342, block: 344, crouchBlock: 701 },
       }),
     ],
     {
+      t5CancelOrientationMode: 2,
+      t5Animation: T5_JIN_132_ANIMATION,
       anim: { clip: "bodyPunchR" },
       followups: [
         {
-          moveId: "jin.1321",
+          moveId: "jin.t5.346",
           buttons: B1,
           window: [1, 32],
           startingFrame: 32,
@@ -741,67 +751,10 @@ export const JIN_MOVES: MoveDef[] = [
         },
       ],
       autoTransition: {
-        moveId: "jin.132.recover",
+        moveId: "jin.t5.345",
         startingFrame: 33,
         transitionMode: "reset",
       },
-    },
-  ),
-  mv("jin.132.recover", "", "Kazama Fury 3 Recovery", 0, 25, [], {
-    anim: { clip: "bodyPunchR" },
-  }),
-  mv(
-    "jin.1321",
-    "1,3,2,1",
-    "Kazama Fury 4",
-    42,
-    43,
-    [
-      hit("m", 10, 42, -3, +4, +4, {
-        range: 1.6,
-        activeLen: 0,
-        blockstun: 25,
-        hitstun: 32,
-        counterHitstun: 32,
-      }),
-    ],
-    {
-      anim: { clip: "bodyPunchL" },
-      followups: [
-        {
-          moveId: "jin.13214",
-          buttons: B4,
-          window: [1, 42],
-          startingFrame: 42,
-          transitionMode: "preserve",
-        },
-      ],
-      autoTransition: {
-        moveId: "jin.1321.recover",
-        startingFrame: 43,
-        transitionMode: "reset",
-      },
-    },
-  ),
-  mv("jin.1321.recover", "", "Kazama Fury 4 Recovery", 0, 28, [], {
-    anim: { clip: "bodyPunchL" },
-  }),
-  mv(
-    "jin.13214",
-    "1,3,2,1,4",
-    "Kazama Fury",
-    59,
-    80,
-    [
-      hit("l", 10, 59, -2, +24, +24, {
-        range: 1.7,
-        activeLen: 1,
-        flags: { knockback: "mid" },
-      }),
-    ],
-    {
-      anim: { clip: "lowRoundR" },
-      kiaiFollowup: true,
     },
   ),
   mv(

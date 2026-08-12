@@ -276,18 +276,20 @@ curves and land at the exact cancel-table gate. This removes scalar range and
 generic gravity from the mapped path while retaining both as explicit fallback
 behavior for unrecovered moves.
 
-Reset string transitions preserve the outgoing local root by carrying an
-animation origin into the child. This prevents immediate pose pops and keeps
-collision and rendering on the same origin. The executable's full transition
-blend/compensation curve is not yet recovered, so the current origin remains a
-known calibration boundary for long strings.
+Reset transitions do not share one universal root rule. Existing `1,2` and
+jump-shell regressions require source-root continuity, but a controlled live
+`1,3,2,1,4` trace shows move `337 -> 338` placing the decoded target root
+directly, with no persistent source-root carry. The clone keeps root continuity
+as the provisional default and records the measured direct-root handoff as
+transition metadata. Collision and rendering consume the same resulting
+origin. Other reset strings remain calibration boundaries until traced.
 
 ## Open questions
 
 1. Map every branch that sets `player + 0x1B8` to named movement states and
    moves, especially walk, dash, backdash, sidestep, crouch dash, and run.
-2. Recover transition blending and end-pose compensation, including whether a
-   carried reset origin decays or is transferred into the logical root.
+2. Classify reset transitions by their native root policy and recover any
+   blend/decay curve beyond the measured direct-root `337 -> 338` exception.
 3. Map the remaining location-code variants and any non-point attack volumes;
    the current packed node-pair decoder covers the mapped Jin slice.
 4. Extend the recovered cancel-driven orientation modes beyond the mapped

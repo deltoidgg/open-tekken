@@ -12,6 +12,8 @@ import {
 
 test("selects the reproducible Jin combat-geometry profile", () => {
   assert.deepEqual(selectMoveIds(["--profile", "combat"]), COMBAT_MOVE_IDS);
+  assert.ok(COMBAT_MOVE_IDS.includes(340));
+  assert.ok(COMBAT_MOVE_IDS.includes(341));
   assert.throws(
     () => selectMoveIds(["--profile", "combat", "334"]),
     /cannot be combined with explicit move IDs/,

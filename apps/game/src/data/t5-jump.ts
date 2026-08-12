@@ -16,6 +16,7 @@ export interface T5JumpAttackRoute {
   gate: number;
   transitionMode: "reset" | "preserve";
   orientationMode: number;
+  compensateRoot: boolean;
 }
 
 interface NativeJumpMoveSpec {
@@ -753,6 +754,7 @@ function shellMove(
       moveId: t5JumpMoveDefId(targetMoveId),
       startingFrame: gate,
       transitionMode: "reset",
+      compensateRoot: true,
     },
     anim: { clip: "t5NativeJumpShell" },
   };
@@ -849,6 +851,7 @@ export function t5JumpAttackRoute(
       gate: down || downForward ? 38 : 40,
       transitionMode: "reset",
       orientationMode: extraMode,
+      compensateRoot: true,
     };
   }
 
@@ -859,6 +862,7 @@ export function t5JumpAttackRoute(
         gate: 1,
         transitionMode: "reset",
         orientationMode: 19,
+        compensateRoot: true,
       };
     }
     const targetFamily = EARLY_TARGETS[buttons as keyof typeof EARLY_TARGETS];
@@ -868,6 +872,7 @@ export function t5JumpAttackRoute(
       gate: 1,
       transitionMode: "preserve",
       orientationMode: 2,
+      compensateRoot: true,
     };
   }
 
@@ -880,6 +885,7 @@ export function t5JumpAttackRoute(
     gate,
     transitionMode: "reset",
     orientationMode: 2,
+    compensateRoot: true,
   };
 }
 
@@ -900,5 +906,6 @@ export function t5StandingJumpAttackRoute(
     gate: 1,
     transitionMode: "reset",
     orientationMode: 4,
+    compensateRoot: false,
   };
 }

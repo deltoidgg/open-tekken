@@ -427,6 +427,15 @@ standing hurt spheres while active, including during an animation-owned launch.
 Unmapped attacks and reactions deliberately retain the older scalar/gravity
 fallback and must not be treated as parity-complete.
 
+The standing Kazama Fury route now follows native moves
+`334 -> 337 -> 338 -> 341 -> 346 -> 349`. Generated geometry includes moves
+`340` and `341`; stop branches enter recovery moves `340`, `345`, and `348`.
+The full route publishes five contacts at target frames `1`, `15`, `33`, `43`,
+and `60` after the route-specific frame-10 shell, dealing 46 damage. Its
+measured `337 -> 338` reset uses the target animation root directly instead of
+carrying the source origin. Full capture details and remaining reaction-alias
+work are in `T5_PAL_KAZAMA_FURY_TRACE.md`.
+
 The first native locomotion slice now transfers the generated roots and posed
 body collision for forward/back walk, dash, backdash, run, and Jin crouch dash.
 The `f,N,d,d/f` route resolves through moves `222 -> 672 -> 673 -> 524`; move
@@ -452,8 +461,8 @@ limitations are in `T5_PAL_SIDESTEP_RUNTIME.md`.
    implemented.
 2. Decode and test the remaining extra-data dispatch modes, cancel options,
    command groups, and requirements.
-3. Recover transition blend/root compensation so reset-string origins can be
-   checked against live long-string spacing.
+3. Classify remaining reset transitions by native root policy; `337 -> 338` is
+   now a measured direct-root handoff, while other strings remain provisional.
 4. Recover side, back-turned, downed, airborne, and wall pushback selection,
    including rotation corrections and the `player + 0x2C0` state bonus.
 5. Join native airborne horizontal displacement to wall impact; the current

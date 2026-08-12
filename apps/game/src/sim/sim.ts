@@ -64,6 +64,7 @@ const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.12",
   "jin.df1",
   "jin.d3",
+  "jin.t5.340",
   "jin.t5.345",
   "jin.t5.348",
   "jin.t5.349",
@@ -739,6 +740,7 @@ export class Sim {
     f.followupAt = 0;
     f.followupTargetFrame = null;
     f.followupTransitionMode = null;
+    f.followupCompensateRoot = false;
     f.t5QueuedCancelOrientationMode = null;
     f.followupAutomatic = false;
   }
@@ -750,10 +752,24 @@ export class Sim {
 
     if (route.gate <= f.actionFrame) {
       const targetFrame = route.transitionMode === "preserve" ? f.actionFrame : 0;
-      this.startAttack(f, moveById(route.moveId), true, targetFrame, route.transitionMode);
+      this.startAttack(
+        f,
+        moveById(route.moveId),
+        true,
+        targetFrame,
+        route.transitionMode,
+        route.compensateRoot,
+      );
       f.t5CancelOrientationMode = route.orientationMode;
     } else {
-      this.queueRomTransition(f, route.moveId, route.gate, route.transitionMode, false);
+      this.queueRomTransition(
+        f,
+        route.moveId,
+        route.gate,
+        route.transitionMode,
+        false,
+        route.compensateRoot,
+      );
       f.t5QueuedCancelOrientationMode = route.orientationMode;
     }
     return true;
@@ -875,7 +891,14 @@ export class Sim {
     if (fu.startingFrame !== undefined) {
       if (f.actionFrame < w0 || f.actionFrame > w1) return false;
       f.followupChain = [];
-      this.queueRomTransition(f, fu.moveId, fu.startingFrame, fu.transitionMode ?? "reset", false);
+      this.queueRomTransition(
+        f,
+        fu.moveId,
+        fu.startingFrame,
+        fu.transitionMode ?? "reset",
+        false,
+        fu.compensateRoot,
+      );
       return true;
     }
     if (fu.slide) {
@@ -894,6 +917,7 @@ export class Sim {
       f.followupAt = earliest;
       f.followupTargetFrame = null;
       f.followupTransitionMode = null;
+      f.followupCompensateRoot = false;
       f.followupAutomatic = false;
       return true;
     }
@@ -910,11 +934,13 @@ export class Sim {
     startingFrame: number,
     mode: "reset" | "preserve",
     automatic: boolean,
+    compensateRoot?: boolean,
   ): void {
     f.followupQueued = moveId;
     f.followupAt = startingFrame;
     f.followupTargetFrame = mode === "preserve" ? startingFrame + 1 : 1;
     f.followupTransitionMode = mode;
+    f.followupCompensateRoot = compensateRoot ?? mode === "reset";
     f.t5QueuedCancelOrientationMode = null;
     f.followupAutomatic = automatic;
   }
@@ -934,6 +960,7 @@ export class Sim {
       transition.startingFrame,
       transition.transitionMode,
       true,
+      transition.compensateRoot,
     );
   }
 
@@ -1127,9 +1154,14 @@ export class Sim {
     fromString = false,
     timelineFrame = 0,
     transitionMode: "reset" | "preserve" | null = null,
+    compensateRoot?: boolean,
   ): void {
     const chain = fromString ? [...f.followupChain] : [];
+    const preserveSourceRoot = compensateRoot ?? transitionMode === "reset";
     let animationOrigin = fromString ? f.t5AnimationOrigin : ([0, 0, 0] as const);
+    if (fromString && transitionMode === "reset" && !preserveSourceRoot) {
+      animationOrigin = [0, 0, 0];
+    }
     const jumpSource =
       f.action === "jump"
         ? t5LocomotionPhase(f.action, f.actionFrame, false, f.t5JumpMoveId)
@@ -1137,13 +1169,13 @@ export class Sim {
     const sourceAnimation =
       f.action === "attack" && f.moveId ? moveById(f.moveId).t5Animation : jumpSource?.animation;
     const sourceFrame = jumpSource?.actionFrame ?? f.actionFrame;
-    if (fromString && sourceAnimation && (transitionMode === "reset" || f.action === "jump")) {
+    if (fromString && sourceAnimation && preserveSourceRoot) {
       const sourceRoot = sampleT5RootOffset(sourceAnimation, sourceFrame);
       const targetRoot = sampleT5RootOffset(move.t5Animation, timelineFrame);
       animationOrigin = [
-        animationOrigin[0] + sourceRoot[0] - targetRoot[0],
-        animationOrigin[1] + sourceRoot[1] - targetRoot[1],
-        animationOrigin[2] + sourceRoot[2] - targetRoot[2],
+        f.t5AnimationOrigin[0] + sourceRoot[0] - targetRoot[0],
+        f.t5AnimationOrigin[1] + sourceRoot[1] - targetRoot[1],
+        f.t5AnimationOrigin[2] + sourceRoot[2] - targetRoot[2],
       ];
     }
     this.setAction(f, "attack", move.totalFrames);
@@ -1165,6 +1197,7 @@ export class Sim {
     f.followupAt = 0;
     f.followupTargetFrame = null;
     f.followupTransitionMode = null;
+    f.followupCompensateRoot = false;
     f.t5QueuedCancelOrientationMode = null;
     f.followupAutomatic = false;
     f.followupChain = [];
@@ -1192,6 +1225,7 @@ export class Sim {
               true,
               targetFrame,
               fu.transitionMode ?? "reset",
+              fu.compensateRoot,
             );
             return;
           }
@@ -1201,12 +1235,14 @@ export class Sim {
             fu.startingFrame,
             fu.transitionMode ?? "reset",
             false,
+            fu.compensateRoot,
           );
         } else {
           f.followupQueued = fu.moveId;
           f.followupAt = Math.max(fu.window[0], move.startup + 1);
           f.followupTargetFrame = null;
           f.followupTransitionMode = null;
+          f.followupCompensateRoot = false;
           f.followupAutomatic = false;
         }
         explicitQueued = true;
@@ -1220,6 +1256,7 @@ export class Sim {
         move.autoTransition.startingFrame,
         move.autoTransition.transitionMode,
         true,
+        move.autoTransition.compensateRoot,
       );
     }
     if (move.tags?.includes("electric")) {
@@ -1415,9 +1452,17 @@ export class Sim {
         if (queuedJumpAttack !== null && f.actionFrame >= f.followupAt) {
           const targetFrame = f.followupTargetFrame ?? 0;
           const transitionMode = f.followupTransitionMode;
+          const compensateRoot = f.followupCompensateRoot;
           const orientationMode = f.t5QueuedCancelOrientationMode;
           f.followupQueued = null;
-          this.startAttack(f, moveById(queuedJumpAttack), true, targetFrame, transitionMode);
+          this.startAttack(
+            f,
+            moveById(queuedJumpAttack),
+            true,
+            targetFrame,
+            transitionMode,
+            compensateRoot,
+          );
           if (orientationMode !== null) f.t5CancelOrientationMode = orientationMode;
           break;
         }
@@ -1483,8 +1528,16 @@ export class Sim {
         if (followupReady) {
           const timelineFrame = f.followupTargetFrame ?? 0;
           const transitionMode = f.followupTransitionMode;
+          const compensateRoot = f.followupCompensateRoot;
           f.followupQueued = null;
-          this.startAttack(f, moveById(queuedFollowup), true, timelineFrame, transitionMode);
+          this.startAttack(
+            f,
+            moveById(queuedFollowup),
+            true,
+            timelineFrame,
+            transitionMode,
+            compensateRoot,
+          );
           break;
         }
         if (f.actionFrame >= f.actionTotal && !unresolvedParentHit) this.finishAttack(f, move);
@@ -1691,8 +1744,16 @@ export class Sim {
       if (queued !== null && fighter.actionFrame >= fighter.followupAt) {
         const timelineFrame = fighter.followupTargetFrame ?? 0;
         const transitionMode = fighter.followupTransitionMode;
+        const compensateRoot = fighter.followupCompensateRoot;
         fighter.followupQueued = null;
-        this.startAttack(fighter, moveById(queued), true, timelineFrame, transitionMode);
+        this.startAttack(
+          fighter,
+          moveById(queued),
+          true,
+          timelineFrame,
+          transitionMode,
+          compensateRoot,
+        );
       } else if (fighter.actionFrame >= fighter.actionTotal) {
         this.finishAttack(fighter, move);
       }
