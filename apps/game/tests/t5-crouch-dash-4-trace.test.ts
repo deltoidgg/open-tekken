@@ -3,6 +3,7 @@ import { moveById } from "../src/data/jin.ts";
 import { t5JinReactionAnimation } from "../src/data/t5-jin-reactions-native.ts";
 import { t5AirborneHeight } from "../src/sim/t5-airborne.ts";
 import { t5CrouchDashFourRoute } from "../src/sim/t5-crouch-dash.ts";
+import { t5AngleToRadians } from "../src/sim/t5-orientation.ts";
 import type { Sim } from "../src/sim/sim.ts";
 import { B4, fightSim, measureAdvantage, pad, run, S } from "./helpers.ts";
 
@@ -124,6 +125,21 @@ describe("Tekken 5 PAL crouch-dash +4 routes", () => {
       moveId: "jin.cd4.earlyRecovery",
     });
     expect(moveById(attacker.moveId!).t5Animation?.romMoveId).toBe(612);
+    expect(defender.pushback).toMatchObject({
+      remainingDuration: 29,
+      displacement: 15,
+      sampleIndex: 1,
+    });
+    const pushbackDirection = Math.atan2(
+      defender.pushback!.directionZ,
+      defender.pushback!.directionX,
+    );
+    expect(pushbackDirection - attacker.face).toBeCloseTo(t5AngleToRadians(0xd556), 10);
+
+    run(sim, 29);
+    expect(defender.pushback).toBeNull();
+    const separation = Math.hypot(defender.pos.x - attacker.pos.x, defender.pos.z - attacker.pos.z);
+    expect(Math.abs(separation - 2.8437)).toBeLessThan(0.005);
   });
 
   it("uses reaction 704 and resets into move 360 when crouch-blocked", () => {

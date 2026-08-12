@@ -110,8 +110,11 @@ function t5Pushback(
   duration: number,
   displacement: number,
   samples: readonly number[],
+  direction?: number,
 ): PushbackDef {
-  return { duration, displacement, samples };
+  return direction === undefined
+    ? { duration, displacement, samples }
+    : { duration, displacement, samples, direction };
 }
 
 function outcomes(normal: PushbackDef, counterHit: PushbackDef, block: PushbackDef): HitPushbacks {
@@ -144,7 +147,9 @@ const PB_DB3 = t5Pushback(38, 50, [300, 200, 100, 50, 0, 0, 0, 0]);
 const PB_DB3_CH = t5Pushback(40, 75, [600, 400, 200, 100, 0, 0, 0, 0]);
 const PB_D1 = t5Pushback(20, 20, [400, 400, 200, 200, 100, 80, 40, 20]);
 const PB_D1_BLOCK = t5Pushback(10, 10, [200, 200, 100, 30, 20, 0, 0, 0]);
-const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0]);
+const CD4_REACTION_DIRECTION = 0xd556;
+const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0], CD4_REACTION_DIRECTION);
+const PB_CD4_BLOCK = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0], CD4_REACTION_DIRECTION);
 const PB_SAVAGE_SWORD = t5Pushback(20, 20, [300, 250, 200, 150, 100, 50, 25, 5]);
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
@@ -178,9 +183,9 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.cd2": outcomes(PB_DB3, PB_DB3_CH, PB_410),
   "jin.ewhf": outcomes(PB_DB3_CH, PB_DB3_CH, PB_D1_BLOCK),
-  "jin.cd4": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
-  "jin.cd4.mid": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
-  "jin.cd4.late": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
+  "jin.cd4": outcomes(PB_CD4, PB_CD4, PB_CD4_BLOCK),
+  "jin.cd4.mid": outcomes(PB_CD4, PB_CD4, PB_CD4_BLOCK),
+  "jin.cd4.late": outcomes(PB_CD4, PB_CD4, PB_CD4_BLOCK),
   "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),

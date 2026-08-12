@@ -68,7 +68,9 @@ startup shells:
 Each is an 18-damage low. Normal and counter hit select reaction `615`; crouch
 block selects reaction `704`. The recovered normal and counter-hit pushback is
 `P30/15 [300,250,200,100,50,25,5,0]`. Block uses
-`[200,200,100,30,20,0,0,0]`.
+`[200,200,100,30,20,0,0,0]`. All front outcomes carry reaction direction
+`0xD556`, a packed signed T5 angle of `-10922` units (`-59.9963 degrees`)
+relative to the attack heading.
 
 The PAL traces show no duplicated attacker or defender timeline frame at
 contact, so these attacks use the measured no-timeline-freeze path.
@@ -108,6 +110,13 @@ reaction frame 1 to 2.84 m at frame 30. That agrees with the recovered pushback
 envelope and disproves reducing launch travel merely to preserve an old combo
 script.
 
+The clone now applies the packed reaction direction to the recovered envelope.
+At the final pushback tick it measures `2.847153 m` against the retained PAL
+endpoint of `2.8437 m`, a `3.5 mm` residual. This is close enough to protect as
+an intermediate regression but does not yet satisfy the parity protocol's
+`1 mm` exit tolerance. Contact-frame root publication and attacker recoil remain
+the candidate owners of that residual.
+
 ## Clone contract
 
 `t5CrouchDashFourRoute` now owns only move-524 frames 1-19 and accepts only
@@ -118,6 +127,7 @@ data. Tests protect:
 - all six branch boundaries;
 - startup, active, recovery, and ROM animation IDs;
 - normal hit reaction `615` and hit shell `612`;
+- packed `0xD556` pushback direction and the near-parity frame-30 endpoint;
 - crouch-block reaction `704`, reset shell `360`, and effective `-31` recovery;
 - no timeline freeze;
 - whiff ownership; and

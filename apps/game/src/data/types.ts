@@ -8,6 +8,8 @@ export interface PushbackDef {
   duration: number;
   displacement: number;
   samples: readonly number[];
+  /** Packed signed T5 angle applied relative to the attack heading. */
+  direction?: number;
 }
 
 export interface HitPushbacks {

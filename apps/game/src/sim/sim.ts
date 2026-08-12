@@ -48,7 +48,11 @@ import {
   t5SidestepRootDelta,
   t5SidestepRootOffset,
 } from "./t5-locomotion.ts";
-import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "./t5-orientation.ts";
+import {
+  stepT5AttackOrientation,
+  stepT5PostActiveOrientation,
+  t5AngleToRadians,
+} from "./t5-orientation.ts";
 import {
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
@@ -2665,13 +2669,16 @@ export class Sim {
   ): void {
     fighter.vel.x = 0;
     fighter.vel.z = 0;
+    const angle = t5AngleToRadians(definition.direction ?? 0);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
     fighter.pushback = {
       remainingDuration: definition.duration,
       displacement: definition.displacement,
       samples: definition.samples,
       sampleIndex: 0,
-      directionX: direction.x,
-      directionZ: direction.z,
+      directionX: direction.x * cos - direction.z * sin,
+      directionZ: direction.x * sin + direction.z * cos,
     };
     this.advanceRecoveredPushback(fighter);
   }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 import { moveById } from "../src/data/jin.ts";
-import { stepT5AttackOrientation, stepT5PostActiveOrientation } from "../src/sim/t5-orientation.ts";
+import {
+  stepT5AttackOrientation,
+  stepT5PostActiveOrientation,
+  t5AngleToRadians,
+} from "../src/sim/t5-orientation.ts";
 
 const ANGLE_UNIT = (Math.PI * 2) / 0x10000;
 
@@ -16,6 +20,10 @@ function runProfile(mode: number, activeStart: number, targetFace = Math.PI / 2)
 }
 
 describe("Tekken 5 PAL attack orientation", () => {
+  it("decodes packed signed reaction directions", () => {
+    expect(t5AngleToRadians(0xd556)).toBeCloseTo(-10922 * ANGLE_UNIT, 10);
+  });
+
   it("uses the mode-4 3-degree early and 14-degree late turn caps", () => {
     let face = 0;
     let turn = 0;

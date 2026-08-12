@@ -314,8 +314,17 @@ reaction root instead owns the visible vertical trajectory, reaching a
 The clone now preserves that split: logical `pos.y` stays on the ground plane,
 render and posed collision consume the reaction root once, and camera, wall,
 impact, AI, and relift systems query an explicit effective airborne height.
-Legacy unmapped launches retain physics-owned Y. The first `d/b+2` air contact,
-reaction replacement, and horizontal pickup ownership remain the next slice.
+Legacy unmapped launches retain physics-owned Y.
+
+Second checkpoint 2026-08-12: Hell Trip's front reaction record supplies packed
+direction `0xD556` (`-10922` T5 angle units, `-59.9963 degrees`) for normal,
+counter-hit, and block pushback. The shared recovered-pushback path now rotates
+each exact envelope relative to the attack heading. The clone's final normal-hit
+pushback tick reaches `2.847153 m` separation against `2.8437 m` in the retained
+PAL trace, leaving about `3.5 mm` rather than the former large straight-line
+error. This is an intermediate gate, not the protocol's `1 mm` exit. The first
+`d/b+2` air contact, reaction replacement, contact-root residual, attacker
+recoil, and remaining horizontal pickup ownership are the next slice.
 
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.

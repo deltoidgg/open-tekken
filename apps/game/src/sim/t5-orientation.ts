@@ -10,7 +10,7 @@ function radiansToT5Angle(angle: number): number {
   return signed16(Math.round(angle / T5_ANGLE_SCALE));
 }
 
-function t5AngleToRadians(angle: number): number {
+export function t5AngleToRadians(angle: number): number {
   return signed16(angle) * T5_ANGLE_SCALE;
 }
 
