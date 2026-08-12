@@ -238,6 +238,12 @@ each child as `local * parentWorld`. The PAL postprocess rebuilds special torso
 nodes 1 and 2 from channel-4, channel-5, and channel-6 landmarks; the deriver
 reproduces that construction before evaluating their descendants.
 
+The deriver also applies the recovered stable flat-floor leg stage. It forms
+Jin's virtual ankle and foot probes, raises a penetrated ankle by the deepest
+probe penetration, runs the native 440/420 two-link solve, and republishes the
+affected descendants. Clear-air target history and rotational foot alignment
+remain unchanged until their native branches are separately captured.
+
 Derive Jin's calibrated 22-node root, body-push centres, hurt-sphere centres,
 and active hitbox capsules with:
 

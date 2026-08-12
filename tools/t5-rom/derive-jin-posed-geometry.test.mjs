@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  advanceT5GroundTargetState,
+  applyT5GroundedLegConstraintsToPose,
   applyT5StaticCorrection,
   applyT5StaticCorrectionPass,
   applyT5TwoBoneConstraintToPose,
@@ -196,6 +198,109 @@ test("reproduces the PAL reaction-160 opening leg solve", () => {
       "reaction-160 knee should stay within sub-millimetre native float/matrix residual",
     );
   }
+});
+
+test("reproduces consecutive PAL flat-floor target transitions", () => {
+  const captures = [
+    {
+      ankle: [-63146.3359375, 127.04052734375, 109548.0078125],
+      ankleProbeY: -2.958984375,
+      footProbeY: -3.246467590332031,
+      solvedAnkleY: 130.28697204589844,
+    },
+    {
+      ankle: [-63147.9296875, 125.93670654296875, 109550.0234375],
+      ankleProbeY: -4.063079833984375,
+      footProbeY: -3.986030578613281,
+      solvedAnkleY: 129.99977111816406,
+    },
+  ];
+  let state;
+
+  for (const capture of captures) {
+    const ankleRotation = [
+      [1, (capture.ankleProbeY - capture.ankle[1]) / 130, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+    ];
+    const target = advanceT5GroundTargetState(state, {
+      ankle: capture.ankle,
+      ankleRotation,
+      foot: [capture.ankle[0], capture.footProbeY - 50, capture.ankle[2]],
+      footRotation: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      groundHeight: 0,
+    });
+
+    assertPointClose(target.persistentTarget, [capture.ankle[0], 0, capture.ankle[2]]);
+    assertPointClose(target.solverTarget.slice(0, 1), capture.ankle.slice(0, 1));
+    assert.equal(target.solverTarget[2], capture.ankle[2]);
+    assert.ok(Math.abs(target.solverTarget[1] - capture.solvedAnkleY) < 3e-5);
+    assert.equal(target.enabled, true);
+    if (state) assert.deepEqual(target.nextState.previousTarget, state.target);
+    state = target.nextState;
+  }
+});
+
+test("publishes both stable flat-floor leg target stages through the pose", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const locals = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const translations = Array.from({ length: 22 }, () => [0, 0, 0]);
+  translations[15] = [5, 0, 0];
+  translations[16] = [5, 0, 0];
+  translations[17] = [2, 0, 0];
+  const rotations = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const positions = Array.from({ length: 22 }, () => [0, 0, 0]);
+  positions[14] = [0, 5, 0];
+  positions[15] = [4, 8, 0];
+  positions[16] = [8, 5, 0];
+  positions[17] = [8, -55, 0];
+
+  const grounded = applyT5GroundedLegConstraintsToPose(locals, translations, rotations, positions, {
+    groundHeight: 0,
+  });
+
+  assert.equal(grounded.legs[0].lift, 5);
+  assert.equal(grounded.legs[0].solve.applied, true);
+  assertPointClose(positions[16], [8, 10, 0]);
+  assertPointClose(grounded.state[0].target, [8, 0, 0]);
+  assert.equal(grounded.legs[1].solve.branch, "target-gate");
+});
+
+test("leaves the unrecovered clear-air target-history branch unchanged", () => {
+  const identity = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const locals = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const translations = Array.from({ length: 22 }, () => [0, 0, 0]);
+  translations[15] = [5, 0, 0];
+  translations[16] = [5, 0, 0];
+  const rotations = Array.from({ length: 22 }, () => identity.map((row) => [...row]));
+  const positions = Array.from({ length: 22 }, () => [0, 100, 0]);
+  positions[14] = [0, 100, 0];
+  positions[15] = [5, 100, 0];
+  positions[16] = [10, 100, 0];
+  positions[17] = [12, 100, 0];
+
+  const grounded = applyT5GroundedLegConstraintsToPose(locals, translations, rotations, positions, {
+    groundHeight: 0,
+  });
+
+  assert.equal(grounded.legs[0].enabled, true);
+  assert.equal(grounded.legs[0].lift, 0);
+  assert.equal(grounded.legs[0].recoveredFlatContact, false);
+  assert.equal(grounded.legs[0].solve.branch, "clear-ground");
+  assertPointClose(positions[15], [5, 100, 0]);
+  assertPointClose(positions[16], [10, 100, 0]);
 });
 
 test("publishes a constrained chain while preserving its endpoint orientation", () => {

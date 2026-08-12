@@ -179,9 +179,11 @@ Implementation slice:
 
 Checkpoint 2026-08-12: `0x002D0308` maps the two leg chains and gates
 `0x002CF728` through stateful ground-target routine `0x002CFEC8`. The recovered
-law-of-cosines solver and hierarchy republish stage are implemented. The next
-pose slice is the `0x002CFEC8` persistent target state and `0x002D0640` foot
-alignment, followed by regeneration from final constrained positions.
+law-of-cosines solver, hierarchy republish stage, and stable flat-floor
+penetration target are implemented. All generated gameplay geometry now uses
+that measured contact branch. The next pose slice is clear-air target history,
+uneven-floor discontinuities, and the rotational branch of `0x002D0640`,
+followed by a fresh multi-frame hurt-writer residual report.
 
 Exit gates:
 

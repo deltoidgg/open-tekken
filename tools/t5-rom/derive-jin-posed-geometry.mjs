@@ -36,6 +36,13 @@ const LOCAL_MATRIX_OFFSET = 0;
 const WORLD_MATRIX_OFFSET = 0x40;
 const MATRIX_TRANSLATION_OFFSET = 0x30;
 const NATIVE_UNITS_PER_METRE = 1000;
+const T5_GROUND_TARGET_GATE_DISTANCE_SQUARED = 1;
+const T5_ANKLE_PROBE_OFFSET = Object.freeze([130, 0, 0]);
+const T5_FOOT_PROBE_OFFSET = Object.freeze([0, 50, 0]);
+const T5_LEG_CHAINS = Object.freeze([
+  Object.freeze({ hipNode: 14, kneeNode: 15, ankleNode: 16, footNode: 17 }),
+  Object.freeze({ hipNode: 18, kneeNode: 19, ankleNode: 20, footNode: 21 }),
+]);
 
 export const JIN_SKELETON_PARENTS = Object.freeze([
   -1, 0, 1, 2, 3, 2, 5, 6, 7, 2, 9, 10, 11, 0, 13, 14, 15, 16, 13, 18, 19, 20,
@@ -138,6 +145,62 @@ function requireFiniteVector(vector, label) {
   ) {
     throw new Error(`${label} must contain three finite components`);
   }
+}
+
+function requireFiniteMatrix3(matrix, label) {
+  if (
+    !Array.isArray(matrix) ||
+    matrix.length !== 3 ||
+    matrix.some(
+      (row) =>
+        !Array.isArray(row) || row.length !== 3 || row.some((value) => !Number.isFinite(value)),
+    )
+  ) {
+    throw new Error(`${label} must be a finite 3x3 matrix`);
+  }
+}
+
+/**
+ * Advances PAL 0x002CFEC8's stable flat-floor target branch. The persistent
+ * target remains on the floor while the solve target only clears whichever
+ * virtual foot probe penetrates deepest.
+ */
+export function advanceT5GroundTargetState(
+  state,
+  { ankle, ankleRotation, foot, footRotation, groundHeight = 0 },
+) {
+  requireFiniteVector(ankle, "T5 grounded ankle");
+  requireFiniteVector(foot, "T5 grounded foot");
+  requireFiniteMatrix3(ankleRotation, "T5 grounded ankle rotation");
+  requireFiniteMatrix3(footRotation, "T5 grounded foot rotation");
+  if (!Number.isFinite(groundHeight)) throw new Error("T5 groundHeight must be finite");
+  if (state?.target !== undefined) requireFiniteVector(state.target, "T5 prior ground target");
+
+  const ankleProbe = transformLocalPoint(T5_ANKLE_PROBE_OFFSET, ankleRotation, ankle);
+  const footProbe = transformLocalPoint(T5_FOOT_PROBE_OFFSET, footRotation, foot);
+  const anklePenetration = groundHeight - ankleProbe[1];
+  const footPenetration = groundHeight - footProbe[1];
+  const lift = Math.max(0, anklePenetration, footPenetration);
+  const persistentTarget = [ankle[0], groundHeight, ankle[2]];
+  const solverTarget = [ankle[0], ankle[1] + lift, ankle[2]];
+  const gateDelta = subtractVectors(ankle, persistentTarget);
+  const gateDistanceSquared = dotVectors(gateDelta, gateDelta);
+
+  return {
+    ankleProbe,
+    footProbe,
+    anklePenetration,
+    footPenetration,
+    lift,
+    persistentTarget,
+    solverTarget,
+    gateDistanceSquared,
+    enabled: gateDistanceSquared >= T5_GROUND_TARGET_GATE_DISTANCE_SQUARED,
+    nextState: {
+      previousTarget: state?.target ? [...state.target] : [...persistentTarget],
+      target: [...persistentTarget],
+    },
+  };
 }
 
 function resolveTwoBonePole(axis, poleVector, fallbackPoleVector) {
@@ -336,6 +399,58 @@ export function applyT5TwoBoneConstraintToPose(
   }
 
   return solved;
+}
+
+/**
+ * Runs both recovered Jin leg chains through the stable flat-floor target
+ * stage and PAL two-link solver, carrying each leg's persistent target state.
+ */
+export function applyT5GroundedLegConstraintsToPose(
+  localRotations,
+  localTranslations,
+  rotations,
+  positions,
+  options = {},
+) {
+  const groundHeight = options.groundHeight ?? 0;
+  const priorState = options.state ?? [];
+  if (!Array.isArray(priorState)) throw new Error("T5 grounded leg state must be an array");
+
+  const legs = T5_LEG_CHAINS.map((chain, index) => {
+    const targetStage = advanceT5GroundTargetState(priorState[index], {
+      ankle: positions[chain.ankleNode],
+      ankleRotation: rotations[chain.ankleNode],
+      foot: positions[chain.footNode],
+      footRotation: rotations[chain.footNode],
+      groundHeight,
+    });
+    const pole = [...positions[chain.kneeNode]];
+    const recoveredFlatContact = targetStage.enabled && targetStage.lift > 0;
+    const solve = recoveredFlatContact
+      ? applyT5TwoBoneConstraintToPose(localRotations, localTranslations, rotations, positions, {
+          hipNode: chain.hipNode,
+          kneeNode: chain.kneeNode,
+          ankleNode: chain.ankleNode,
+          target: targetStage.solverTarget,
+          pole,
+        })
+      : {
+          hip: [...positions[chain.hipNode]],
+          knee: null,
+          ankle: null,
+          targetDistance: vectorLength(
+            subtractVectors(positions[chain.ankleNode], positions[chain.hipNode]),
+          ),
+          applied: false,
+          branch: targetStage.enabled ? "clear-ground" : "target-gate",
+        };
+    return { ...targetStage, recoveredFlatContact, solve };
+  });
+
+  return {
+    legs,
+    state: legs.map((leg) => leg.nextState),
+  };
 }
 
 /** Applies the PAL node-local correction and row orthonormalization. */
@@ -604,6 +719,20 @@ export class JinPoseDeriver {
       );
     }
 
+    const grounding =
+      options.groundHeight === undefined
+        ? null
+        : applyT5GroundedLegConstraintsToPose(
+            localRotations,
+            this.localTranslations,
+            rotations,
+            positions,
+            {
+              groundHeight: options.groundHeight,
+              state: options.groundTargetState,
+            },
+          );
+
     const twoBoneConstraints =
       typeof options.twoBoneConstraints === "function"
         ? options.twoBoneConstraints({ frame: sample.frame, positions, rotations })
@@ -618,7 +747,13 @@ export class JinPoseDeriver {
       );
     }
 
-    return { frame: sample.frame, positions, rotations };
+    return {
+      frame: sample.frame,
+      positions,
+      rotations,
+      grounding,
+      groundTargetState: grounding?.state,
+    };
   }
 
   deriveMove(moveId, options = {}) {
@@ -631,12 +766,20 @@ export class JinPoseDeriver {
       correctionGate: options.correctionGate,
       correctionWeight: options.correctionWeight,
       twoBoneConstraints: options.twoBoneConstraints,
+      groundHeight: options.groundHeight ?? 0,
     };
-    const poses = Array.from({ length: finalFrame + 1 }, (_, frame) =>
-      this.pose(moveId, frame, poseOptions),
-    );
+    const poses = [];
+    let groundTargetState = options.groundTargetState;
+    for (let frame = 0; frame <= finalFrame; frame++) {
+      const pose = this.pose(moveId, frame, { ...poseOptions, groundTargetState });
+      poses.push(pose);
+      groundTargetState = pose.groundTargetState;
+    }
     const baseRoot = poses[0].positions[0];
-    const standingRoot = this.pose(JIN_STANDING_MOVE_ID, 0, poseOptions).positions[0];
+    const standingRoot = this.pose(JIN_STANDING_MOVE_ID, 0, {
+      ...poseOptions,
+      groundTargetState: undefined,
+    }).positions[0];
     const locations = decodePackedHitboxLocations(move.hitboxLocation);
     for (const location of locations) {
       if (
@@ -652,8 +795,8 @@ export class JinPoseDeriver {
 
     const hitboxSamples = [];
     for (let frame = Math.max(0, move.activeStart - 1); frame <= move.activeEnd - 1; frame++) {
-      const pose = this.pose(moveId, frame, poseOptions);
-      const previousPose = this.pose(moveId, Math.max(0, frame - 1), poseOptions);
+      const pose = poses[frame];
+      const previousPose = poses[Math.max(0, frame - 1)];
       hitboxSamples.push({
         animationFrame: frame,
         capsules: locations.map(({ startNode, endNode, sweepsPreviousPose }) =>

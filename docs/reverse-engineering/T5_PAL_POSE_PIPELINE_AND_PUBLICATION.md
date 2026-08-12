@@ -255,6 +255,35 @@ and returns the gate for the solve. On a true result, `0x002D0308` calls
 ankle endpoint. `0x002D0640`, called afterwards, is a separate foot-alignment
 stage and is not the writer of nodes 14 through 16.
 
+### Stable flat-floor target contract
+
+A controlled neutral Jin/Jin trace bracketed the first-leg call at three
+boundaries: `0x002CFEC8` entry, its `0x002D0408` return, and the enclosing
+`0x002D0308` return. The stable flat-floor branch has two distinct targets:
+
+- persistent state stores `[ankle.x, floorY, ankle.z]`;
+- the solver receives the current ankle, raised only by the deepest penetration
+  of virtual ankle probe `[130, 0, 0]` or foot probe `[0, 50, 0]`.
+
+Two consecutive samples produced these transitions:
+
+| Sample |  Raw ankle Y | Ankle probe Y | Foot probe Y | Native solved ankle Y |
+| -----: | -----------: | ------------: | -----------: | --------------------: |
+|      1 | `127.040527` |   `-2.958984` |  `-3.246468` |          `130.286972` |
+|      2 | `125.936707` |   `-4.063080` |  `-3.986031` |          `129.999771` |
+
+The larger penetration wins in each sample. A fresh frame-76 bracket reproduced
+the native solved ankle at `130.303146` with a generated value of `130.303355`,
+a `0.000209 mm` residual after conversion from native units. The hip remained
+unchanged, and the native state table contained exact IEEE-754 values `440.0`
+and `420.0` for the two link lengths.
+
+`advanceT5GroundTargetState` and `applyT5GroundedLegConstraintsToPose` now
+implement this captured branch. Generated gameplay geometry enables it only
+when a virtual probe penetrates the flat floor. Clear-air target history,
+uneven-floor discontinuity handling, and the rotational branch of `0x002D0640`
+remain deliberately unchanged until separately bracketed.
+
 ### Analytic solver contract
 
 `0x002CF728` reads the first and second link lengths from the native state
@@ -273,11 +302,12 @@ matrices; its exact use has not yet appeared in a live sample and remains an
 explicit implementation gap. Jin's captured first leg used table lengths
 `440` and `420` native units.
 
-The implementation now exposes `solveT5TwoBoneConstraint` and a hierarchy-safe
-`applyT5TwoBoneConstraintToPose` stage in
+The implementation now exposes `solveT5TwoBoneConstraint`, a hierarchy-safe
+`applyT5TwoBoneConstraintToPose` stage, and the stable flat-floor target stage in
 `tools/t5-rom/derive-jin-posed-geometry.mjs`. It preserves the ankle world
-orientation and republishes only descendants of that ankle. It is opt-in until
-the complete `0x002CFEC8` state owner supplies frame-specific targets.
+orientation and republishes only descendants of that ankle. The captured
+penetration branch is active in generated geometry; unrecovered target branches
+stay opt-in.
 
 ### Reaction-160 oracle
 
