@@ -1478,6 +1478,13 @@ export class Sim {
         break;
       }
       case "CD": {
+        const sourceFrame = f.actionFrame - 1;
+        if (inp.dir === "b" && sourceFrame >= 1 && sourceFrame <= 9) {
+          // Move 524's b cancel uses native mode 0x1080: enter move 253
+          // one frame behind the published source, then count backward.
+          this.startT5CrouchEntryAbort(f, 253, sourceFrame);
+          break;
+        }
         this.applyT5Locomotion(f);
         if (f.actionFrame >= T.cdFrames) {
           // PAL move 524 always auto-transitions to crouch alias 0x8002.

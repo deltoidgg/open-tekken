@@ -180,6 +180,7 @@ test("decodes cancel extra-data timeline modes", () => {
   assert.equal(parsed.timelineMode, "reset");
   assert.equal(decodeCancelTimelineMode(0x0401), "preserve-if-compatible");
   assert.equal(decodeCancelTimelineMode(0x060f), "preserve-if-compatible");
+  assert.equal(decodeCancelTimelineMode(0x1080), "reverse");
 });
 
 test("preserves direct-before-group standing cancel order and timing fields", () => {

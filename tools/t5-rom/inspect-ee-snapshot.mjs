@@ -222,6 +222,7 @@ export function decodeCancelTimelineMode(extradataValue) {
   const mode = extradataValue & 0x3c00;
   if (mode === 0) return "reset";
   if (mode === 0x400) return "preserve-if-compatible";
+  if (mode === 0x1000) return "reverse";
   return `mode-0x${mode.toString(16)}`;
 }
 

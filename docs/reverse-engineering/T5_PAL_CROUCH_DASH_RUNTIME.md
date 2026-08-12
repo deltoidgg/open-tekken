@@ -1,7 +1,7 @@
 # Tekken 5 PAL Jin crouch-dash runtime
 
-Status: ROM-backed crouch-dash locomotion and +2 ownership slices implemented.
-Updated 2026-08-12.
+Status: ROM-backed locomotion, +2 ownership, and early held-back exit slices
+implemented. Updated 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. All move IDs, pointers, animation samples, and cancel records below
@@ -170,6 +170,12 @@ Repeated wavedash events are gated by their exact completion frame. A fresh
 `f,N,d,d/f` restarts move 524 at local frame 1; the same buffered event on the
 following ticks cannot repeatedly reset the shell.
 
+Controlled boundary traces now also establish move 524's early held-back exit.
+Source frames 1-9 enter move 253 one frame behind the published source and count
+backward before handing off to native back walk 227/228. Source frame 10 rejects
+that branch. See `T5_PAL_CROUCH_DASH_BACK_EXIT_TRACE.md` for the live timeline,
+static `0x1080` record, and remaining late-route boundary.
+
 ## Verification and limits
 
 Focused tests establish:
@@ -178,14 +184,17 @@ Focused tests establish:
 2. the canonical four-frame command enters CD at action frame 1;
 3. move 524 hands off to crouch, and neutral begins rising on the next tick;
 4. a stale motion event advances normally instead of resetting CD; and
-5. a newly completed repeated motion restarts the shell exactly once.
+5. a newly completed repeated motion restarts the shell exactly once;
+6. held back on move-524 frame 9 enters reverse move 253 frame 8; and
+7. move-524 frame 10 no longer owns that back exit.
 
 The following are not yet ROM-complete:
 
 - The clone's tech-crouch interval remains the T5DR-spec provisional 4-18;
   transition code `0x8002` alone does not prove the vulnerable-frame mask.
-- Guard, attack-cancel, jump-cancel, and low-parry precedence need executable or
-  controlled live traces.
+- Late guard, jump-cancel, low-parry, and WS-button precedence still need
+  controlled live traces. The early held-back branch and same-tick attack
+  priority are now measured and implemented.
 - Repeated CD currently resets the native shell without recovered transition
   blend/root-compensation flags. Its displacement is monotonic and no longer
   authored, but exact wavedash spacing still needs a controlled trace.
@@ -194,7 +203,5 @@ The following are not yet ROM-complete:
   human Jin CD+2 attacks now use their native move definitions.
 - Rendering remains procedural; gameplay body collision uses the recovered pose.
 
-The Computer connector lost its stateful interaction context during this pass,
-so no unsupported substitute was used to inject reference-game input. These
-remaining timing claims are intentionally left open rather than inferred from
-the clone.
+The remaining timing claims are intentionally left open rather than inferred
+from the clone.

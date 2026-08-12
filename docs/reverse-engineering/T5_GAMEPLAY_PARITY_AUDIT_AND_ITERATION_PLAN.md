@@ -251,8 +251,10 @@ Implemented 2026-08-12: exact completion-frame `d/f+2` now owns native move
 move `456`; and an entire CD motion entered during unrelated attack recovery
 buffers standing `d/f+2` rather than inventing move-673 ownership. Native frame
 data, posed hitboxes, pushback, block reactions, and recovery/pose-tail splits
-are installed for moves `677` and `679`. CD-to-guard/WS and exact repeated-root
-transfer remain before this phase's full exit gate is closed.
+are installed for moves `677` and `679`. The early held-back boundary is also
+implemented: move-524 frames 1-9 reverse through move `253`, while frame 10
+rejects that route. Late guard/WS ownership and exact repeated-root transfer
+remain before this phase's full exit gate is closed.
 
 Exit gate: normal WHF, electric, failed electric, repeated CD, and buffered CD
 follow-ups route to the same moves on the same frames as the reference.
