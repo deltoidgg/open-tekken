@@ -137,9 +137,11 @@ pointer-derived native move ID, dynamic `player+0x158` alias, and
 node tools/t5-rom/inspect-player-trace.mjs /path/to/t5-jab.bin
 ```
 
-Add `--json` for machine-readable transition records. Use the standalone pulse
-helper when a polled pad input must span several PCSX2 input polls without a
-trace:
+Add `--json` for machine-readable transition records. Each player record also
+includes root angle `+0x0E`, composed animation root `+0x68`, skeleton angle
+`+0x74`, and rendered root `+0x750`, allowing logical and visual root ownership
+to be compared at native handoffs. Use the standalone pulse helper when a
+polled pad input must span several PCSX2 input polls without a trace:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `

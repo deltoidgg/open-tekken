@@ -13,6 +13,14 @@ const PLAYER_SIZE = 0x8d0;
 const RECORD_SIZE = 8 + PLAYER_SIZE * 2;
 
 function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame, impactCounter }) {
+  buffer.writeFloatLE(100.25, offset);
+  buffer.writeFloatLE(200.5, offset + 4);
+  buffer.writeFloatLE(300.75, offset + 8);
+  buffer.writeInt16LE(-1234, offset + 0x0e);
+  buffer.writeFloatLE(10.25, offset + 0x68);
+  buffer.writeFloatLE(20.5, offset + 0x6c);
+  buffer.writeFloatLE(30.75, offset + 0x70);
+  buffer.writeFloatLE(-0.75, offset + 0x74);
   buffer.writeInt16LE(playerFrame, offset + 0x96);
   buffer.writeUInt32LE(
     PAL_JIN_MOVE_TABLE_ADDRESS + nativeMoveId * T5_MOVE_RECORD_SIZE,
@@ -20,6 +28,9 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   );
   buffer.writeUInt16LE(dynamicMoveId, offset + 0x158);
   buffer.writeInt16LE(impactCounter, offset + 0x2b6);
+  buffer.writeFloatLE(400.25, offset + 0x750);
+  buffer.writeFloatLE(500.5, offset + 0x754);
+  buffer.writeFloatLE(600.75, offset + 0x758);
 }
 
 function fixture() {
@@ -63,14 +74,18 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
   assert.deepEqual(trace.playerAddresses, [0x003bcc30, 0x003bd500]);
   assert.equal(trace.samples[2].timeMs, 20);
   assert.deepEqual(trace.samples[2].players[1], {
-    x: 0,
-    y: 0,
-    z: 0,
+    x: 100.25,
+    y: 200.5,
+    z: 300.75,
+    rootAngle: -1234,
+    animationRoot: { x: 10.25, y: 20.5, z: 30.75 },
+    skeletonAngle: -0.75,
     playerFrame: 1,
     currentMovePointer: PAL_JIN_MOVE_TABLE_ADDRESS + 370 * T5_MOVE_RECORD_SIZE,
     nativeMoveId: 370,
     dynamicMoveId: 783,
     impactCounter: 6,
+    renderRoot: { x: 400.25, y: 500.5, z: 600.75 },
   });
 });
 

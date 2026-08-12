@@ -5,10 +5,14 @@ import { pathToFileURL } from "node:url";
 
 const MAGIC = "T5PTRC01";
 const HEADER_SIZE = 40;
+const ROOT_ANGLE_OFFSET = 0x0e;
+const ANIMATION_ROOT_OFFSET = 0x68;
+const SKELETON_ANGLE_OFFSET = 0x74;
 const PLAYER_FRAME_OFFSET = 0x96;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
+const RENDER_ROOT_OFFSET = 0x750;
 export const PAL_JIN_MOVE_TABLE_ADDRESS = 0x015c5d50;
 export const T5_MOVE_RECORD_SIZE = 0x4c;
 
@@ -24,11 +28,23 @@ function readPlayer(buffer, offset) {
     x: buffer.readFloatLE(offset),
     y: buffer.readFloatLE(offset + 4),
     z: buffer.readFloatLE(offset + 8),
+    rootAngle: buffer.readInt16LE(offset + ROOT_ANGLE_OFFSET),
+    animationRoot: {
+      x: buffer.readFloatLE(offset + ANIMATION_ROOT_OFFSET),
+      y: buffer.readFloatLE(offset + ANIMATION_ROOT_OFFSET + 4),
+      z: buffer.readFloatLE(offset + ANIMATION_ROOT_OFFSET + 8),
+    },
+    skeletonAngle: buffer.readFloatLE(offset + SKELETON_ANGLE_OFFSET),
     playerFrame: buffer.readInt16LE(offset + PLAYER_FRAME_OFFSET),
     currentMovePointer,
     nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
     dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
     impactCounter: buffer.readInt16LE(offset + IMPACT_COUNTER_OFFSET),
+    renderRoot: {
+      x: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET),
+      y: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET + 4),
+      z: buffer.readFloatLE(offset + RENDER_ROOT_OFFSET + 8),
+    },
   };
 }
 

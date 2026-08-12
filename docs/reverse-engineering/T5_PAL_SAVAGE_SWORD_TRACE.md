@@ -1,6 +1,7 @@
 # Tekken 5 PAL Savage Sword trace
 
-Status: ROM-backed implementation checkpoint, 2026-08-12.
+Status: ROM-backed graph plus controlled live Hell Trip pickup trace,
+2026-08-12.
 
 This note recovers Jin's `d/b+2,2,3` attack graph from the loaded PAL Tekken 5
 moveset. It replaces the clone's former three authored attacks with native
@@ -15,11 +16,70 @@ outside the repository. Attack and reaction poses were regenerated from that
 snapshot with the existing 23-channel animation decoder and 22-node Jin
 skeleton.
 
-Computer Use could enumerate the running Tekken 5 window during this pass, but
-its action context was unavailable. No new live pad trace is claimed here.
-Cancel rows, frame data, reaction IDs, pushback, and geometry are snapshot
-evidence. Timeline freeze, reset-root behavior, and the final victim state
-graphs remain live-trace follow-ups.
+Computer Use enumerated the running Tekken 5 window, but its action context was
+unavailable. The repository's synchronized PCSX2 trace helper then supplied a
+controlled live pad route and sampled both complete player records. Cancel rows,
+frame data, reaction IDs, pushback, and geometry remain snapshot evidence;
+pickup timing, airborne reaction selection, and the measured root handoffs below
+are live evidence. Timeline freeze and the final victim state graph remain
+follow-ups.
+
+## Controlled Hell Trip pickup
+
+The reference started in native idle move `220` at `1.8845 m` separation. The
+following PCSX2 keyboard pulses were placed on the trace's monotonic clock;
+`A/S/D` were current forward/down/back and `K/I/J` were Tekken `4/2/3`:
+
+```text
+500 ms: A for 60 ms
+620 ms: S held through the pickup input
+680 ms: A for 120 ms
+740 ms: K for 60 ms
+1540 ms: D held with S
+1580 ms: I for 80 ms
+1760 ms: I for 60 ms
+1900 ms: J for 60 ms
+```
+
+The stable native publication route was:
+
+```text
+220 -> 222 -> 672 -> 673 -> 524 -> 607
+607 f20 -> 612 f21 / victim 615 f1
+612 f51 -> 526 f1 / victim 615 f32
+526 f15 -> 531 f16 / victim 615 f47
+531 f16 hit -> 527 f1 / airborne victim reaction 1
+527 f8 hit -> 528 f1 / airborne victim reaction 1
+528 f35 hit -> victim reaction 12
+```
+
+This disproves both earlier pickup hypotheses. Move `612` has no early
+`d/b+2` cancel: its only frame-1-to-50 command is `d+1+2 -> 440`, and ordinary
+actions return at frame 51. The first `d/b+2` does connect; it becomes native
+move `531` at frame 16 and hits reaction `615` at frame 47. The second `2` and
+final `3` then connect on their native frames 8 and 35. Airborne contacts do not
+use the standing front reactions `803`, `797`, and `529`: the measured victim
+publishes reactions `1`, `1`, and `12`.
+
+### Root handoff ownership
+
+The same trace sampled logical position, root angle `+0x0E`, composed animation
+root `+0x68`, skeleton angle `+0x74`, and rendered root `+0x750`. At the critical
+reset handoff, the first move-527 publication retains the source root exactly:
+
+| State                       | Logical root X/Z          | Composed root X/Z       | Render root X/Z           |
+| --------------------------- | ------------------------- | ----------------------- | ------------------------- |
+| `531 f16`                   | `-49.666547 / 215.783734` | `-0.020140 / -1.401084` | `-50.526156 / 214.677031` |
+| `527 f1`, transition phase  | `-50.541816 / 214.689688` | `-0.020140 / -1.401084` | `-50.526156 / 214.677031` |
+| `527 f1`, target-pose phase | `-50.541816 / 214.689688` | `-0.042456 / -0.061232` | `-50.567273 / 214.631625` |
+
+The rendered root is bit-identical across the first publication while the
+logical anchor moves about `1.40 m`. This is not a larger attack range. PAL
+transfers root continuity into world position on the reset, then publishes the
+target pose. The clone currently leaves its logical anchor fixed and stores the
+continuity entirely in `t5AnimationOrigin`, placing the first pickup roughly
+`0.76 m` too far away. The measured ownership must be implemented at the
+handoff rather than compensated in hit geometry.
 
 ## Attack records
 
@@ -92,25 +152,26 @@ semantics; no Savage Sword ID is hard-coded into the simulation.
 8. a complete close-range normal-hit string publishing reactions
    `803 -> 797 -> 529` for raw damage `12 + 15 + 21 = 48`.
 
-The spec's `CD+4, d/b+2,2,3 = 43` test remains visible but skipped. The prior
-script contains no pickup movement. A recorded PAL Hell Trip trace grows from
-about `1.94 m` separation at reaction-615 frame 1 to `2.84 m` at frame 30, so
-reducing its recovered `P30/15` travel merely to restore the old script would
-contradict the reference. The clone also currently reaches the pickup from a
-different spacing. Phase 6 must recover the actual PAL correction input,
-airborne horizontal ownership, and downed/air-hit selection before reinstating
-that combo as evidence.
+The spec's `CD+4, d/b+2,2,3 = 43` test remains visible but skipped. The old
+script used the wrong pickup clock and the clone does not yet publish the live
+root handoffs or airborne reactions. A recorded PAL Hell Trip trace grows from
+about `2.02 m` separation at reaction-615 frame 1 to `2.86 m` at frame 30, then
+the measured `612 -> 526` handoff closes it to `2.20 m`. The
+`531 -> 527` reset closes it further while preserving the rendered root.
+Reducing Hell Trip pushback or enlarging hit range would encode these ownership
+changes in the wrong system.
 
 ## Open boundaries
 
 - Live-measure timeline freeze for moves `526`, `527`, `528`, `531`, and `532`.
-- Classify reset-root compensation on `526 -> 527`, `531 -> 527/532`, and
-  `527/532 -> 528`.
+- Implement the measured logical/render root handoffs on `612 -> 526`,
+  `531 -> 527`, and `527 -> 528`; capture the counter-hit `531 -> 532` variant.
 - Recover move `528`'s four condition-gated `0x2400` command-zero rows.
 - Recover the exact victim state and actionable gates behind reactions `529`
   and `533`; the clone currently retains the DR spec's crumple classification.
 - Add side/back/downed selection, including side reaction `530`.
-- Trace the real Hell Trip pickup movement and native air-hit/relift graph.
+- Decode the native airborne/downed reaction selector behind measured reactions
+  `1`, `1`, and `12`, then reproduce their complete relift/landing graph.
 
 ## Reproduction
 
