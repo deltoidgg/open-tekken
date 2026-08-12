@@ -58,7 +58,16 @@ import {
 // ROM-backed trajectories consume one native player-frame sample and bypass it.
 const T5_FRAME_DT = 1 / T5_SIM_HZ;
 const LEGACY_PHYSICS_DT = 1 / 60;
-const T5_NO_TIMELINE_FREEZE_MOVES = new Set(["jin.1", "jin.12", "jin.df1", "jin.d3", "jin.ewhf"]);
+const T5_NO_TIMELINE_FREEZE_MOVES = new Set([
+  "jin.1",
+  "jin.12",
+  "jin.df1",
+  "jin.d3",
+  "jin.ewhf",
+  "jin.cd4",
+  "jin.cd4.mid",
+  "jin.cd4.late",
+]);
 const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.1",
   "jin.12",
@@ -66,6 +75,13 @@ const T5_MEASURED_ATTACK_TAILS = new Set([
   "jin.d3",
   "jin.cd2",
   "jin.ewhf",
+  "jin.cd4",
+  "jin.cd4.mid",
+  "jin.cd4.late",
+  "jin.cd4.earlyRecovery",
+  "jin.cd4.midRecovery",
+  "jin.cd4.lateRecovery",
+  "jin.cd4.blockRecovery",
   "jin.t5.340",
   "jin.t5.345",
   "jin.t5.348",
@@ -75,7 +91,7 @@ const T5_MEASURED_ATTACK_TAILS = new Set([
 ]);
 const T5_MEASURED_REACTION_TAILS = new Set([
   336, 339, 342, 344, 347, 351, 370, 371, 678, 680, 689, 693, 698, 780, 783, 790, 794, 797, 803,
-  806, 811, 897,
+  615, 692, 704, 806, 811, 897,
 ]);
 const T5_STANDING_BLOCK_REACTIONS = new Map([
   ["jin.1", 336],

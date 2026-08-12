@@ -4,6 +4,7 @@
  */
 import { B1, B2, B3, B4 } from "../input/pad.ts";
 import * as T5_JIN_BASICS_NATIVE from "./t5-jin-basics-native.ts";
+import * as T5_JIN_CROUCH_DASH_NATIVE from "./t5-jin-crouch-dash-native.ts";
 import * as T5_JIN_STOP_NATIVE from "./t5-jin-stop-native.ts";
 import {
   T5_JIN_1_ANIMATION,
@@ -142,6 +143,7 @@ const PB_DB3 = t5Pushback(38, 50, [300, 200, 100, 50, 0, 0, 0, 0]);
 const PB_DB3_CH = t5Pushback(40, 75, [600, 400, 200, 100, 0, 0, 0, 0]);
 const PB_D1 = t5Pushback(20, 20, [400, 400, 200, 200, 100, 80, 40, 20]);
 const PB_D1_BLOCK = t5Pushback(10, 10, [200, 200, 100, 30, 20, 0, 0, 0]);
+const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0]);
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
 const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
@@ -170,6 +172,9 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.cd2": outcomes(PB_DB3, PB_DB3_CH, PB_410),
   "jin.ewhf": outcomes(PB_DB3_CH, PB_DB3_CH, PB_D1_BLOCK),
+  "jin.cd4": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
+  "jin.cd4.mid": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
+  "jin.cd4.late": outcomes(PB_CD4, PB_CD4, PB_BLOCK),
   "jin.t5.450": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.451": outcomes(PB_PULL_35, PB_PULL_35, PB_PULL_35),
   "jin.t5.452": outcomes(PB_PULL_3, PB_PULL_3, PB_PULL_35),
@@ -2004,28 +2009,152 @@ export const JIN_MOVES: MoveDef[] = [
   ),
   mv(
     "jin.cd4",
-    "f,N,d,D/F+4",
-    "Hell Trip",
+    "f,N,d,d/f,4 (CD frames 1-8)",
+    "Hell Trip (Early)",
     20,
-    58,
+    51,
     [
       hit("l", 18, 20, -31, "JG", "JG", {
         range: 1.9,
         airReach: 0.9,
-        launch: { vy: 6.6, vxCarry: 0.35 },
+        activeLen: 1,
+        blockstun: 19,
+        t5Hitbox: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_607_HITBOX,
+        t5ReactionMoves: { normal: 615, counterHit: 615, block: 692, crouchBlock: 704 },
+        launch: { vy: 0, vxCarry: 0 },
       }),
     ],
     {
-      input: { buttons: B4, motion: "cd" },
-      from: ["stand", "CD"],
-      crush: { TC: [1, 22] },
-      hitRecoveryBonus: 20,
-      kiaiFollowup: true,
+      from: ["CD"],
+      t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_607_ANIMATION,
       anim: { clip: "hellTrip" },
-      followups: [{ moveId: "jin.cd4f", buttons: B3 | B4, window: [18, 42] }],
+      contactTransitions: {
+        block: {
+          moveId: "jin.cd4.blockRecovery",
+          window: [20, 21],
+          startingFrame: 20,
+          transitionMode: "reset",
+        },
+        hit: {
+          moveId: "jin.cd4.earlyRecovery",
+          window: [20, 21],
+          startingFrame: 20,
+          transitionMode: "preserve",
+        },
+        counterHit: {
+          moveId: "jin.cd4.earlyRecovery",
+          window: [20, 21],
+          startingFrame: 20,
+          transitionMode: "preserve",
+        },
+      },
       tags: ["launcher", "low"],
     },
   ),
+  mv(
+    "jin.cd4.mid",
+    "f,N,d,d/f,4 (CD frames 9-13)",
+    "Hell Trip (Mid)",
+    19,
+    51,
+    [
+      hit("l", 18, 19, -31, "JG", "JG", {
+        range: 1.9,
+        airReach: 0.9,
+        activeLen: 1,
+        blockstun: 19,
+        t5Hitbox: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_605_HITBOX,
+        t5ReactionMoves: { normal: 615, counterHit: 615, block: 692, crouchBlock: 704 },
+        launch: { vy: 0, vxCarry: 0 },
+      }),
+    ],
+    {
+      from: ["CD"],
+      t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_605_ANIMATION,
+      anim: { clip: "hellTrip" },
+      contactTransitions: {
+        block: {
+          moveId: "jin.cd4.blockRecovery",
+          window: [19, 20],
+          startingFrame: 19,
+          transitionMode: "reset",
+        },
+        hit: {
+          moveId: "jin.cd4.midRecovery",
+          window: [19, 20],
+          startingFrame: 19,
+          transitionMode: "preserve",
+        },
+        counterHit: {
+          moveId: "jin.cd4.midRecovery",
+          window: [19, 20],
+          startingFrame: 19,
+          transitionMode: "preserve",
+        },
+      },
+      tags: ["launcher", "low"],
+    },
+  ),
+  mv(
+    "jin.cd4.late",
+    "f,N,d,d/f,4 (CD frames 14-19)",
+    "Hell Trip (Late)",
+    18,
+    51,
+    [
+      hit("l", 18, 18, -31, "JG", "JG", {
+        range: 1.9,
+        airReach: 0.9,
+        activeLen: 1,
+        blockstun: 19,
+        t5Hitbox: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_603_HITBOX,
+        t5ReactionMoves: { normal: 615, counterHit: 615, block: 692, crouchBlock: 704 },
+        launch: { vy: 0, vxCarry: 0 },
+      }),
+    ],
+    {
+      from: ["CD"],
+      t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_603_ANIMATION,
+      anim: { clip: "hellTrip" },
+      contactTransitions: {
+        block: {
+          moveId: "jin.cd4.blockRecovery",
+          window: [18, 19],
+          startingFrame: 18,
+          transitionMode: "reset",
+        },
+        hit: {
+          moveId: "jin.cd4.lateRecovery",
+          window: [18, 19],
+          startingFrame: 18,
+          transitionMode: "preserve",
+        },
+        counterHit: {
+          moveId: "jin.cd4.lateRecovery",
+          window: [18, 19],
+          startingFrame: 18,
+          transitionMode: "preserve",
+        },
+      },
+      tags: ["launcher", "low"],
+    },
+  ),
+  mv("jin.cd4.earlyRecovery", "", "Hell Trip Early Recovery", 0, 51, [], {
+    t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_612_ANIMATION,
+    anim: { clip: "hellTrip" },
+  }),
+  mv("jin.cd4.midRecovery", "", "Hell Trip Mid Recovery", 0, 51, [], {
+    t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_613_ANIMATION,
+    anim: { clip: "hellTrip" },
+  }),
+  mv("jin.cd4.lateRecovery", "", "Hell Trip Late Recovery", 0, 51, [], {
+    t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_614_ANIMATION,
+    anim: { clip: "hellTrip" },
+  }),
+  mv("jin.cd4.blockRecovery", "", "Hell Trip Block Recovery", 0, 50, [], {
+    t5Animation: T5_JIN_CROUCH_DASH_NATIVE.T5_JIN_MOVE_360_ANIMATION,
+    anim: { clip: "hellTripBlocked" },
+  }),
   mv(
     "jin.cd4f",
     "f,N,d,D/F+4,3+4",

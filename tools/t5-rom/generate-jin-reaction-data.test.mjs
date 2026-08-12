@@ -18,6 +18,12 @@ test("includes the normal and electric Wind Hook Fist block reactions", () => {
   }
 });
 
+test("includes the PAL crouch-dash +4 launch and block reactions", () => {
+  for (const moveId of [615, 692, 704]) {
+    assert.ok(DEFAULT_REACTION_MOVE_IDS.includes(moveId), `missing reaction ${moveId}`);
+  }
+});
+
 test("renders deterministic typed reaction data", () => {
   const output = renderJinReactionModule([
     {

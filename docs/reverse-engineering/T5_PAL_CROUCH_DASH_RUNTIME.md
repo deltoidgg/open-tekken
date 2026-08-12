@@ -1,7 +1,7 @@
 # Tekken 5 PAL Jin crouch-dash runtime
 
-Status: ROM-backed locomotion, +2 ownership, repeat-dash shell, exits, and live
-high-crush boundary implemented. Updated 2026-08-12.
+Status: ROM-backed locomotion, +2 and delayed +4 ownership, repeat-dash shell,
+exits, and live high-crush boundary implemented. Updated 2026-08-12.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. All move IDs, pointers, animation samples, and cancel records below
@@ -191,6 +191,14 @@ and hits again on frame 18. The clone therefore uses the directly measured PAL
 high-crush interval 5-17. See `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md` for the
 fixture, frame publications, and the deliberately narrower status claim.
 
+Move-524 `+4` ownership is now implemented as three native branches rather than
+one authored attack. The final `d/f+4` edge remains standing move `502`; delayed
+inputs select moves `607`, `605`, or `603` on source frames 1-8, 9-13, and 14-19.
+Generated attack and recovery poses, reaction `615`, block reactions `692/704`,
+hit shell transitions `612/613/614`, move-360 block recovery, recovered
+pushback, no-timeline-freeze contact, and the effective `-31` crouch-block
+recovery are covered by executable tests. See `T5_PAL_CROUCH_DASH_4_TRACE.md`.
+
 ## Verification and limits
 
 Focused tests establish:
@@ -207,8 +215,11 @@ Focused tests establish:
 9. move 258 preserves its frame when neutral selects move 256 and reaches back
    walk 227 after frame 10; and
 10. neutral `1` selects WS1 through rise frame 5 and standing jab from frame 6;
-    and
-11. standing jab hits move-524 frames 4 and 18 but whiffs on frames 5-17.
+11. standing jab hits move-524 frames 4 and 18 but whiffs on frames 5-17;
+12. final-edge `d/f+4` selects move 502 while all six delayed-4 window edges
+    select moves 607, 605, or 603; and
+13. delayed-4 hit, crouch block, whiff, recovery-shell, reaction, and frame-60
+    victim-gate behavior match the recovered PAL records.
 
 The following are not yet ROM-complete:
 
@@ -221,9 +232,10 @@ The following are not yet ROM-complete:
 - The measured repeated shell and transferred world travel are installed. The
   exact predicate behind `SPECIAL_0x8001` and native split logical/render-root
   representation still need a controlled input and root-field matrix.
-- CD+1, delayed CD+4, and the conditional CD+4 branches are mapped statically
-  but are not all represented by native move definitions in the clone. Both
-  human Jin CD+2 attacks now use their native move definitions.
+- CD+1 and the optional `3+4` branches below delayed CD+4 are not yet native.
+  The three ordinary delayed-4 attacks and both human Jin CD+2 attacks now use
+  native move definitions. The downstream `d/b+2,2,3` pickup still needs moves
+  526-528's native reset timings and grounded-hit outcome.
 - Rendering remains procedural; gameplay body collision uses the recovered pose.
 
 The remaining timing claims are intentionally left open rather than inferred

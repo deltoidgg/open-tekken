@@ -5,6 +5,7 @@ import { JIN_MOVES, JIN_THROWS } from "../data/jin.ts";
 import type { FighterStance, MoveDef, ThrowDef } from "../data/types.ts";
 import { TUNING } from "../data/tuning.ts";
 import type { FighterState } from "./state.ts";
+import { t5CrouchDashFourRoute } from "./t5-crouch-dash.ts";
 
 export function stanceOf(f: FighterState): FighterStance {
   switch (f.action) {
@@ -50,6 +51,8 @@ export function selectMove(
 
   // CD-state remaps (spec 5.3/6.6): f+4 from CD = WS+4 axe kick; uf+3 = slash kick.
   if (stance === "CD") {
+    const timedFour = t5CrouchDashFourRoute(f.actionFrame, dir, inp.pressed);
+    if (timedFour) return JIN_MOVES.find((m) => m.id === timedFour.moveId)!;
     if (inp.pressed === B4 && (dir === "f" || dir === "uf")) {
       return JIN_MOVES.find((m) => m.id === (dir === "uf" ? "jin.fff3" : "jin.ws4"))!;
     }

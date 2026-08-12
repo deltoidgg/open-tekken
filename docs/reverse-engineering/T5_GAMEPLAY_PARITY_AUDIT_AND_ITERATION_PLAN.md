@@ -62,6 +62,7 @@ The following slices are measured from the PAL executable and documented:
 | crouch states      | lowering, full crouch, directional crouch, and rising shells            | `T5_PAL_CROUCH_AND_RISING_RUNTIME.md`                                  |
 | crouch dash        | shell graph, repeat route, exits, and exact/late/buffered +2 ownership  | `T5_PAL_CROUCH_DASH_RUNTIME.md`, `T5_PAL_WAVEDASH_TRANSITION_TRACE.md` |
 | crouch-dash crush  | live jab hit/whiff boundary: move-524 published frames 5-17             | `T5_PAL_CROUCH_DASH_HIGH_CRUSH_TRACE.md`                               |
+| crouch-dash +4     | completion-edge fallback, three delayed branches, reactions, recoveries | `T5_PAL_CROUCH_DASH_4_TRACE.md`                                        |
 | lateral movement   | quick-step and sidewalk shell graph and attack gate                     | `T5_PAL_SIDESTEP_RUNTIME.md`                                           |
 | guard/orientation  | measured guard and facing state slice                                   | `T5_PAL_GUARD_AND_ORIENTATION_RUNTIME.md`                              |
 | combat data        | live move records, hit records, strings, reactions, pushback curves     | `T5_PAL_LIVE_MOVESET.md`                                               |
@@ -270,6 +271,16 @@ consumes `1.272412 m` of generated root travel, and keeps move-524 `+2` ownershi
 on attempted one-forward repeats. The exact `SPECIAL_0x8001` predicate,
 split-root field parity, and remaining jump/low-parry branches remain before
 this phase's full exit gate is closed.
+
+Second checkpoint 2026-08-12: final-edge `d/f+4` remains standing move `502`;
+move `524` then owns delayed `d|d/f+4` as move `607` on frames 1-8, `605` on
+9-13, and `603` on 14-19. All three now use generated PAL pose and hit geometry,
+18-damage low records, reaction `615`, block reactions `692/704`, recovered
+pushback, and contact-gated recovery shells. Hit/CH preserves into
+`612/613/614`; crouch block resets into move `360` and measures an effective
+`-31`; whiff remains in the source shell. Reaction `615` owns its native
+frame-60 gate. Optional `3+4`, the exact post-gate victim graph, and native
+`526 -> 527 -> 528` pickup timing remain explicit follow-up slices.
 
 Exit gate: normal WHF, electric, failed electric, repeated CD, and buffered CD
 follow-ups route to the same moves on the same frames as the reference.

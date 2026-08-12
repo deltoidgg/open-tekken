@@ -22,6 +22,7 @@ export const JUMP_MOVE_IDS = Object.freeze([
   294, 295, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
   316, 317, 321, 322, 395, 417, 428, 430, 433, 434, 453, 454, 507, 509, 511, 512, 514, 602,
 ]);
+export const CROUCH_DASH_MOVE_IDS = Object.freeze([360, 603, 605, 607, 612, 613, 614]);
 
 export const MOVE_ID_PROFILES = Object.freeze({
   launchers: DEFAULT_MOVE_IDS,
@@ -29,6 +30,7 @@ export const MOVE_ID_PROFILES = Object.freeze({
   basics: BASIC_MOVE_IDS,
   stop: STOP_MOVE_IDS,
   jump: JUMP_MOVE_IDS,
+  "crouch-dash": CROUCH_DASH_MOVE_IDS,
 });
 
 export function selectMoveIds(args) {
@@ -159,7 +161,7 @@ async function main() {
   if (!snapshotPath || !outputPath || args.includes("--help")) {
     console.log(
       "Usage: node generate-jin-move-geometry.mjs <idle-pcsx2-ee.bin> <output.ts> " +
-        "[--profile launchers|combat|basics|stop|jump | move-id ...]",
+        "[--profile launchers|combat|basics|stop|jump|crouch-dash | move-id ...]",
     );
     return;
   }

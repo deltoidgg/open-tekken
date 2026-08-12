@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   BASIC_MOVE_IDS,
   COMBAT_MOVE_IDS,
+  CROUCH_DASH_MOVE_IDS,
   DEFAULT_MOVE_IDS,
   JUMP_MOVE_IDS,
   renderJinMoveGeometryModule,
@@ -44,6 +45,11 @@ test("selects every front-facing Jin jump-attack shell and strike", () => {
   assert.equal(JUMP_MOVE_IDS[0], 269);
   assert.equal(JUMP_MOVE_IDS.at(-1), 602);
   assert.equal(new Set(JUMP_MOVE_IDS).size, JUMP_MOVE_IDS.length);
+});
+
+test("selects all PAL crouch-dash +4 attack and recovery shells", () => {
+  assert.deepEqual(selectMoveIds(["--profile", "crouch-dash"]), CROUCH_DASH_MOVE_IDS);
+  assert.deepEqual(CROUCH_DASH_MOVE_IDS, [360, 603, 605, 607, 612, 613, 614]);
 });
 
 test("shares pose payloads while keeping move-specific hitboxes", () => {
