@@ -127,6 +127,8 @@ export interface HitDef {
   t5ReactionMoves?: T5ReactionMoveIds;
   /** First logical-Y displacement installed on airborne contact, in native units per frame. */
   t5AirborneVerticalDisplacement?: number;
+  /** Persistent logical X/Z displacement magnitude, in native units per frame. */
+  t5AirborneHorizontalDisplacement?: number;
   /** Native logical-X/Z envelope installed when this hit replaces an airborne reaction. */
   t5AirbornePushback?: PushbackDef;
   launch?: { vy: number; vxCarry: number };

@@ -74,6 +74,7 @@ interface HitOpts {
   t5Hitbox?: T5NativeHitboxDef;
   t5ReactionMoves?: T5ReactionMoveIds;
   t5AirborneVerticalDisplacement?: number;
+  t5AirborneHorizontalDisplacement?: number;
   t5AirbornePushback?: PushbackDef;
   launch?: { vy: number; vxCarry: number };
   flags?: HitDef["flags"];
@@ -104,6 +105,7 @@ function hit(
     t5Hitbox: opts.t5Hitbox,
     t5ReactionMoves: opts.t5ReactionMoves,
     t5AirborneVerticalDisplacement: opts.t5AirborneVerticalDisplacement,
+    t5AirborneHorizontalDisplacement: opts.t5AirborneHorizontalDisplacement,
     t5AirbornePushback: opts.t5AirbornePushback,
     launch: opts.launch,
     flags: opts.flags,
@@ -155,8 +157,11 @@ const CD4_REACTION_DIRECTION = 0xd556;
 const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0], CD4_REACTION_DIRECTION);
 const PB_CD4_BLOCK = t5Pushback(0, 0, [200, 200, 100, 30, 20, 0, 0, 0], CD4_REACTION_DIRECTION);
 const PB_SAVAGE_SWORD = t5Pushback(20, 20, [300, 250, 200, 150, 100, 50, 25, 5]);
-const PB_AIR_RELAUNCH = t5Pushback(35, 30, [100, 50, 10, 0, 0, 0, 0, 0]);
+const PB_AIR_RELAUNCH = t5Pushback(0, 0, [100, 50, 10, 0, 0, 0, 0, 0]);
 const PB_AIR_SAVAGE_SWORD = t5Pushback(35, 30, [150, 150, 130, 120, 100, 70, 60, 30]);
+const AIR_DB2_HORIZONTAL_DISPLACEMENT = Math.hypot(17, 17);
+const AIR_DB22_HORIZONTAL_DISPLACEMENT = Math.hypot(21, 22);
+const AIR_DB223_HORIZONTAL_DISPLACEMENT = Math.hypot(27, 30);
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
 const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
@@ -1373,6 +1378,7 @@ export const JIN_MOVES: MoveDef[] = [
           airborne: 1,
         },
         t5AirborneVerticalDisplacement: 116,
+        t5AirborneHorizontalDisplacement: AIR_DB2_HORIZONTAL_DISPLACEMENT,
         t5AirbornePushback: PB_AIR_RELAUNCH,
       }),
     ],
@@ -1418,6 +1424,7 @@ export const JIN_MOVES: MoveDef[] = [
           airborne: 1,
         },
         t5AirborneVerticalDisplacement: 96,
+        t5AirborneHorizontalDisplacement: AIR_DB22_HORIZONTAL_DISPLACEMENT,
         t5AirbornePushback: PB_AIR_RELAUNCH,
       }),
     ],
@@ -1487,6 +1494,7 @@ export const JIN_MOVES: MoveDef[] = [
           airborne: 12,
         },
         t5AirborneVerticalDisplacement: 101,
+        t5AirborneHorizontalDisplacement: AIR_DB223_HORIZONTAL_DISPLACEMENT,
         t5AirbornePushback: PB_AIR_SAVAGE_SWORD,
         flags: { wallSplats: true, knockback: "big" },
       }),

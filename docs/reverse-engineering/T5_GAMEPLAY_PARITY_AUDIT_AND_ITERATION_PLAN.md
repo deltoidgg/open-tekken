@@ -343,8 +343,8 @@ airborne contacts through landing. The victim publishes reactions `1`, `1`, and
 `12`; their logical Y starts at `0.256`, `0.996`, and `0.791 m`, loses six native
 units of vertical displacement each frame, reaches ground on frame 37, and
 retains the shared 50-frame reaction shell. The first two relaunches use the
-runtime-generated samples `[100,50,10,0,0,0,0,0]` plus a 30-unit composed drift;
-the final relaunch selects native profile
+runtime-generated samples `[100,50,10,0,0,0,0,0]`; their separate logical X/Z
+vectors have magnitudes `24.0416` and `30.4138`. The final relaunch selects native profile
 `P35/30 [150,150,130,120,100,70,60,30]`. Reset cancels refresh the attack-root
 heading, and none of the three air contacts freezes either player timeline. The
 active spec replay now publishes `615 -> 1 -> 1 -> 12` and deals
@@ -359,10 +359,24 @@ was launched, leaving only `2.2632 m` separation at the final contact. Generated
 reaction-1/12 payloads now include their eight ROM-derived body-sphere centres;
 the shared deepest-overlap resolver runs for those logical-height shells while
 reaction `615` remains excluded. From the trace's exact `1.8845 m` setup, all
-four contacts land and the final separation is `2.7925 m` against PAL's
-`2.7779 m`. Earlier contact residuals remain as large as `124.1 mm`, so exact
-sub-frame body/pushback publication order is still open and no range was
-expanded to conceal it.
+four contacts land. The clone's completed-tick final separation is `2.7925 m`
+against PAL's phase-aligned `2.8941 m`; the earlier `2.7779 m` comparison was a
+pre-body publication. Exact posed-body publication remains open and no range
+was expanded to conceal it.
+
+Airborne displacement checkpoint 2026-08-12: full-struct comparison identifies
+logical displacement at player `+0x11C/+0x120/+0x124` and the composed tick
+result at `+0x640/+0x644/+0x648`. Airborne X/Z carry is no longer folded into
+an invented long pushback envelope. The clone publishes carry on the contact
+tick, rolls both carry and pushback out of swept pose tests, continues reaction
+`12` carry after its native pushback expires, applies the final frame-37
+movement, and stops on frame 38. From each measured relaunch source position,
+horizontal travel now agrees within `0.2 mm`. The remaining route error is
+inherited from posed body correction: PAL resolves reaction-1 overlap on frames
+`1,4,7`, while the generated clone geometry currently resolves it on
+`1,5,6,7`. High-rate samples also prove that the earlier
+`0.927942/2.777894 m` contact values are pre-body publications; phase-aligned
+end-of-tick values are `1.078389/2.894067 m`.
 
 Exit gate: state, root, pose, damage, and first-actionable frame match throughout
 each complete trace.

@@ -70,9 +70,10 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     expect(moveById("jin.db2.buffered").hits[0]).toMatchObject({
       t5ReactionMoves: { airborne: 1 },
       t5AirborneVerticalDisplacement: 116,
+      t5AirborneHorizontalDisplacement: Math.hypot(17, 17),
       t5AirbornePushback: {
-        duration: 35,
-        displacement: 30,
+        duration: 0,
+        displacement: 0,
         samples: [100, 50, 10, 0, 0, 0, 0, 0],
       },
     });
@@ -99,9 +100,10 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
             airborne: 1,
           },
           t5AirborneVerticalDisplacement: 96,
+          t5AirborneHorizontalDisplacement: Math.hypot(21, 22),
           t5AirbornePushback: {
-            duration: 35,
-            displacement: 30,
+            duration: 0,
+            displacement: 0,
             samples: [100, 50, 10, 0, 0, 0, 0, 0],
           },
         },
@@ -147,6 +149,7 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
             airborne: 12,
           },
           t5AirborneVerticalDisplacement: 101,
+          t5AirborneHorizontalDisplacement: Math.hypot(27, 30),
           t5AirbornePushback: {
             duration: 35,
             displacement: 30,
@@ -410,11 +413,37 @@ describe("Tekken 5 PAL Savage Sword routes", () => {
     expect(relaunchHeights[2]).toBeCloseTo(0.791, 6);
     expect(contactSeparations).toEqual([
       expect.closeTo(2.072318, 6),
-      expect.closeTo(1.052003, 6),
-      expect.closeTo(1.240452, 6),
-      expect.closeTo(2.792506, 6),
+      expect.closeTo(1.05177, 6),
+      expect.closeTo(1.23396, 6),
+      expect.closeTo(2.792519, 6),
     ]);
     expect(hp - defender.hp).toBe(43);
+
+    const finalHorizontalTravel = new Map<number, number>();
+    while (defender.t5AirTrajectoryFrame < 38) {
+      const previous = { ...defender.pos };
+      step();
+      finalHorizontalTravel.set(
+        defender.t5AirTrajectoryFrame,
+        Math.hypot(defender.pos.x - previous.x, defender.pos.z - previous.z),
+      );
+    }
+
+    const carry = Math.hypot(27, 30) / 1000;
+    const samples = [150, 130, 120, 100, 70, 60, 30];
+    for (let frame = 2; frame <= 8; frame++) {
+      expect(finalHorizontalTravel.get(frame)).toBeCloseTo(
+        carry + (30 + samples[frame - 2]!) / 1000,
+        9,
+      );
+    }
+    for (let frame = 9; frame <= 35; frame++) {
+      expect(finalHorizontalTravel.get(frame)).toBeCloseTo(carry + 30 / 1000, 9);
+    }
+    expect(finalHorizontalTravel.get(36)).toBeCloseTo(carry, 9);
+    expect(finalHorizontalTravel.get(37)).toBeCloseTo(carry, 9);
+    expect(finalHorizontalTravel.get(38)).toBe(0);
+    expect(defender.pos.y).toBe(0);
   });
 
   it("registers each newly used native reaction payload", () => {

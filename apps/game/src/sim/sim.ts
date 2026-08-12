@@ -1929,9 +1929,15 @@ export class Sim {
     const lastPushback = def.pushback?.lastDisplacement ?? 0;
     const logicalReactionPosition = logicalReactionHeight
       ? {
-          x: def.pos.x - (def.pushback?.directionX ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
+          x:
+            def.pos.x -
+            def.vel.x * T5_FRAME_DT -
+            (def.pushback?.directionX ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
           y: Math.max(0, def.pos.y - def.vel.y * T5_FRAME_DT),
-          z: def.pos.z - (def.pushback?.directionZ ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
+          z:
+            def.pos.z -
+            def.vel.z * T5_FRAME_DT -
+            (def.pushback?.directionZ ?? 0) * (lastPushback / T.t5WorldUnitsPerMeter),
         }
       : def.pos;
     const logicalReactionRoot =
@@ -2402,10 +2408,14 @@ export class Sim {
       const sourceHeight = logicalSource
         ? Math.max(0, def.pos.y - def.vel.y * T5_FRAME_DT)
         : t5AirborneHeight(def);
-      if (logicalSource && replacedPushback) {
-        const previousDisplacement = replacedPushback.lastDisplacement / T.t5WorldUnitsPerMeter;
-        def.pos.x -= replacedPushback.directionX * previousDisplacement;
-        def.pos.z -= replacedPushback.directionZ * previousDisplacement;
+      if (logicalSource) {
+        def.pos.x -= def.vel.x * T5_FRAME_DT;
+        def.pos.z -= def.vel.z * T5_FRAME_DT;
+        if (replacedPushback) {
+          const previousDisplacement = replacedPushback.lastDisplacement / T.t5WorldUnitsPerMeter;
+          def.pos.x -= replacedPushback.directionX * previousDisplacement;
+          def.pos.z -= replacedPushback.directionZ * previousDisplacement;
+        }
       }
       let lift = hd.launch?.vy ?? T.juggleLiftDefault * Math.pow(T.juggleLiftDecay, def.juggleHits);
       const carryBase = hd.launch?.vxCarry ?? T.juggleCarryBase;
@@ -2431,11 +2441,16 @@ export class Sim {
         const firstDisplacement = (hd.t5AirborneVerticalDisplacement ?? 0) / T.t5WorldUnitsPerMeter;
         def.pos.y = Math.max(sourceHeight, T.t5GroundRootHeight) + firstDisplacement;
         def.vel.y = firstDisplacement / T5_FRAME_DT;
+        let horizontalDirection = fw;
         if (hd.t5AirbornePushback) {
-          this.startRecoveredPushback(def, fw, hd.t5AirbornePushback);
-          def.vel.x = 0;
-          def.vel.z = 0;
+          horizontalDirection = this.startRecoveredPushback(def, fw, hd.t5AirbornePushback);
         }
+        const horizontalDisplacement =
+          (hd.t5AirborneHorizontalDisplacement ?? 0) / T.t5WorldUnitsPerMeter;
+        def.vel.x = (horizontalDirection.x * horizontalDisplacement) / T5_FRAME_DT;
+        def.vel.z = (horizontalDirection.z * horizontalDisplacement) / T5_FRAME_DT;
+        def.pos.x += def.vel.x * T5_FRAME_DT;
+        def.pos.z += def.vel.z * T5_FRAME_DT;
         def.actionFrame = 1;
         def.t5AirTrajectoryFrame = 1;
         this.syncT5ReactionOrigin(def);
@@ -2656,12 +2671,15 @@ export class Sim {
       f.t5AirTrajectoryFrame++;
       if (trajectory.airborneHeightOwner === "logical") {
         f.vel.y -= T.t5AirGravityPerFrame / T5_FRAME_DT;
-        f.pos.x += f.vel.x * T5_FRAME_DT;
-        f.pos.z += f.vel.z * T5_FRAME_DT;
-        if (
-          trajectory.airborneGroundFrame !== undefined &&
-          f.t5AirTrajectoryFrame >= trajectory.airborneGroundFrame
-        ) {
+        const groundFrame = trajectory.airborneGroundFrame;
+        if (groundFrame === undefined || f.t5AirTrajectoryFrame <= groundFrame) {
+          f.pos.x += f.vel.x * T5_FRAME_DT;
+          f.pos.z += f.vel.z * T5_FRAME_DT;
+        } else {
+          f.vel.x = 0;
+          f.vel.z = 0;
+        }
+        if (groundFrame !== undefined && f.t5AirTrajectoryFrame >= groundFrame) {
           f.pos.y = 0;
           f.vel.y = 0;
         } else {
@@ -2783,22 +2801,27 @@ export class Sim {
     fighter: FighterState,
     direction: { x: number; z: number },
     definition: PushbackDef,
-  ): void {
+  ): { x: number; z: number } {
     fighter.vel.x = 0;
     fighter.vel.z = 0;
     const angle = t5AngleToRadians(definition.direction ?? 0);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
+    const resolvedDirection = {
+      x: direction.x * cos - direction.z * sin,
+      z: direction.x * sin + direction.z * cos,
+    };
     fighter.pushback = {
       remainingDuration: definition.duration,
       displacement: definition.displacement,
       samples: definition.samples,
       sampleIndex: 0,
       lastDisplacement: 0,
-      directionX: direction.x * cos - direction.z * sin,
-      directionZ: direction.x * sin + direction.z * cos,
+      directionX: resolvedDirection.x,
+      directionZ: resolvedDirection.z,
     };
     this.advanceRecoveredPushback(fighter);
+    return resolvedDirection;
   }
 
   private isAtWall(x: number, z: number): boolean {

@@ -127,6 +127,12 @@ offsets:
 |        `+0x2AC` | current sample pointer         |
 |        `+0x2DC` | base displacement float        |
 |        `+0x2F0` | active pushback record pointer |
+|        `+0x11C` | logical X displacement         |
+|        `+0x120` | logical Y displacement         |
+|        `+0x124` | logical Z displacement         |
+|        `+0x640` | composed X displacement        |
+|        `+0x644` | composed Y displacement        |
+|        `+0x648` | composed Z displacement        |
 
 The first and second relaunches consume a runtime-generated eight-sample buffer
 at EE `0x00478254`:
@@ -135,12 +141,13 @@ at EE `0x00478254`:
 [100, 50, 10, 0, 0, 0, 0, 0]
 ```
 
-Their live record publishes duration `0` and base `0`, while the composed
-logical path continues a measured 30-unit drift. The clean second relaunch
-therefore moves `130`, `80`, `40`, then `30` native units per frame. The clone
-stores that composed result as `P35/30 [100,50,10,0,0,0,0,0]`; this is an
-equivalent simulation profile, not a claim that the raw runtime stores the
-steady component in `+0x2DC` for these generated buffers.
+Their live record publishes duration `0` and base `0`. A separate persistent
+logical vector at `+0x11C/+0x124` is composed with that buffer each tick. The
+first relaunch owns `[-17,-17]`, magnitude `24.0416`; the second owns
+`[-21,-22]`, magnitude `30.4138`. The clean second relaunch therefore publishes
+about `130.414`, `80.414`, `40.414`, then `30.414` native units per frame. The
+clone keeps the raw `P0/0 [100,50,10,0,0,0,0,0]` buffer and persistent carry as
+separate state.
 
 The final relaunch selects pushback record `0x01599048`, direction `-25002`,
 and the static eight-sample profile starting at `0x015998E0`:
@@ -148,6 +155,14 @@ and the static eight-sample profile starting at `0x015998E0`:
 ```text
 P35/30 [150, 150, 130, 120, 100, 70, 60, 30]
 ```
+
+Reaction `12` simultaneously owns logical vector `[-27,-30]`, magnitude
+`40.3609`. Its composed travel is therefore about `220.361` on the first two
+frames, falls through the remaining samples to `70.361`, continues at that
+rate through frame 35, then carries `40.361` on frames 36 and 37. Logical X/Z
+become zero on frame 37 after that frame's movement has published; frame 38 no
+longer moves. The clone's regression checks this full expiry boundary rather
+than merely checking the contact position.
 
 The first two directions are `-24457` and `-24970`. Those changes agree with a
 second root-ownership finding: PAL refreshes the attack root heading from the
@@ -179,19 +194,28 @@ height-owned reaction `615` and legacy unmapped launches retain their existing
 no-body-push behavior.
 
 Replaying the native move-524 delay from the trace's exact `1.8845 m` starting
-separation now gives these post-contact logical distances:
+separation now gives these phase-aligned, completed-tick logical distances:
 
-| Contact          | PAL distance | Clone distance |   Residual |
-| ---------------- | -----------: | -------------: | ---------: |
-| Hell Trip        | `2.019097 m` |   `2.072318 m` |  `53.2 mm` |
-| buffered `d/b+2` | `0.927942 m` |   `1.052003 m` | `124.1 mm` |
-| second `2`       | `1.181302 m` |   `1.240452 m` |  `59.2 mm` |
-| final `3`        | `2.777894 m` |   `2.792506 m` |  `14.6 mm` |
+| Contact          | PAL distance | Clone distance |    Residual |
+| ---------------- | -----------: | -------------: | ----------: |
+| Hell Trip        | `2.019097 m` |   `2.072318 m` |   `53.2 mm` |
+| buffered `d/b+2` | `1.078389 m` |   `1.051770 m` |  `-26.6 mm` |
+| second `2`       | `1.181302 m` |   `1.233960 m` |   `52.7 mm` |
+| final `3`        | `2.894067 m` |   `2.792519 m` | `-101.5 mm` |
 
-All four native posed contacts now land from the PAL setup, and the final
-spacing error is down by about `500 mm`. The earlier contact residuals remain
-open evidence, likely in pre-contact body/root publication order; they must not
-be hidden with range inflation.
+All four native posed contacts now land from the PAL setup. The final spacing
+has improved by about `529 mm` from the no-body result, but the phase-aligned
+residual is still `101.5 mm`. These contact residuals remain open evidence in
+posed-body publication and must not be hidden with range inflation.
+
+The high-rate trace also exposes two distinct samples inside body-corrected
+contact ticks. Reaction selection and composed movement publish first; posed
+body correction follows roughly one millisecond later. For the first reaction
+`1`, separation is `0.927942 m` before body correction and `1.078389 m` after
+it. For reaction `12`, the corresponding values are `2.777894 m` and
+`2.894067 m`. Clone tests observe the completed simulation tick, so future
+residual tables must compare them with the latter values. Mixing these phases
+made the earlier final-contact residual look about `87 mm` smaller than it was.
 
 ## Attack records
 
