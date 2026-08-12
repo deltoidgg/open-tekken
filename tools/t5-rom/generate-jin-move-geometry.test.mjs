@@ -8,6 +8,7 @@ import {
   DEFAULT_MOVE_IDS,
   JUMP_MOVE_IDS,
   renderJinMoveGeometryModule,
+  SAVAGE_SWORD_MOVE_IDS,
   selectMoveIds,
   STOP_MOVE_IDS,
 } from "./generate-jin-move-geometry.mjs";
@@ -50,6 +51,11 @@ test("selects every front-facing Jin jump-attack shell and strike", () => {
 test("selects all PAL crouch-dash +4 attack and recovery shells", () => {
   assert.deepEqual(selectMoveIds(["--profile", "crouch-dash"]), CROUCH_DASH_MOVE_IDS);
   assert.deepEqual(CROUCH_DASH_MOVE_IDS, [360, 603, 605, 607, 612, 613, 614]);
+});
+
+test("selects every PAL Savage Sword attack and branch shell", () => {
+  assert.deepEqual(selectMoveIds(["--profile", "savage-sword"]), SAVAGE_SWORD_MOVE_IDS);
+  assert.deepEqual(SAVAGE_SWORD_MOVE_IDS, [526, 527, 528, 531, 532]);
 });
 
 test("shares pose payloads while keeping move-specific hitboxes", () => {

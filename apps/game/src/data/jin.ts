@@ -5,6 +5,7 @@
 import { B1, B2, B3, B4 } from "../input/pad.ts";
 import * as T5_JIN_BASICS_NATIVE from "./t5-jin-basics-native.ts";
 import * as T5_JIN_CROUCH_DASH_NATIVE from "./t5-jin-crouch-dash-native.ts";
+import * as T5_JIN_SAVAGE_SWORD_NATIVE from "./t5-jin-savage-sword-native.ts";
 import * as T5_JIN_STOP_NATIVE from "./t5-jin-stop-native.ts";
 import {
   T5_JIN_1_ANIMATION,
@@ -144,6 +145,7 @@ const PB_DB3_CH = t5Pushback(40, 75, [600, 400, 200, 100, 0, 0, 0, 0]);
 const PB_D1 = t5Pushback(20, 20, [400, 400, 200, 200, 100, 80, 40, 20]);
 const PB_D1_BLOCK = t5Pushback(10, 10, [200, 200, 100, 30, 20, 0, 0, 0]);
 const PB_CD4 = t5Pushback(30, 15, [300, 250, 200, 100, 50, 25, 5, 0]);
+const PB_SAVAGE_SWORD = t5Pushback(20, 20, [300, 250, 200, 150, 100, 50, 25, 5]);
 
 /** First recovered slice of Jin's native T5 outcome-specific pushback table. */
 const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
@@ -167,6 +169,10 @@ const T5_PUSHBACK_BY_MOVE: Readonly<Partial<Record<string, HitPushbacks>>> = {
   "jin.d4": outcomes(PB_730, PB_D4_CH, PB_D4_BLOCK),
   "jin.db1": outcomes(PB_550, PB_550, PB_BLOCK),
   "jin.db2": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.db2.buffered": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.db22": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.db22.counter": outcomes(PB_730, PB_730, PB_BLOCK),
+  "jin.db223": outcomes(PB_SAVAGE_SWORD, PB_SAVAGE_SWORD, PB_BLOCK),
   "jin.db3": outcomes(PB_DB3, PB_DB3_CH, PB_BLOCK),
   "jin.db4": outcomes(PB_730, PB_730, PB_BLOCK),
   "jin.bf2": outcomes(PB_730, PB_730, PB_BLOCK),
@@ -1305,46 +1311,151 @@ export const JIN_MOVES: MoveDef[] = [
       hit("m", 12, 16, -15, -4, "CS", {
         range: 1.65,
         activeLen: 0,
-        t5Hitbox: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_526_HITBOX,
-        t5ReactionMoves: { normal: 806, counterHit: 854 },
+        blockstun: 19,
+        hitstun: 30,
+        t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_526_HITBOX,
+        t5ReactionMoves: { normal: 806, counterHit: 854, block: 535, crouchBlock: 160 },
       }),
     ],
     {
       input: { buttons: B2, dir: "db" },
       t5CancelOrientationMode: 4,
-      t5Animation: T5_JIN_BASICS_NATIVE.T5_JIN_MOVE_526_ANIMATION,
+      t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_526_ANIMATION,
       anim: { clip: "backfistSliceR" },
-      followups: [{ moveId: "jin.db22", buttons: B2, window: [8, 34] }],
+      followups: [
+        {
+          moveId: "jin.db2.buffered",
+          buttons: B2,
+          window: [1, 15],
+          startingFrame: 15,
+          transitionMode: "preserve",
+        },
+        {
+          moveId: "jin.db22",
+          buttons: B2,
+          window: [16, 16],
+          startingFrame: 16,
+          transitionMode: "reset",
+        },
+      ],
+    },
+  ),
+  mv(
+    "jin.db2.buffered",
+    "",
+    "Backfist Slice Buffered",
+    16,
+    50,
+    [
+      hit("m", 12, 16, -6, -4, "CS", {
+        range: 1.65,
+        activeLen: 0,
+        blockstun: 28,
+        hitstun: 30,
+        t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_531_HITBOX,
+        t5ReactionMoves: { normal: 803, counterHit: 854, block: 710, crouchBlock: 160 },
+      }),
+    ],
+    {
+      t5CancelOrientationMode: 4,
+      t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_531_ANIMATION,
+      anim: { clip: "backfistSliceR" },
+      autoTransition: {
+        moveId: "jin.db22",
+        startingFrame: 16,
+        transitionMode: "reset",
+      },
+      contactTransitions: {
+        counterHit: {
+          moveId: "jin.db22.counter",
+          window: [16, 16],
+          startingFrame: 16,
+          transitionMode: "reset",
+        },
+      },
     },
   ),
   mv(
     "jin.db22",
     "d/b+2,2",
     "Rising Backfist",
-    16,
-    46,
-    [hit("h", 15, 16, -17, -12, -12, { range: 1.7, airReach: 2.2 })],
+    8,
+    50,
+    [
+      hit("h", 15, 8, -17, -12, -12, {
+        range: 1.7,
+        airReach: 2.2,
+        activeLen: 0,
+        blockstun: 25,
+        hitstun: 30,
+        counterHitstun: 30,
+        t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_527_HITBOX,
+        t5ReactionMoves: { normal: 797, counterHit: 794, block: 427, crouchBlock: 704 },
+      }),
+    ],
     {
-      advance: [3, 10, 0.2],
+      t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_527_ANIMATION,
       anim: { clip: "risingBackfist" },
-      followups: [{ moveId: "jin.db223", buttons: B3, window: [8, 34] }],
+      followups: [
+        {
+          moveId: "jin.db223",
+          buttons: B3,
+          window: [1, 35],
+          startingFrame: 8,
+          transitionMode: "reset",
+        },
+      ],
+    },
+  ),
+  mv(
+    "jin.db22.counter",
+    "",
+    "Rising Backfist Counter",
+    8,
+    45,
+    [
+      hit("h", 15, 8, -12, "CS", "CS", {
+        range: 1.7,
+        airReach: 2.2,
+        activeLen: 0,
+        blockstun: 25,
+        t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_532_HITBOX,
+        t5ReactionMoves: { normal: 533, counterHit: 533, block: 427, crouchBlock: 704 },
+      }),
+    ],
+    {
+      t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_532_ANIMATION,
+      anim: { clip: "risingBackfist" },
+      followups: [
+        {
+          moveId: "jin.db223",
+          buttons: B3,
+          window: [1, 35],
+          startingFrame: 8,
+          transitionMode: "reset",
+        },
+      ],
     },
   ),
   mv(
     "jin.db223",
     "d/b+2,2,3",
     "Savage Sword",
-    18,
-    52,
+    35,
+    61,
     [
-      hit("m", 21, 18, -7, "CS", "CS", {
+      hit("m", 21, 35, -7, "CS", "CS", {
         range: 1.85,
         airReach: 2.0,
+        activeLen: 1,
+        blockstun: 19,
+        t5Hitbox: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_528_HITBOX,
+        t5ReactionMoves: { normal: 529, counterHit: 529, block: 693, crouchBlock: 701 },
         flags: { wallSplats: true, knockback: "big" },
       }),
     ],
     {
-      advance: [3, 12, 0.2],
+      t5Animation: T5_JIN_SAVAGE_SWORD_NATIVE.T5_JIN_MOVE_528_ANIMATION,
       anim: { clip: "stabKick" },
       tags: ["wallEnder", "comboEnder"],
     },

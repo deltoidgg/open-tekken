@@ -89,7 +89,7 @@ describe("combo book (spec 6.9) — damage must land within ±15%", () => {
   });
 
   // #5: CD+4, d/b+2,2,3 = 43
-  it.skip("combo 5 = 43 exactly (pending native d/b+2,2,3 timing)", () => {
+  it.skip("combo 5 = 43 exactly (pending verified PAL pickup movement)", () => {
     const sim = fightSim(1.3);
     const script: Script = [
       { dx: 1 },

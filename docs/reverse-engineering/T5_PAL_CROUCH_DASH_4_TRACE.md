@@ -124,7 +124,8 @@ data. Tests protect:
 - reaction `615`'s frame-60 state gate.
 
 The old combo-book route is now correctly delayed by one frame to enter move
-`524`, but remains skipped until moves `526 -> 527 -> 528` receive their native
-reset timelines, posed geometry, and grounded-hit outcome. PAL move `527` is i8,
-not the clone's provisional i16, so changing Hell Trip recovery to make the old
-script pass would encode the discrepancy in the wrong system.
+`524`. Native `d/b+2,2,3` timing, branches, geometry, and front reactions are
+now implemented in `T5_PAL_SAVAGE_SWORD_TRACE.md`, but the combo remains skipped
+until the actual PAL pickup movement and airborne horizontal ownership are
+recovered. Changing Hell Trip travel to make the old no-movement script pass
+would encode the discrepancy in the wrong system.

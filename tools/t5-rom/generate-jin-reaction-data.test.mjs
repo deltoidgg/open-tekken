@@ -24,6 +24,12 @@ test("includes the PAL crouch-dash +4 launch and block reactions", () => {
   }
 });
 
+test("includes every front-facing Savage Sword reaction", () => {
+  for (const moveId of [427, 529, 533, 535, 710]) {
+    assert.ok(DEFAULT_REACTION_MOVE_IDS.includes(moveId), `missing reaction ${moveId}`);
+  }
+});
+
 test("renders deterministic typed reaction data", () => {
   const output = renderJinReactionModule([
     {

@@ -910,8 +910,7 @@ export class Sim {
     // string (mashing d/b+2,2,3) or slide-cancel it (1,3~3)
     if (f.followupQueued) {
       if (f.followupAutomatic) {
-        const currentMatch = this.matchFollowup(move.followups, inp, f);
-        if (currentMatch && this.acceptCurrentFollowup(f, move, currentMatch)) return true;
+        if (this.acceptMatchingFollowup(f, move, inp)) return true;
       }
       const deepestQueued = f.followupChain.at(-1) ?? f.followupQueued;
       const queued = moveById(deepestQueued);
@@ -932,9 +931,14 @@ export class Sim {
     }
 
     if (!move.followups) return false;
-    const fu = this.matchFollowup(move.followups, inp, f);
-    if (!fu) return false;
-    return this.acceptCurrentFollowup(f, move, fu);
+    return this.acceptMatchingFollowup(f, move, inp);
+  }
+
+  private acceptMatchingFollowup(f: FighterState, move: MoveDef, inp: FrameInput): boolean {
+    for (const followup of this.matchFollowups(move.followups, inp, f)) {
+      if (this.acceptCurrentFollowup(f, move, followup)) return true;
+    }
+    return false;
   }
 
   private acceptCurrentFollowup(f: FighterState, move: MoveDef, fu: FollowupDef): boolean {
@@ -1003,7 +1007,7 @@ export class Sim {
     contactFrame: number,
   ): void {
     const transition = move.contactTransitions?.[result];
-    if (!transition || fighter.followupQueued !== null) return;
+    if (!transition || (fighter.followupQueued !== null && !fighter.followupAutomatic)) return;
     if (contactFrame < transition.window[0] || contactFrame > transition.window[1]) return;
     this.queueRomTransition(
       fighter,
@@ -1020,21 +1024,28 @@ export class Sim {
     inp: FrameInput,
     f: FighterState,
   ): FollowupDef | null {
-    if (!followups) return null;
+    return this.matchFollowups(followups, inp, f)[0] ?? null;
+  }
+
+  private matchFollowups(
+    followups: FollowupDef[] | undefined,
+    inp: FrameInput,
+    f: FighterState,
+  ): FollowupDef[] {
+    if (!followups) return [];
     // directed variants win over undirected ones (d/f+1,4~4 vs d/f+1,4)
     const candidates = [...followups].sort((a, b) => (b.dir ? 1 : 0) - (a.dir ? 1 : 0));
-    for (const fu of candidates) {
-      if (fu.buttons !== inp.pressed) continue;
+    return candidates.filter((fu) => {
+      if (fu.buttons !== inp.pressed) return false;
       if (fu.dir !== undefined) {
         const dirs = Array.isArray(fu.dir) ? fu.dir : [fu.dir];
-        if (!dirs.includes(inp.pressedDir)) continue;
+        if (!dirs.includes(inp.pressedDir)) return false;
       }
-      if (fu.requiresBuff && f.buff !== fu.requiresBuff) continue;
-      if (fu.requiresHit && !f.moveHitLanded) continue;
-      if (fu.requiresContact && f.moveContact === "whiff") continue;
-      return fu;
-    }
-    return null;
+      if (fu.requiresBuff && f.buff !== fu.requiresBuff) return false;
+      if (fu.requiresHit && !f.moveHitLanded) return false;
+      if (fu.requiresContact && f.moveContact === "whiff") return false;
+      return true;
+    });
   }
 
   private matchBufferedFollowup(
