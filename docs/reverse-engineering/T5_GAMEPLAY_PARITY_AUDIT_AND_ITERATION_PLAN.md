@@ -659,11 +659,11 @@ releases into negative shell `1068`; physical down publishes crouch-entry move
 `254` and releases into positive shell `1062`. The clone previously assigned
 the up route to `1062` and allowed a down tap to reverse toward standing. Both
 routes now publish their measured frame-1 shell, use the matching native root
-curve, and continue into sidewalk only when the same physical vertical
-direction is re-pressed. The trace format now follows both current and previous
-22-node published skeletons and records all hurt, direction, correction, and
-object fields. Alternate `115/116/172` requirement states and the measured
-transition-controlled correction basis remain the next lateral slices.
+curve. The observed flag-1 continuation still follows the physical pulse, while
+the complete projection-dependent entry and continuation matrices are resolved
+by the checkpoints below. The trace format now follows both current and
+previous 22-node published skeletons and records all hurt, direction,
+correction, and object fields.
 
 Tenth checkpoint 2026-08-13: controlled hold-duration sweeps resolve the
 special-command boundary in PAL player frames. Move `21` accepts neutral
@@ -695,12 +695,28 @@ publishes `player+0x1BE = self.projectedX >= opponent.projectedX`; and the
 requirement evaluator makes `111` the false branch and `112` the true branch.
 Eight existing traces match this comparison without exception. A controlled
 1 kHz differential temporarily exchanged only the verified live `111/112`
-requirement words, captured the complementary matrix
-`1070/1068/1065/1063`, then restored and re-read the original words. The clone
-now supplies PAL-normalized perspective-projected X as frame context, keeps Pad
-purely input-owned, reproduces both four-route matrices, and locks the native
-`>=` tie behavior. Relative forward ownership is intentionally separate from
-this projected-order state.
+requirement words while preserving the initial quick-step shells, captured the
+fixed-shell continuation matrix `1070/1068/1065/1063`, then restored and re-read
+the original words. The clone now supplies PAL-normalized perspective-projected
+X as frame context, keeps Pad purely input-owned, reproduces the continuation
+predicate order, and locks the native `>=` tie behavior. Relative forward
+ownership is intentionally separate from this projected-order state.
+
+Thirteenth checkpoint 2026-08-13: executable disassembly resolves the entry
+requirements that legacy aliases had left ambiguous. Requirements `115/116`
+combine the projected-order byte with `player+0x80 < 0x4001`; the writer makes
+`+0x80` the one's-complement magnitude of signed target-facing error.
+Requirement `172:0` is true when the `player+0x2CA` countdown is zero. Move 21
+and move 254 release through direct neutral rows rather than re-emitting the
+standing special commands. Three bounded live differentials independently
+invert up entry, down entry, and then entry plus continuation before restoring
+and re-reading all six requirement words. They prove flag 0 swaps the initial
+shells and produces the physical pair results `1063/1065/1068/1070`, while flag
+1 remains `1069/1071/1062/1064`. The clone now computes the native angle gate,
+selects all four projected-side entry routes, and reproduces all eight
+end-to-end two-tap outcomes. The trace inspector exposes `+0x80`, `+0x2CA`, and
+the decoded `115/116/172` states for the back-facing and nonzero-timer work that
+remains.
 
 ## Rules for future tuning
 

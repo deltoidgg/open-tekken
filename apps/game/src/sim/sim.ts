@@ -54,11 +54,13 @@ import {
   stepT5AttackOrientation,
   stepT5PostActiveOrientation,
   t5AngleToRadians,
+  t5FacingErrorMagnitude,
 } from "./t5-orientation.ts";
 import {
   T5_DOWN_SIDESTEP_RELEASE_END,
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
+  t5QuickStepEntryRoute,
   t5QuickStepVerticalRoute,
   t5SideOrderFlag,
   t5SidestepStopCommandRoute,
@@ -721,8 +723,7 @@ export class Sim {
       inp.dir === "n" &&
       inp.tapD
     ) {
-      this.startT5Sidestep(f, 1);
-      return;
+      if (this.startT5Sidestep(f, "d")) return;
     }
 
     const inForwardRelease = f.action === "walkF" && f.actionTotal > 0;
@@ -778,8 +779,7 @@ export class Sim {
         f.action === "rising") &&
       (inp.tapU || inp.tapD)
     ) {
-      this.startT5Sidestep(f, inp.tapU ? -1 : 1);
-      return;
+      if (this.startT5Sidestep(f, inp.tapU ? "u" : "d")) return;
     }
 
     // walk / crouch / jump — only meaningful from neutral-ish states
@@ -808,13 +808,25 @@ export class Sim {
     f.vel.x = f.vel.y = f.vel.z = 0;
   }
 
-  private startT5Sidestep(f: FighterState, direction: 1 | -1): void {
+  private startT5Sidestep(f: FighterState, input: "u" | "d"): boolean {
+    const opponent = this.gs.fighters[f.id === 0 ? 1 : 0];
+    const fighterRoot = this.t5FacingRoot(f);
+    const opponentRoot = this.t5FacingRoot(opponent);
+    const targetFace = Math.atan2(opponentRoot.z - fighterRoot.z, opponentRoot.x - fighterRoot.x);
+    const route = t5QuickStepEntryRoute(
+      input,
+      f.t5SideOrderFlag,
+      t5FacingErrorMagnitude(f.face, targetFace),
+    );
+    if (!route) return false;
+
     this.setAction(f, "ss", T.sidestepFrames);
-    f.ssDir = direction;
+    f.ssDir = route.direction;
     f.ssPhase = "step";
-    f.t5SidestepMoveId = direction === 1 ? 1062 : 1068;
-    f.t5SidewalkInput = direction === 1 ? "d" : "u";
+    f.t5SidestepMoveId = route.moveId;
+    f.t5SidewalkInput = route.input;
     this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
+    return true;
   }
 
   private startT5JumpAbort(f: FighterState, moveId: 251 | 252 | 253): void {
@@ -907,8 +919,7 @@ export class Sim {
         return;
       }
       if (inp.dir === "n" && source === 21) {
-        this.startT5Sidestep(f, -1);
-        return;
+        if (this.startT5Sidestep(f, "u")) return;
       }
     } else {
       const heldDirection = source === 23 ? "uf" : "ub";

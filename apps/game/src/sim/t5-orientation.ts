@@ -14,6 +14,12 @@ export function t5AngleToRadians(angle: number): number {
   return signed16(angle) * T5_ANGLE_SCALE;
 }
 
+/** PAL player+0x80: one's-complement magnitude of the signed target-angle error. */
+export function t5FacingErrorMagnitude(face: number, targetFace: number): number {
+  const error = signed16(radiansToT5Angle(face) - radiansToT5Angle(targetFace));
+  return error >= 0 ? error : ~error;
+}
+
 function degreeRateToT5Angle(degrees: number): number {
   return Math.trunc((degrees * 0xffff) / 360);
 }

@@ -10,6 +10,7 @@ const HEADER_SIZE_V2 = 48;
 const ROOT_ANGLE_OFFSET = 0x0e;
 const ANIMATION_ROOT_OFFSET = 0x68;
 const SKELETON_ANGLE_OFFSET = 0x74;
+const FACING_ERROR_OFFSET = 0x80;
 const PLAYER_FRAME_OFFSET = 0x96;
 const LOGICAL_DISPLACEMENT_OFFSET = 0x11c;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
@@ -21,6 +22,7 @@ const PUSHBACK_SAMPLE_COUNT_OFFSET = 0x2a6;
 const PUSHBACK_DIRECTION_OFFSET = 0x2a8;
 const PUSHBACK_SAMPLE_POINTER_OFFSET = 0x2ac;
 const IMPACT_COUNTER_OFFSET = 0x2b6;
+const SPECIAL_INPUT_TIMER_OFFSET = 0x2ca;
 const PUSHBACK_BASE_DISPLACEMENT_OFFSET = 0x2dc;
 const PUSHBACK_POINTER_OFFSET = 0x2f0;
 const HURT_SPHERE_OFFSET = 0x378;
@@ -68,6 +70,8 @@ function readPublishedSkeleton(buffer, offset, nodeCount, pointSize) {
 function readPlayer(buffer, offset, skeletonLayout) {
   const currentMovePointer = buffer.readUInt32LE(offset + CURRENT_MOVE_POINTER_OFFSET);
   const sideOrderFlag = buffer.readUInt8(offset + SIDE_ORDER_FLAG_OFFSET);
+  const facingErrorMagnitude = buffer.readUInt16LE(offset + FACING_ERROR_OFFSET);
+  const specialInputTimer = buffer.readUInt16LE(offset + SPECIAL_INPUT_TIMER_OFFSET);
   const hurtSpheres = Array.from({ length: HURT_SPHERE_COUNT }, (_, index) => {
     const sphereOffset = offset + HURT_SPHERE_OFFSET + index * HURT_SPHERE_STRIDE;
     return {
@@ -112,6 +116,13 @@ function readPlayer(buffer, offset, skeletonLayout) {
       flag: sideOrderFlag,
       requirement111: sideOrderFlag === 0,
       requirement112: sideOrderFlag !== 0,
+    },
+    sideEntry: {
+      facingErrorMagnitude,
+      specialInputTimer,
+      requirement115: sideOrderFlag === 0 && facingErrorMagnitude < 0x4001,
+      requirement116: sideOrderFlag !== 0 && facingErrorMagnitude < 0x4001,
+      requirement172: specialInputTimer === 0,
     },
     rootTransition: {
       transferPending: buffer.readUInt8(offset + ROOT_TRANSFER_PENDING_OFFSET) !== 0,
@@ -276,6 +287,8 @@ function timelineKey(sample) {
       player.nativeMoveId,
       player.dynamicMoveId,
       player.sideOrder.flag,
+      player.sideEntry.facingErrorMagnitude,
+      player.sideEntry.specialInputTimer,
       player.playerFrame,
       player.impactCounter,
       player.pushback.pointer,
@@ -322,7 +335,7 @@ function printTimeline(trace) {
     `Samples: ${trace.samples.length}; player struct: 0x${trace.playerSize.toString(16)}`,
   );
   console.log(
-    "time_ms\tp1_native\tp1_dynamic\tp1_side_coord\tp1_side_flag\tp1_frame\tp1_dir\tp1_edge\tp1_gate\tp1_weight\tp1_2b6\tp2_native\tp2_dynamic\tp2_side_coord\tp2_side_flag\tp2_frame\tp2_dir\tp2_edge\tp2_gate\tp2_weight\tp2_2b6",
+    "time_ms\tp1_native\tp1_dynamic\tp1_side_coord\tp1_side_flag\tp1_angle80\tp1_timer2ca\tp1_frame\tp1_dir\tp1_edge\tp1_gate\tp1_weight\tp1_2b6\tp2_native\tp2_dynamic\tp2_side_coord\tp2_side_flag\tp2_angle80\tp2_timer2ca\tp2_frame\tp2_dir\tp2_edge\tp2_gate\tp2_weight\tp2_2b6",
   );
   for (const sample of playerTraceTransitions(trace)) {
     const [player1, player2] = sample.players;
@@ -333,6 +346,8 @@ function printTimeline(trace) {
         player1.dynamicMoveId,
         player1.sideOrder.coordinate,
         player1.sideOrder.flag,
+        player1.sideEntry.facingErrorMagnitude,
+        player1.sideEntry.specialInputTimer,
         player1.playerFrame,
         `0x${player1.direction.mask.toString(16)}`,
         `0x${player1.direction.edge.toString(16)}`,
@@ -343,6 +358,8 @@ function printTimeline(trace) {
         player2.dynamicMoveId,
         player2.sideOrder.coordinate,
         player2.sideOrder.flag,
+        player2.sideEntry.facingErrorMagnitude,
+        player2.sideEntry.specialInputTimer,
         player2.playerFrame,
         `0x${player2.direction.mask.toString(16)}`,
         `0x${player2.direction.edge.toString(16)}`,

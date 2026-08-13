@@ -54,6 +54,7 @@ import {
   T5_DOWN_SIDESTEP_RELEASE_END,
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
+  t5QuickStepEntryRoute,
   t5QuickStepVerticalRoute,
   t5SideOrderFlag,
   t5SidestepStopCommandRoute,
@@ -966,6 +967,59 @@ describe("Tekken 5 PAL locomotion roots", () => {
     );
   });
 
+  it("resolves requirements 115/116 into the four front-facing entry routes", () => {
+    expect(t5QuickStepEntryRoute("u", true, 0)).toEqual({
+      direction: -1,
+      moveId: 1068,
+      input: "u",
+    });
+    expect(t5QuickStepEntryRoute("d", true, 0)).toEqual({
+      direction: 1,
+      moveId: 1062,
+      input: "d",
+    });
+    expect(t5QuickStepEntryRoute("u", false, 0)).toEqual({
+      direction: 1,
+      moveId: 1062,
+      input: "u",
+    });
+    expect(t5QuickStepEntryRoute("d", false, 0)).toEqual({
+      direction: -1,
+      moveId: 1068,
+      input: "d",
+    });
+    expect(t5QuickStepEntryRoute("u", true, 0x4000)).toBeDefined();
+    expect(t5QuickStepEntryRoute("u", true, 0x4001)).toBeUndefined();
+  });
+
+  it.each([
+    ["u", true, 1, -1, 1068],
+    ["d", true, -1, 1, 1062],
+    ["u", false, 1, 1, 1062],
+    ["d", false, -1, -1, 1068],
+  ] as const)(
+    "selects PAL %s entry when projected-order flag is %s",
+    (input, sideOrderFlag, dy, direction, moveId) => {
+      const sim = fightSim(8);
+      const fighter = sim.gs.fighters[0];
+      fighter.t5ProjectedX = sideOrderFlag ? 1 : -1;
+      sim.gs.fighters[1].t5ProjectedX = sideOrderFlag ? -1 : 1;
+
+      sim.step(pad({ dy }), pad());
+      sim.step(pad(), pad());
+
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 1,
+        ssDir: direction,
+        ssPhase: "step",
+        t5SidestepMoveId: moveId,
+        t5SidewalkInput: input,
+        t5SideOrderFlag: sideOrderFlag,
+      });
+    },
+  );
+
   it("resolves the ordered 111/112 quick-step routes before the down fallback", () => {
     expect(t5QuickStepVerticalRoute(1, 6, "u", false)).toEqual({
       phase: "walkStart",
@@ -1000,10 +1054,10 @@ describe("Tekken 5 PAL locomotion roots", () => {
     ["u,N,u", true, 1, 1, "walkStart", 1071],
     ["d,N,u", true, -1, 1, "step", 1062],
     ["d,N,d", true, -1, -1, "walkStart", 1064],
-    ["u,N,d", false, 1, -1, "walkStart", 1070],
-    ["u,N,u", false, 1, 1, "step", 1068],
-    ["d,N,u", false, -1, 1, "walkStart", 1065],
-    ["d,N,d", false, -1, -1, "stepVariant", 1063],
+    ["u,N,d", false, 1, -1, "stepVariant", 1063],
+    ["u,N,u", false, 1, 1, "walkStart", 1065],
+    ["d,N,u", false, -1, 1, "step", 1068],
+    ["d,N,d", false, -1, -1, "walkStart", 1070],
   ] as const)(
     "matches the PAL quick-step pair %s when projected-order flag is %s",
     (_label, sideOrderFlag, firstDy, secondDy, phase, moveId) => {

@@ -9,12 +9,34 @@ export type T5QuickStepVerticalRoute = {
   input: "u" | "d";
 };
 
+export type T5QuickStepEntryRoute = {
+  direction: 1 | -1;
+  moveId: 1062 | 1068;
+  input: "u" | "d";
+};
+
 /** Move 254 accepts the neutral down-tap special only through source frame 7. */
 export const T5_DOWN_SIDESTEP_RELEASE_END = 7;
 
 /** PAL 0x0023C3A0 publishes player+0x1BE from the two projected-X fields. */
 export function t5SideOrderFlag(selfProjectedX: number, opponentProjectedX: number): boolean {
   return selfProjectedX >= opponentProjectedX;
+}
+
+/** Resolve PAL requirements 115/116 for a front-facing vertical tap release. */
+export function t5QuickStepEntryRoute(
+  input: "u" | "d",
+  sideOrderFlag: boolean,
+  facingErrorMagnitude: number,
+): T5QuickStepEntryRoute | undefined {
+  if (facingErrorMagnitude > 0x4000) return undefined;
+
+  const direction = input === "u" ? (sideOrderFlag ? -1 : 1) : sideOrderFlag ? 1 : -1;
+  return {
+    direction,
+    moveId: direction === 1 ? 1062 : 1068,
+    input,
+  };
 }
 
 /** Resolve moves 1062/1068's ordered side requirements before the down fallback. */

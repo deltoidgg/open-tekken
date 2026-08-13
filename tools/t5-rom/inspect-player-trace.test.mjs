@@ -25,6 +25,7 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeFloatLE(20.5, offset + 0x6c);
   buffer.writeFloatLE(30.75, offset + 0x70);
   buffer.writeFloatLE(-0.75, offset + 0x74);
+  buffer.writeUInt16LE(0x4000, offset + 0x80);
   buffer.writeInt16LE(playerFrame, offset + 0x96);
   buffer.writeFloatLE(-21, offset + 0x11c);
   buffer.writeFloatLE(96, offset + 0x120);
@@ -36,6 +37,7 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeUInt16LE(dynamicMoveId, offset + 0x158);
   buffer.writeUInt8(1, offset + 0x1b8);
   buffer.writeUInt8(1, offset + 0x1be);
+  buffer.writeUInt16LE(0, offset + 0x2ca);
   buffer.writeInt16LE(impactCounter, offset + 0x2b6);
   buffer.writeUInt16LE(21, offset + 0x2a4);
   buffer.writeUInt16LE(5, offset + 0x2a6);
@@ -193,6 +195,13 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
       requirement111: false,
       requirement112: true,
     },
+    sideEntry: {
+      facingErrorMagnitude: 0x4000,
+      specialInputTimer: 0,
+      requirement115: false,
+      requirement116: true,
+      requirement172: true,
+    },
     rootTransition: {
       transferPending: true,
       mode: 1,
@@ -230,6 +239,24 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     poseCorrection: { gate: 1, weight: 0.625 },
     objectPointer: 0x00a45c80,
   });
+});
+
+test("decodes the PAL side-entry angle boundary and special-input timer", () => {
+  const buffer = fixture();
+  const playerOffset = HEADER_SIZE + 8;
+  buffer.writeUInt8(0, playerOffset + 0x1be);
+  buffer.writeUInt16LE(1, playerOffset + 0x2ca);
+
+  assert.deepEqual(parsePlayerTrace(buffer).samples[0].players[0].sideEntry, {
+    facingErrorMagnitude: 0x4000,
+    specialInputTimer: 1,
+    requirement115: true,
+    requirement116: false,
+    requirement172: false,
+  });
+
+  buffer.writeUInt16LE(0x4001, playerOffset + 0x80);
+  assert.equal(parsePlayerTrace(buffer).samples[0].players[0].sideEntry.requirement115, false);
 });
 
 test("parses version-two published current and previous skeleton points", () => {

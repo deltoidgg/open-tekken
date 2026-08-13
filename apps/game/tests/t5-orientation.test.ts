@@ -4,6 +4,7 @@ import {
   stepT5AttackOrientation,
   stepT5PostActiveOrientation,
   t5AngleToRadians,
+  t5FacingErrorMagnitude,
 } from "../src/sim/t5-orientation.ts";
 
 const ANGLE_UNIT = (Math.PI * 2) / 0x10000;
@@ -22,6 +23,14 @@ function runProfile(mode: number, activeStart: number, targetFace = Math.PI / 2)
 describe("Tekken 5 PAL attack orientation", () => {
   it("decodes packed signed reaction directions", () => {
     expect(t5AngleToRadians(0xd556)).toBeCloseTo(-10922 * ANGLE_UNIT, 10);
+  });
+
+  it("reproduces player+0x80's one's-complement facing-error magnitude", () => {
+    expect(t5FacingErrorMagnitude(0, 0)).toBe(0);
+    expect(t5FacingErrorMagnitude(t5AngleToRadians(0x4000), 0)).toBe(0x4000);
+    expect(t5FacingErrorMagnitude(t5AngleToRadians(0x4001), 0)).toBe(0x4001);
+    expect(t5FacingErrorMagnitude(t5AngleToRadians(-0x4001), 0)).toBe(0x4000);
+    expect(t5FacingErrorMagnitude(t5AngleToRadians(-0x4002), 0)).toBe(0x4001);
   });
 
   it("uses the mode-4 3-degree early and 14-degree late turn caps", () => {

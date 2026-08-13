@@ -113,8 +113,8 @@ evasion timing and the position from which a cancelled attack begins.
 
 ## Neutral entry records
 
-The standing graph reaches the direction-specific quick-step shells through
-engine-generated special commands rather than a simple raw `u` or `d` cancel:
+The standing graph contains engine-generated special-command routes to the
+direction-specific quick-step shells:
 
 | Group | Command          | Target | Requirements   | Extra data |
 | ----: | ---------------- | -----: | -------------- | ---------: |
@@ -123,12 +123,47 @@ engine-generated special commands rather than a simple raw `u` or `d` cancel:
 |  1177 | `SPECIAL_0x8003` |   1062 | `115:0`        |   `0x0091` |
 |  1177 | `SPECIAL_0x8003` |   1068 | `116:0`        |   `0x0091` |
 
-The available legacy requirement names in
-[`T5Aliases.py`](https://github.com/Kiloutre/TekkenMovesetExtractor/blob/master/T5Aliases.py)
-describe `111` and `112` as standing on the left and right side. Requirement
-`115` is only tentatively labeled as back-turned-related, while `116` and `172`
-remain unnamed. The exact semantics of special commands `0x8003/0x8004` must
-therefore not be invented from their numeric IDs.
+These records describe standing-state engine events. They are not the release
+path once a physical tap has already entered jump anticipation move `21` or
+crouch-entry move `254`; those shells consume direct neutral-command rows from
+their own cancel lists.
+
+### Requirements 115/116/172
+
+Executable disassembly resolves all three entry requirements. The evaluator at
+`0x0020F090` makes requirement `115` true when `player+0x1BE` is zero and signed
+`player+0x80` is less than `0x4001`. The evaluator at `0x0020F0A8` uses the same
+angle test but requires `player+0x1BE` to be nonzero:
+
+```text
+requirement115 = !sideOrderFlag && facingErrorMagnitude < 0x4001
+requirement116 =  sideOrderFlag && facingErrorMagnitude < 0x4001
+```
+
+The writer at `0x001FF310..0x001FF320` derives `player+0x80` from the signed
+target-angle error at `player+0x7E`. Nonnegative values are copied; negative
+values are one's-complemented. The result is therefore the native
+one's-complement facing-error magnitude. Positive `0x4000` passes and `0x4001`
+fails. On the negative side, error `-0x4001` becomes `0x4000` and still passes,
+while `-0x4002` becomes `0x4001` and fails.
+
+Requirement `172` at `0x0020FD28` loads the unsigned countdown at
+`player+0x2CA`. With parameter zero in these records, it is true exactly when
+that timer is zero. Every controlled neutral-entry trace observed zero, but the
+trace inspector now publishes the timer rather than assuming it.
+
+The physical anticipation shells use these direct neutral rows:
+
+| Source shell and group | Neutral target | Requirements       | Measured release window |
+| ---------------------- | -------------: | ------------------ | ----------------------- |
+| move `21`, group 1202  |           1062 | `115:0`            | source frames 1..8      |
+| move `21`, group 1202  |           1068 | `116:0`            | source frames 1..8      |
+| move `254`, group 1097 |           1068 | `115:0,172:0,90:8` | source frames 1..7      |
+| move `254`, group 1097 |           1062 | `116:0,172:0,90:8` | source frames 1..7      |
+
+Move `254` then falls back to reverse move `251`. This distinction is why the
+standing `SPECIAL_0x8003/0x8004` records cannot be treated as the direct
+physical up/down release implementation.
 
 ### Controlled common entry trace
 
@@ -161,10 +196,16 @@ keeps the shared eight-tick parser edge but lets move-shell arbitration reject
 the down special after source frame 7.
 
 This capture corrects the clone's former direct mapping, which assigned up to
-`1062` and never converted a down tap out of move `254`. The common
-front-facing implementation now maps up to `1068` and down to `1062`; the
-unresolved requirement matrix can still select additional side-dependent
-routes and remains separate work.
+`1062` and never converted a down tap out of move `254`. The complete
+front-facing entry matrix is now executable-proven:
+
+| Physical release | Flag 0 target | Flag 1 target |
+| ---------------- | ------------: | ------------: |
+| up from move `21` |          1062 |          1068 |
+| down from move `254` |       1068 |          1062 |
+
+The matrix applies while the native facing-error magnitude is at most
+`0x4000`; alternate back-facing routes remain separate work.
 
 ### Controlled alternating-input trace
 
@@ -207,23 +248,37 @@ between the comparison and the published flag. The coordinate changed
 continuously with the view projection while relative forward ownership could
 change independently.
 
-A bounded differential capture proved the otherwise camera-managed flag-0
+A bounded differential capture first proved the camera-managed continuation
 matrix. The live requirement words at `0x015965B4` and `0x015965BC` were
 verified as `111/112`, temporarily exchanged as `112/111`, and restored and
-re-read as `111/112` after one 1 kHz trace. Projected X and `player+0x1BE`
-remained unchanged, so only the two predicates were inverted. The resulting
-matrix is the exact complement:
+re-read as `111/112`. This probe deliberately kept the initial quick-step shell
+fixed, so it isolates continuation routing:
 
-| Input pair | Flag 1 result | Flag 0 result |
-| ---------- | ------------: | ------------: |
-| `u,N,d`    |          1069 |          1070 |
-| `u,N,u`    |          1071 |          1068 |
-| `d,N,u`    |          1062 |          1065 |
-| `d,N,d`    |          1064 |          1063 |
+| Starting shell | Second pulse | Normal predicates | Inverted `111/112` |
+| -------------- | ------------ | ----------------: | -----------------: |
+| 1068           | down         |              1069 |               1070 |
+| 1068           | up           |              1071 |               1068 |
+| 1062           | up           |              1062 |               1065 |
+| 1062           | down         |              1064 |               1063 |
 
-This differential is stronger than inferring the opposite route from legacy
-labels: the same executable, position, timing, and input pulses selected all
-four complementary shells when only requirements 111 and 112 were exchanged.
+Two further reversible probes exchanged `115/116` at the up-entry requirement
+lists `0x01596814/0x0159681C` and down-entry lists
+`0x015967E8/0x015967F8`. Up flipped from `1068` to `1062`; down flipped from
+`1062` to `1068`. A final combined probe exchanged both entry pairs and the
+`111/112` continuation pair. It produces the complete end-to-end physical
+matrix:
+
+| Physical pair | Flag 1 result | Flag 0 result |
+| ------------- | ------------: | ------------: |
+| `u,N,d`       |          1069 |          1063 |
+| `u,N,u`       |          1071 |          1065 |
+| `d,N,u`       |          1062 |          1068 |
+| `d,N,d`       |          1064 |          1070 |
+
+All six patched words were restored and re-read in their original order:
+`111,112,115,116,115,116`. Projected X, `player+0x1BE`, pulse timing, and
+fighter position remained unchanged throughout, so the observed differences
+belong to the requirement predicates rather than camera or input drift.
 
 The same trace followed unmodified `1062/1068` and variant `1063/1069` shells
 through native frame 40. Their next coherent publication was standing move 220
@@ -429,11 +484,13 @@ spheres. As with forward locomotion, the current root is subtracted from the
 animation-local body and hurt poses after logical transfer so collision is not
 moved twice.
 
-Neutral up now publishes move `21` as anticipation and releases into the
-negative `1068` family. Neutral down publishes crouch-entry move `254` and
-releases into the positive `1062` family. Re-press continuation tests use the
-same physical vertical direction as the selected family, preventing the entry
-shell, sidewalk payload, and native root curve from crossing families.
+Neutral up now publishes move `21` as anticipation and neutral down publishes
+crouch-entry move `254`. On release, the clone evaluates the PAL `+0x80`
+facing-error magnitude and current projected-order flag before selecting
+`1062` or `1068`. Flag 1 retains the commonly observed `u -> 1068` and
+`d -> 1062` routes; flag 0 exchanges them. Subsequent physical pulses are then
+resolved from the selected shell through the ordered `111/112` continuation
+records.
 
 The ordered source-frame-1..12 vertical records now evaluate the current PAL-
 normalized projected-X order flag before the all-frame down fallback. Pad data
@@ -475,10 +532,11 @@ node tools/t5-rom/generate-jin-move-geometry.mjs \
 
 Focused tests verify:
 
-- first-frame move `21/254` anticipation and the measured `u -> 1068` and
-  `d -> 1062` neutral-release routes;
-- all four unmodified flag-1 alternating-input routes at source frame 6;
-- all four flag-0 routes from the controlled requirement differential;
+- first-frame move `21/254` anticipation and all four projected-side
+  neutral-release routes;
+- the one's-complement `+0x80` calculation and exact `0x4000/0x4001` entry gate;
+- all eight end-to-end physical two-tap routes across flags 0 and 1;
+- the fixed-shell continuation differential used to isolate `111/112`;
 - the exact projected-X `>=` predicate, including its equality behavior;
 - all four 27-frame quick-step/variant root curves;
 - native quick-step pose publication through frame 40 followed by standing
@@ -506,12 +564,14 @@ Focused tests verify:
 
 ## Remaining parity work
 
-1. Decode requirements `115`, `116`, and `172` in the executable. Requirements
-   `111/112`, both quick-step matrices, and their projected-X writer are now
-   executable-proven and implemented.
-2. Recover the remaining input subsystem predicates that emit special commands
-   `0x8003` and `0x8004`. Common front-facing tap/hold precedence is now live-
-   traced; reversal and alternate side-state precedence remain open.
+1. Decode requirements `113/114`, requirement `90`, and the alternate
+   back-facing records that lead to moves `1090/1092`. Requirements
+   `111/112/115/116/172`, both physical matrices, and their writers are now
+   executable-proven; the clone implements the front-facing entry gate.
+2. Force and trace a nonzero `player+0x2CA` countdown, then recover the input
+   subsystem emitters for special commands `0x8003` and `0x8004`. Common
+   anticipation-release precedence is proven, but standing-event precedence is
+   still open.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
 4. Complete native throw choreography under `686` and the internal `622/623`
@@ -527,8 +587,9 @@ Focused tests verify:
 7. Extend the authoritative recovered-skeleton renderer checks to attack
    tracking, homing, body push, and camera-facing behavior during lateral
    movement.
-8. Expand the controlled PCSX2 entry trace across requirements `115/116/172`,
-   including logical root, render root, and guard outcome.
+8. Expand the controlled PCSX2 entry trace through the back-facing angle gate,
+   including alternate target shell, logical root, render root, and guard
+   outcome.
 9. Implement group 1077's three incoming-high routes. Its unconditional
    source-frame-9 `df/db` fallbacks are now separate from attack routing.
 
@@ -537,4 +598,5 @@ The Computer connector successfully drove the PCSX2 practice window during the
 player structures, current and previous 22-node published skeletons, all 14
 hurt records, direction masks, correction state, and object pointers while the
 inputs were applied. The controlled observations above are taken from those
-traces; alternate requirement states are not presented as measured fact.
+traces and reversible requirement differentials; back-facing and nonzero-timer
+states are not presented as measured fact.
