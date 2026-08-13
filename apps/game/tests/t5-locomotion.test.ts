@@ -46,6 +46,7 @@ import {
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
 import {
+  T5_DOWN_SIDESTEP_RELEASE_END,
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
   t5SidestepStopCommandRoute,
@@ -279,6 +280,18 @@ describe("Tekken 5 PAL locomotion roots", () => {
     const holdFighter = holdSim.gs.fighters[0];
     run(holdSim, 8, { dy: 1 });
     expect(holdFighter).toMatchObject({ action: "jump", actionFrame: 8, t5JumpMoveId: 21 });
+
+    const boundarySim = fightSim(8);
+    const boundaryFighter = boundarySim.gs.fighters[0];
+    run(boundarySim, 8, { dy: 1 });
+    boundarySim.step(pad(), pad());
+    expect(boundaryFighter).toMatchObject({
+      action: "ss",
+      actionFrame: 1,
+      ssDir: -1,
+      ssPhase: "step",
+    });
+
     run(holdSim, 1, { dy: 1 });
     holdSim.step(pad(), pad());
     expect(holdFighter).toMatchObject({ action: "jump", actionFrame: 10, t5JumpMoveId: 21 });
@@ -303,6 +316,42 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(t5SidestepAnimationPhase(fighter.ssDir, fighter.ssPhase, 1)?.animation.romMoveId).toBe(
       1062,
     );
+  });
+
+  it("accepts down quick-step through move-254 frame 7 and reverses frame 8", () => {
+    const boundarySim = fightSim(8);
+    const boundaryFighter = boundarySim.gs.fighters[0];
+    run(boundarySim, T5_DOWN_SIDESTEP_RELEASE_END, { dy: -1 });
+    expect(boundaryFighter).toMatchObject({
+      action: "crouch",
+      actionFrame: 7,
+      t5CrouchMoveId: 254,
+    });
+
+    boundarySim.step(pad(), pad());
+    expect(boundaryFighter).toMatchObject({
+      action: "ss",
+      actionFrame: 1,
+      ssDir: 1,
+      ssPhase: "step",
+    });
+
+    const reverseSim = fightSim(8);
+    const reverseFighter = reverseSim.gs.fighters[0];
+    run(reverseSim, T5_DOWN_SIDESTEP_RELEASE_END + 1, { dy: -1 });
+    expect(reverseFighter).toMatchObject({
+      action: "crouch",
+      actionFrame: 8,
+      t5CrouchMoveId: 254,
+    });
+
+    reverseSim.step(pad(), pad());
+    expect(reverseFighter).toMatchObject({
+      action: "jump",
+      actionFrame: 7,
+      t5JumpMoveId: 251,
+      t5LocomotionReverse: true,
+    });
   });
 
   it("plays a released diagonal jump through move 251 instead of snapping to idle", () => {

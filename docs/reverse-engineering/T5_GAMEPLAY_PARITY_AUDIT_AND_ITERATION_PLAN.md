@@ -665,6 +665,15 @@ direction is re-pressed. The trace format now follows both current and previous
 object fields. Alternate `115/116/172` requirement states and the measured
 transition-controlled correction basis remain the next lateral slices.
 
+Tenth checkpoint 2026-08-13: controlled hold-duration sweeps resolve the
+special-command boundary in PAL player frames. Move `21` accepts neutral
+release into shell `1068` through source frame 8 and commits the jump from
+frame 9. Move `254` accepts release into `1062` only through source frame 7;
+frame 8 instead reverses into move `251` frame 7, and frame 9 reverses into
+`251` frame 8. The clone now models this as move-shell arbitration while
+retaining the shared parser edge, preserving the already recovered reverse
+root curve and command ownership.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

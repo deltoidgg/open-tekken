@@ -3,6 +3,9 @@ import type { T5SidestepPhase } from "./t5-locomotion.ts";
 
 export type T5ActiveSidestepPhase = Exclude<T5SidestepPhase, "walkStop">;
 
+/** Move 254 accepts the neutral down-tap special only through source frame 7. */
+export const T5_DOWN_SIDESTEP_RELEASE_END = 7;
+
 export type T5SidestepAttackRoute =
   | { kind: "move"; moveId: string; gate: number; group: 587 | 627 | 647 | 680 | 722 }
   | { kind: "stance"; action: "CDS"; gate: 20; group: 680 };

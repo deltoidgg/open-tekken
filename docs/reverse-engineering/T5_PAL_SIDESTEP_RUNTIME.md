@@ -140,10 +140,21 @@ setup. The player-frame publications were:
 
 The anticipation length follows the held duration; it is not a fixed two-frame
 delay. An up hold remains in move `21` until release, and a pure down hold
-remains in crouch-entry move `254`. Releasing each captured two-frame hold
-selects the quick-step family. The clone retains its existing eight-frame tap
-window, matching move 21's recovered commitment gate; the exact native down-
-special threshold still requires a duration sweep.
+remains in crouch-entry move `254`.
+
+A follow-up duration sweep resolves both release boundaries in published player
+frames:
+
+| Source shell | Last quick-step release | First committed release | Committed result           |
+| ------------ | ----------------------: | ----------------------: | -------------------------- |
+| move `21`    |                 frame 8 |                 frame 9 | remain in jump shell       |
+| move `254`   |                 frame 7 |                 frame 8 | reverse through move `251` |
+
+For down, releasing move `254` frame 8 publishes reverse move `251` frame 7;
+releasing frame 9 publishes `251` frame 8. Once move `254` has handed off to
+crouch alias `234`, neutral selects ordinary rise `256`. The clone therefore
+keeps the shared eight-tick parser edge but lets move-shell arbitration reject
+the down special after source frame 7.
 
 This capture corrects the clone's former direct mapping, which assigned up to
 `1062` and never converted a down tap out of move `254`. The common

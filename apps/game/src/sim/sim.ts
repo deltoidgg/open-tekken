@@ -56,6 +56,7 @@ import {
   t5AngleToRadians,
 } from "./t5-orientation.ts";
 import {
+  T5_DOWN_SIDESTEP_RELEASE_END,
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
   t5SidestepStopCommandRoute,
@@ -686,7 +687,13 @@ export class Sim {
 
     // A neutral down tap first publishes crouch-entry 254. Releasing it inside
     // the parser's tap window selects PAL's positive quick-step family.
-    if (f.action === "crouch" && f.t5CrouchMoveId === 254 && inp.dir === "n" && inp.tapD) {
+    if (
+      f.action === "crouch" &&
+      f.t5CrouchMoveId === 254 &&
+      f.actionFrame <= T5_DOWN_SIDESTEP_RELEASE_END &&
+      inp.dir === "n" &&
+      inp.tapD
+    ) {
       this.startT5Sidestep(f, 1);
       return;
     }
