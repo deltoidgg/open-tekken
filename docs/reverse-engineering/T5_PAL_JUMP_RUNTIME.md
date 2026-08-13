@@ -1,6 +1,6 @@
 # Tekken 5 PAL Jin jump runtime
 
-Status: front-facing no-button jump shell implemented. Updated 2026-08-10.
+Status: front-facing no-button jump shell implemented. Updated 2026-08-13.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running in
 PCSX2 2.6.3. Move data comes from the live Jin moveset at `0x0158F880`; engine
@@ -68,21 +68,26 @@ shell.
 
 Move 21 exposes grounded direction cancels on source frames 1-8 through group 1202. The important no-button routes are:
 
-| Input during anticipation | Result                                                      |
-| ------------------------- | ----------------------------------------------------------- |
-| release `u` to neutral    | upward sidestep shell 1062 under the side-state requirement |
-| change to `u/f`           | move 23, preserving the compatible animation timeline       |
-| change to `u/b`           | move 24, preserving the compatible animation timeline       |
-| `d`, `d/f`, or `d/b`      | the corresponding crouch-entry shell                        |
-| `f` on source frame 1     | forward-walk start 222                                      |
-| `b` on source frame 1     | back-walk start 227                                         |
-| later `f` or `b`          | ten-frame stop shell 252 or 253                             |
+| Input during anticipation | Result                                                 |
+| ------------------------- | ------------------------------------------------------ |
+| release `u` to neutral    | shell 1068 in the controlled common front-facing state |
+| change to `u/f`           | move 23, preserving the compatible animation timeline  |
+| change to `u/b`           | move 24, preserving the compatible animation timeline  |
+| `d`, `d/f`, or `d/b`      | the corresponding crouch-entry shell                   |
+| `f` on source frame 1     | forward-walk start 222                                 |
+| `b` on source frame 1     | back-walk start 227                                    |
+| later `f` or `b`          | ten-frame stop shell 252 or 253                        |
 
 Moves 22-24 use group 1226 for the same grounded exits but do not resolve a
 neutral release as the upward sidestep. A neutral release on source frame 1 can
 return directly to standing; a later release uses move 251. Moves 23 and 24 can
 return to move 21 with `u` on source frames 1-4. Their graph does not directly
 reverse an already selected diagonal trajectory during anticipation.
+
+A controlled 2026-08-13 PCSX2 trace confirms the common route as move `21`
+frames 1-2 followed by move `1068` frame 1 on neutral release. This supersedes
+the earlier speculative `1062` label; the complete side-state requirement
+matrix remains documented in `T5_PAL_SIDESTEP_RUNTIME.md`.
 
 The three grounded abort shells are:
 

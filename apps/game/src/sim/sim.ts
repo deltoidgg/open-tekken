@@ -684,6 +684,13 @@ export class Sim {
       return;
     }
 
+    // A neutral down tap first publishes crouch-entry 254. Releasing it inside
+    // the parser's tap window selects PAL's positive quick-step family.
+    if (f.action === "crouch" && f.t5CrouchMoveId === 254 && inp.dir === "n" && inp.tapD) {
+      this.startT5Sidestep(f, 1);
+      return;
+    }
+
     const inForwardRelease = f.action === "walkF" && f.actionTotal > 0;
     const inDashRelease = f.action === "dash" && f.t5DashMoveId === 225;
     if (inp.dir === "d" && (inForwardRelease || inDashRelease)) {
@@ -737,10 +744,7 @@ export class Sim {
         f.action === "rising") &&
       (inp.tapU || inp.tapD)
     ) {
-      this.setAction(f, "ss", T.sidestepFrames);
-      f.ssDir = inp.tapU ? 1 : -1;
-      f.ssPhase = "step";
-      this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
+      this.startT5Sidestep(f, inp.tapU ? -1 : 1);
       return;
     }
 
@@ -768,6 +772,13 @@ export class Sim {
     f.t5LocomotionReverse = false;
     this.clearQueuedTransition(f);
     f.vel.x = f.vel.y = f.vel.z = 0;
+  }
+
+  private startT5Sidestep(f: FighterState, direction: 1 | -1): void {
+    this.setAction(f, "ss", T.sidestepFrames);
+    f.ssDir = direction;
+    f.ssPhase = "step";
+    this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
   }
 
   private startT5JumpAbort(f: FighterState, moveId: 251 | 252 | 253): void {
@@ -860,10 +871,7 @@ export class Sim {
         return;
       }
       if (inp.dir === "n" && source === 21) {
-        this.setAction(f, "ss", T.sidestepFrames);
-        f.ssDir = 1;
-        f.ssPhase = "step";
-        this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
+        this.startT5Sidestep(f, -1);
         return;
       }
     } else {
@@ -1520,7 +1528,7 @@ export class Sim {
           break;
         }
 
-        const holding = f.ssDir === 1 ? inp.dir === "u" : inp.dir === "d";
+        const holding = f.ssDir === -1 ? inp.dir === "u" : inp.dir === "d";
 
         if (f.ssPhase === "step" && holding && f.actionFrame <= T.sidewalkEntryUntil) {
           f.ssPhase = "walkStart";

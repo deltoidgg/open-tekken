@@ -145,7 +145,7 @@ export interface FighterState {
   /** Last move-timeline frame on which orientation was advanced. */
   t5OrientationLastFrame: number;
 
-  // ss context: +1 = background (u), -1 = foreground (d)
+  // ss context: +1 = PAL shell 1062 (d), -1 = PAL shell 1068 (u)
   ssDir: 1 | -1;
   ssPhase: "step" | "walkStart" | "walkRelease" | "walkLoop" | "walkStop";
 

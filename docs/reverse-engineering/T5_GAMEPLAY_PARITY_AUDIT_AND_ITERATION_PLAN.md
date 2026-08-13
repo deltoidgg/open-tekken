@@ -652,6 +652,19 @@ separately required `1,2` and jump-shell compensation paths remain intact.
 Stop tests cover native recoveries `340`, `345`, and `348`; the move-349 block
 and charge branches remain shared with the seventh checkpoint.
 
+Ninth checkpoint 2026-08-13: controlled 1 kHz PCSX2 traces resolve the common
+neutral quick-step entry that static special-command records left ambiguous.
+Physical up publishes jump anticipation move `21` for the held duration and
+releases into negative shell `1068`; physical down publishes crouch-entry move
+`254` and releases into positive shell `1062`. The clone previously assigned
+the up route to `1062` and allowed a down tap to reverse toward standing. Both
+routes now publish their measured frame-1 shell, use the matching native root
+curve, and continue into sidewalk only when the same physical vertical
+direction is re-pressed. The trace format now follows both current and previous
+22-node published skeletons and records all hurt, direction, correction, and
+object fields. Alternate `115/116/172` requirement states and the measured
+transition-controlled correction basis remain the next lateral slices.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

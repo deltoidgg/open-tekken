@@ -3,19 +3,21 @@
 Status: Jin's first ROM-backed sidestep and sidewalk slice is implemented.
 Executable root composition, move shells, root curves, major cancel gates, and
 compatible source-frame transitions were recovered from the supplied PAL build
-on 2026-08-10 and implemented through 2026-08-12.
+on 2026-08-10 and implemented through 2026-08-13.
 
 Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running at
 50 Hz video output with a 60 Hz player-frame cadence.
 
 ## Evidence boundary
 
-This note combines three independent sources:
+This note combines four independent sources:
 
 1. the stripped-`0x64` animation decoder and Jin's calibrated 22-node skeleton;
 2. Jin's live moveset in a read-only PCSX2 EE-memory snapshot; and
 3. static R5900 disassembly of the decompressed main program loaded at
-   `0x001F9F80`.
+   `0x001F9F80`; and
+4. controlled 1 kHz player-structure and published-skeleton traces from the
+   live PCSX2 practice session.
 
 The state graph, source-frame gates, and root samples below are ROM-backed.
 Requirement meanings that remain unnamed and behavior that needs controlled
@@ -122,8 +124,40 @@ The available legacy requirement names describe `111` and `112` as standing
 on the left and right side. Requirement `115` is only tentatively labeled as
 back-turned-related, while `116` and `172` remain unnamed. The exact semantics
 of special commands `0x8003/0x8004` must therefore not be invented from their
-numeric IDs. The clone currently resolves the positive or negative shell from
-the player's vertical input edge.
+numeric IDs.
+
+### Controlled common entry trace
+
+A front-facing P1 Jin versus P2 Jin practice capture on 2026-08-13 resolves the
+ordinary neutral entry that static cancel data left ambiguous. Direction mask
+`0x0100` is the physical up input and mask `0x0004` is physical down in this
+setup. The player-frame publications were:
+
+| Physical input | Anticipation publication | Neutral-release publication | Quick-step family |
+| -------------- | ------------------------ | --------------------------- | ----------------- |
+| tap up         | move `21`, frames 1-2    | move `1068`, frame 1        | negative          |
+| tap down       | move `254`, frames 1-2   | move `1062`, frame 1        | positive          |
+
+The anticipation length follows the held duration; it is not a fixed two-frame
+delay. An up hold remains in move `21` until release, and a pure down hold
+remains in crouch-entry move `254`. Releasing each captured two-frame hold
+selects the quick-step family. The clone retains its existing eight-frame tap
+window, matching move 21's recovered commitment gate; the exact native down-
+special threshold still requires a duration sweep.
+
+This capture corrects the clone's former direct mapping, which assigned up to
+`1062` and never converted a down tap out of move `254`. The common
+front-facing implementation now maps up to `1068` and down to `1062`; the
+unresolved requirement matrix can still select additional side-dependent
+routes and remains separate work.
+
+The same high-rate trace exposes the transition-controlled pose correction at
+player `+0x7C8/+0x7F0`. Gate 1 decays through weights `0.75, 0.50, 0.25, 0.00`
+at several shell handoffs, after which gate 3 ramps with a shell-specific
+fraction. This is a static correction-basis pass controlled by transition
+state, not interpolation from the previous published animation pose. Samples
+must also be filtered for publication coherence: 2,312 of 2,392 samples had
+the current 22-node skeleton and hurt records in the same phase.
 
 ## Quick-step graph
 
@@ -313,6 +347,12 @@ spheres. As with forward locomotion, the current root is subtracted from the
 animation-local body and hurt poses after logical transfer so collision is not
 moved twice.
 
+Neutral up now publishes move `21` as anticipation and releases into the
+negative `1068` family. Neutral down publishes crouch-entry move `254` and
+releases into the positive `1062` family. Re-press continuation tests use the
+same physical vertical direction as the selected family, preventing the entry
+shell, sidewalk payload, and native root curve from crossing families.
+
 The `0x04AB` quick-step-to-sidewalk transition and the `0x0491` early-neutral
 return now retain the current one-based source frame. For the common positive
 route, a tap publishes quick-step frame 1, the re-press consumes sidewalk-start
@@ -341,6 +381,8 @@ node tools/t5-rom/generate-jin-move-geometry.mjs \
 
 Focused tests verify:
 
+- first-frame move `21/254` anticipation and the measured `u -> 1068` and
+  `d -> 1062` neutral-release routes;
 - both complete 27-frame quick-step curves;
 - logical-root displacement through a full quick step;
 - compatible source-frame and root-delta preservation in both directions;
@@ -368,8 +410,9 @@ Focused tests verify:
 1. Decode requirements `111`, `112`, `115`, `116`, and `172` in the executable
    and reproduce their side/facing selection rather than mapping input sign
    directly.
-2. Recover the input subsystem that emits special commands `0x8003` and
-   `0x8004`, including tap/hold/reversal precedence.
+2. Recover the remaining input subsystem predicates that emit special commands
+   `0x8003` and `0x8004`. Common front-facing tap/hold precedence is now live-
+   traced; reversal and alternate side-state precedence remain open.
 3. Trace passive guard and hit evaluation on each source frame. The direct
    backward cancel is exact; same-tick autoblock remains an inference.
 4. Complete native throw choreography under `686` and the internal `622/623`
@@ -377,22 +420,22 @@ Focused tests verify:
    `452 -> 346 -> 348/349 -> 350/448` graph, and every outer frame-1 stop command
    are now represented. Active groups 722, 647, 587/627, and 680 are ordered by
    their exact source-frame gates.
-5. Reproduce the remaining compatible-pose blend and any native logical/render
-   root compensation attached to `0x0491` and `0x04AB`; source-frame timing and
-   destination-shell delta selection are now implemented.
+5. Reproduce the measured transition-controlled static correction pass and any
+   native logical/render root compensation attached to `0x0491` and `0x04AB`;
+   source-frame timing and destination-shell delta selection are implemented.
 6. Map moves `1074..1077` and determine the state requirements that select
    those side-dependent intermediates.
-7. Drive rendering from the recovered skeleton and test attack tracking,
-   homing, hurt geometry, body push, and camera-facing behavior during lateral
+7. Extend the authoritative recovered-skeleton renderer checks to attack
+   tracking, homing, body push, and camera-facing behavior during lateral
    movement.
-8. Capture controlled PCSX2 traces of logical root, render root, current move,
-   player frame, direction requirements, and guard result when stateful window
-   automation is available again.
+8. Expand the controlled PCSX2 entry trace into a side/facing matrix, including
+   logical root, render root, requirements `115/116/172`, and guard outcome.
 9. Implement group 1077's three incoming-high routes. Its unconditional
    source-frame-9 `df/db` fallbacks are now separate from attack routing.
 
-The Computer connector selected and observed the PCSX2 window during this pass,
-but PCSX2 raw input did not register its generated key pulses; two read-only
-player traces remained on standing move `32769`. No unsupported UI-input
-fallback was used and no unobserved live behavior is presented as measured
-fact.
+The Computer connector successfully drove the PCSX2 practice window during the
+2026-08-13 pass. `trace-pcsx2-players.ps1` format `T5PTRC02` captured both
+player structures, current and previous 22-node published skeletons, all 14
+hurt records, direction masks, correction state, and object pointers while the
+inputs were applied. The controlled observations above are taken from those
+traces; alternate requirement states are not presented as measured fact.

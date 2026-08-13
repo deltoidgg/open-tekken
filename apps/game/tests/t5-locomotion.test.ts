@@ -25,10 +25,10 @@ import {
   T5_JIN_LOCOMOTION_257,
   T5_JIN_LOCOMOTION_524,
   T5_JIN_LOCOMOTION_1062,
-  T5_JIN_LOCOMOTION_1064,
-  T5_JIN_LOCOMOTION_1067,
   T5_JIN_LOCOMOTION_1068,
-  T5_JIN_LOCOMOTION_1078,
+  T5_JIN_LOCOMOTION_1070,
+  T5_JIN_LOCOMOTION_1073,
+  T5_JIN_LOCOMOTION_1079,
 } from "../src/data/t5-jin-locomotion-native.ts";
 import {
   T5_JUMP_AIRBORNE_END,
@@ -41,6 +41,7 @@ import {
   t5LocomotionRootDelta,
   t5LocomotionRootDeltaBetween,
   t5LocomotionResetRootCommit,
+  t5SidestepAnimationPhase,
   t5SidestepRootDelta,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
@@ -267,9 +268,12 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(tapFighter).toMatchObject({
       action: "ss",
       actionFrame: 1,
-      ssDir: 1,
+      ssDir: -1,
       ssPhase: "step",
     });
+    expect(
+      t5SidestepAnimationPhase(tapFighter.ssDir, tapFighter.ssPhase, 1)?.animation.romMoveId,
+    ).toBe(1068);
 
     const holdSim = fightSim(8);
     const holdFighter = holdSim.gs.fighters[0];
@@ -278,6 +282,27 @@ describe("Tekken 5 PAL locomotion roots", () => {
     run(holdSim, 1, { dy: 1 });
     holdSim.step(pad(), pad());
     expect(holdFighter).toMatchObject({ action: "jump", actionFrame: 10, t5JumpMoveId: 21 });
+  });
+
+  it("resolves a neutral down tap from crouch-entry 254 into PAL shell 1062", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+
+    sim.step(pad({ dy: -1 }), pad());
+    expect(fighter).toMatchObject({ action: "crouch", actionFrame: 1, t5CrouchMoveId: 254 });
+    sim.step(pad({ dy: -1 }), pad());
+    expect(fighter).toMatchObject({ action: "crouch", actionFrame: 2, t5CrouchMoveId: 254 });
+
+    sim.step(pad(), pad());
+    expect(fighter).toMatchObject({
+      action: "ss",
+      actionFrame: 1,
+      ssDir: 1,
+      ssPhase: "step",
+    });
+    expect(t5SidestepAnimationPhase(fighter.ssDir, fighter.ssPhase, 1)?.animation.romMoveId).toBe(
+      1062,
+    );
   });
 
   it("plays a released diagonal jump through move 251 instead of snapping to idle", () => {
@@ -914,9 +939,9 @@ describe("Tekken 5 PAL locomotion roots", () => {
     run(sim, 14);
 
     const expected =
-      T5_JIN_LOCOMOTION_1064.rootOffsets.at(-1)![0] +
-      T5_JIN_LOCOMOTION_1067.rootOffsets.at(-1)![0] +
-      T5_JIN_LOCOMOTION_1078.rootOffsets.at(-1)![0];
+      Math.abs(T5_JIN_LOCOMOTION_1070.rootOffsets.at(-1)![0]) +
+      Math.abs(T5_JIN_LOCOMOTION_1073.rootOffsets.at(-1)![0]) +
+      Math.abs(T5_JIN_LOCOMOTION_1079.rootOffsets.at(-1)![0]);
     expect(fighter.action).toBe("idle");
     expect(Math.hypot(fighter.pos.x - startX, fighter.pos.z - startZ)).toBeGreaterThan(
       expected - 0.1,
@@ -932,7 +957,7 @@ describe("Tekken 5 PAL locomotion roots", () => {
 
     const beforeWalkStart = { ...fighter.pos };
     sim.step(pad({ dy: 1 }), pad());
-    const walkStartDelta = t5SidestepRootDelta(1, "walkStart", 2);
+    const walkStartDelta = t5SidestepRootDelta(-1, "walkStart", 2);
     expect(fighter).toMatchObject({
       action: "ss",
       actionFrame: 2,
@@ -944,7 +969,7 @@ describe("Tekken 5 PAL locomotion roots", () => {
 
     const beforeQuickStep = { ...fighter.pos };
     sim.step(pad(), pad());
-    const quickStepDelta = t5SidestepRootDelta(1, "step", 3);
+    const quickStepDelta = t5SidestepRootDelta(-1, "step", 3);
     expect(fighter).toMatchObject({ action: "ss", actionFrame: 3, ssPhase: "step" });
     expect(
       Math.hypot(fighter.pos.x - beforeQuickStep.x, fighter.pos.z - beforeQuickStep.z),
