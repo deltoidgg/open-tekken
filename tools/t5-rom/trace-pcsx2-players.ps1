@@ -272,6 +272,42 @@ public static class Tekken5Pcsx2PlayerTraceNative
         }
     }
 
+    private static byte[] ReadPublishedSkeleton(
+        IntPtr process,
+        ulong eeBase,
+        byte[] player,
+        int skeletonPointerOffset
+    )
+    {
+        const int objectPointerOffset = 0x894;
+        const int skeletonNodeCount = 22;
+        const int skeletonNodeSize = 0x90;
+        const int worldPositionOffset = 0x70;
+        const int pointSize = 12;
+        byte[] packed = new byte[skeletonNodeCount * pointSize];
+        uint objectAddress = BitConverter.ToUInt32(player, objectPointerOffset);
+        if (objectAddress == 0) return packed;
+
+        byte[] pointer = new byte[4];
+        ReadExact(process, eeBase + objectAddress + (uint)skeletonPointerOffset, pointer);
+        uint skeletonAddress = BitConverter.ToUInt32(pointer, 0);
+        if (skeletonAddress == 0) return packed;
+
+        byte[] skeleton = new byte[skeletonNodeCount * skeletonNodeSize];
+        ReadExact(process, eeBase + skeletonAddress, skeleton);
+        for (int node = 0; node < skeletonNodeCount; node++)
+        {
+            Buffer.BlockCopy(
+                skeleton,
+                node * skeletonNodeSize + worldPositionOffset,
+                packed,
+                node * pointSize,
+                pointSize
+            );
+        }
+        return packed;
+    }
+
     private static IntPtr FindWindow(string title)
     {
         IntPtr match = IntPtr.Zero;
@@ -336,6 +372,10 @@ public static class Tekken5Pcsx2PlayerTraceNative
         const uint player1Address = 0x003bcc30;
         const uint playerSize = 0x8d0;
         const uint player2Address = player1Address + playerSize;
+        const int currentSkeletonPointerOffset = 0x20;
+        const int previousSkeletonPointerOffset = 0x1c;
+        const int skeletonNodeCount = 22;
+        const int skeletonPointSize = 12;
         byte[] player1 = new byte[playerSize];
         byte[] player2 = new byte[playerSize];
         long frequency = Stopwatch.Frequency;
@@ -367,13 +407,15 @@ public static class Tekken5Pcsx2PlayerTraceNative
             ))
             using (BinaryWriter writer = new BinaryWriter(stream))
             {
-                writer.Write(Encoding.ASCII.GetBytes("T5PTRC01"));
+                writer.Write(Encoding.ASCII.GetBytes("T5PTRC02"));
                 writer.Write(eeBase);
                 writer.Write(frequency);
                 writer.Write(player1Address);
                 writer.Write(player2Address);
                 writer.Write(playerSize);
                 writer.Write(0);
+                writer.Write(skeletonNodeCount);
+                writer.Write(skeletonPointSize);
 
                 while (true)
                 {
@@ -418,7 +460,31 @@ public static class Tekken5Pcsx2PlayerTraceNative
                     ReadExact(process, eeBase + player2Address, player2);
                     writer.Write(now - started);
                     writer.Write(player1);
+                    writer.Write(ReadPublishedSkeleton(
+                        process,
+                        eeBase,
+                        player1,
+                        currentSkeletonPointerOffset
+                    ));
+                    writer.Write(ReadPublishedSkeleton(
+                        process,
+                        eeBase,
+                        player1,
+                        previousSkeletonPointerOffset
+                    ));
                     writer.Write(player2);
+                    writer.Write(ReadPublishedSkeleton(
+                        process,
+                        eeBase,
+                        player2,
+                        currentSkeletonPointerOffset
+                    ));
+                    writer.Write(ReadPublishedSkeleton(
+                        process,
+                        eeBase,
+                        player2,
+                        previousSkeletonPointerOffset
+                    ));
                     count++;
                     next += interval;
                     if (next < now) next = now + interval;

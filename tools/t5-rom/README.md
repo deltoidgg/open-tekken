@@ -129,7 +129,10 @@ four through six use the same `TriggerVirtualKey4..6`,
 
 `0x55` is the default PCSX2 keyboard binding for Square / Tekken button 1 in
 the measured setup. The trace stores monotonic timestamps followed by complete
-P1 and P2 snapshots; it never writes to emulated memory. Inspect player-frame,
+P1 and P2 snapshots; it never writes to emulated memory. Version-two captures
+also follow each player with all 22 current and previous published skeleton
+world positions; the inspector remains compatible with version-one captures.
+Inspect player-frame,
 pointer-derived native move ID, dynamic `player+0x158` alias, and
 `player+0x2B6` transitions with:
 
@@ -140,9 +143,12 @@ node tools/t5-rom/inspect-player-trace.mjs /path/to/t5-jab.bin
 Add `--json` for machine-readable transition records. Each player record also
 includes root angle `+0x0E`, composed animation root `+0x68`, skeleton angle
 `+0x74`, logical per-frame displacement `+0x11C/+0x120/+0x124`, composed
-per-tick displacement `+0x640/+0x644/+0x648`, rendered root `+0x750`, and live
-pushback state at `+0x2A4` through `+0x2F0`. All eight live body-push sphere
-records at `+0x490` are exposed as world-space centres and radii. The previous
+per-tick displacement `+0x640/+0x644/+0x648`, rendered root `+0x750`, raw
+direction mask/edge `+0x6AC/+0x6AE`, optional pose-correction gate/weight
+`+0x7C8/+0x7F0`, and live pushback state at `+0x2A4` through `+0x2F0`. All eight
+live body-push sphere
+records at `+0x490` and all 14 hurt records at `+0x378` are exposed as
+world-space centres and radii. The previous
 rendered-root sweep point at `+0x510` and body-correction vector at `+0x690` are
 included alongside them. The pushback object exposes remaining duration and
 samples, packed direction fields, current sample pointer, base displacement,
