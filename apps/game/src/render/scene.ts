@@ -220,6 +220,7 @@ export class SceneRenderer {
           t5CrouchMoveId: s.t5CrouchMoveId,
           ssDir: s.ssDir,
           ssPhase: s.ssPhase,
+          t5SidestepMoveId: s.t5SidestepMoveId,
           t5PoseTail: s.t5PoseTail,
           t5RootFace: s.t5RootFace,
           t5PreviousFace: s.t5PreviousFace,

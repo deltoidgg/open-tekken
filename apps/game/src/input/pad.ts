@@ -6,6 +6,8 @@ export interface Pad {
   dy: -1 | 0 | 1;
   /** bitmask of buttons 1|2|4|8 for LP/RP/LK/RK */
   btns: number;
+  /** Current screen-facing direction for PAL side requirements 111/112. */
+  facingSide?: "left" | "right";
 }
 
 export const B1 = 1; // left punch
@@ -26,7 +28,7 @@ export function emptyPad(): Pad {
 }
 
 export function clonePad(p: Pad): Pad {
-  return { dx: p.dx, dy: p.dy, btns: p.btns };
+  return { ...p };
 }
 
 export const DIR_HAS_F: Record<Dir, boolean> = {

@@ -674,6 +674,20 @@ frame 8 instead reverses into move `251` frame 7, and frame 9 reverses into
 retaining the shared parser edge, preserving the already recovered reverse
 root curve and command ownership.
 
+Eleventh checkpoint 2026-08-13: an alternating-input 1 kHz trace resolves the
+ordered source-frame-6 vertical branches while P1 is screen-left and facing
+right. `u,N,d` selects variant `1069`, `u,N,u` selects sidewalk start `1071`,
+`d,N,u` remains in `1062`, and `d,N,d` selects sidewalk start `1064`. This is
+the static cancel order in motion: requirements `111/112` are tested before the
+all-frame down fallback, so "re-press the same direction" is not a sufficient
+model. The clone now passes current screen-facing side into simulation, retains
+the exact `1062..1071` shell through render/collision/replay, and uses the
+variant root curves and group-627 ownership. The trace also resolves the
+source-frame-27 ambiguity: logical control and planar root return to standing at
+27, while the native quick-step pose remains published through frame 40 before
+move 220 frame 1. Opposite-side live validation and executable predicate proof
+for `111/112` remain open.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

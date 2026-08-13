@@ -59,6 +59,7 @@ import {
   T5_DOWN_SIDESTEP_RELEASE_END,
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
+  t5QuickStepVerticalRoute,
   t5SidestepStopCommandRoute,
 } from "./t5-sidestep.ts";
 
@@ -138,6 +139,7 @@ export interface FighterSnap {
   t5CrouchMoveId: FighterState["t5CrouchMoveId"];
   ssDir: FighterState["ssDir"];
   ssPhase: FighterState["ssPhase"];
+  t5SidestepMoveId: FighterState["t5SidestepMoveId"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
 
@@ -189,6 +191,8 @@ export class Sim {
     const gs = this.gs;
     gs.frame++;
     gs.events = [];
+    if (padP1.facingSide) gs.fighters[0].t5StandingSide = padP1.facingSide;
+    if (padP2.facingSide) gs.fighters[1].t5StandingSide = padP2.facingSide;
     const inputs: [FrameInput, FrameInput] = [
       this.parsers[0].step(padP1),
       this.parsers[1].step(padP2),
@@ -492,6 +496,14 @@ export class Sim {
         this.enterCrouch(f, movementRoute.moveId);
         return;
       }
+      if (
+        (f.ssPhase === "step" || f.ssPhase === "stepVariant") &&
+        f.actionFrame >= T.sidestepFrames &&
+        inp.dir === "d"
+      ) {
+        this.enterCrouch(f, 254);
+        return;
+      }
       if (isActionable(f)) this.decideMovement(f, inp);
       return;
     }
@@ -785,6 +797,8 @@ export class Sim {
     this.setAction(f, "ss", T.sidestepFrames);
     f.ssDir = direction;
     f.ssPhase = "step";
+    f.t5SidestepMoveId = direction === 1 ? 1062 : 1068;
+    f.t5SidewalkInput = direction === 1 ? "d" : "u";
     this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
   }
 
@@ -1150,6 +1164,9 @@ export class Sim {
       t5AnimationOrigin: fighter.t5AnimationOrigin,
       t5ReactionMoveId: fighter.t5ReactionMoveId,
       t5ReactionOrigin: fighter.t5ReactionOrigin,
+      ssDir: fighter.ssDir,
+      ssPhase: fighter.ssPhase,
+      t5SidestepMoveId: fighter.t5SidestepMoveId,
     };
   }
 
@@ -1170,11 +1187,22 @@ export class Sim {
     return true;
   }
 
+  private preserveT5SidestepPoseTail(fighter: FighterState): boolean {
+    if (fighter.actionFrame >= 40) return false;
+    fighter.t5PoseTail = this.captureT5PoseTail(fighter, 40);
+    return true;
+  }
+
   private advanceT5PoseTail(fighter: FighterState): void {
     const tail = fighter.t5PoseTail;
     if (!tail) return;
     const actionFrame = tail.actionFrame + 1;
-    fighter.t5PoseTail = actionFrame > tail.actionTotal ? null : { ...tail, actionFrame };
+    if (actionFrame > tail.actionTotal) {
+      fighter.t5PoseTail = null;
+      if (tail.action === "ss" && fighter.action === "idle") fighter.actionFrame = 0;
+      return;
+    }
+    fighter.t5PoseTail = { ...tail, actionFrame };
   }
 
   private t5CrouchEntryMoveId(dir: FrameInput["dir"]): number {
@@ -1535,34 +1563,49 @@ export class Sim {
           break;
         }
 
-        const holding = f.ssDir === -1 ? inp.dir === "u" : inp.dir === "d";
+        const holdingSidewalkInput = inp.dir === f.t5SidewalkInput;
 
-        if (f.ssPhase === "step" && holding && f.actionFrame <= T.sidewalkEntryUntil) {
-          f.ssPhase = "walkStart";
-          f.actionTotal = T.sidewalkStartFrames;
-        } else if (f.ssPhase === "walkStart" && !holding) {
+        if (f.ssPhase === "step") {
+          const sourceFrame = f.actionFrame - 1;
+          const route = t5QuickStepVerticalRoute(f.ssDir, sourceFrame, inp.dir, f.t5StandingSide);
+          if (route) {
+            f.ssPhase = route.phase;
+            f.t5SidestepMoveId = route.moveId;
+            f.t5SidewalkInput = route.input;
+            f.actionTotal = route.phase === "walkStart" ? T.sidewalkStartFrames : T.sidestepFrames;
+          }
+        } else if (f.ssPhase === "walkStart" && !holdingSidewalkInput) {
           if (f.actionFrame <= 10) {
             f.ssPhase = "step";
+            f.t5SidestepMoveId = f.ssDir === 1 ? 1062 : 1068;
             f.actionTotal = T.sidestepFrames;
           } else {
             f.ssPhase = "walkRelease";
+            f.t5SidestepMoveId = f.ssDir === 1 ? 1066 : 1072;
           }
-        } else if (f.ssPhase === "walkLoop" && !holding) {
+        } else if (f.ssPhase === "walkLoop" && !holdingSidewalkInput) {
           f.ssPhase = "walkStop";
+          f.t5SidestepMoveId = f.ssDir === 1 ? 1078 : 1079;
           f.actionFrame = 1;
           f.actionTotal = T.sidewalkStopFrames;
         }
 
         this.applyT5Sidestep(f);
 
-        if (f.ssPhase === "step" && f.actionFrame >= T.sidestepFrames) {
-          this.setAction(f, "idle", 0);
+        if (
+          (f.ssPhase === "step" || f.ssPhase === "stepVariant") &&
+          f.actionFrame >= T.sidestepFrames
+        ) {
+          const preservePoseTail = this.preserveT5SidestepPoseTail(f);
+          this.setAction(f, "idle", 0, preservePoseTail);
         } else if (f.ssPhase === "walkStart" && f.actionFrame >= T.sidewalkStartFrames) {
           f.ssPhase = "walkLoop";
+          f.t5SidestepMoveId = f.ssDir === 1 ? 1067 : 1073;
           f.actionFrame = 0;
           f.actionTotal = T.sidewalkLoopFrames;
         } else if (f.ssPhase === "walkRelease" && f.actionFrame >= T.sidewalkStartFrames) {
           f.ssPhase = "walkStop";
+          f.t5SidestepMoveId = f.ssDir === 1 ? 1078 : 1079;
           f.actionFrame = 0;
           f.actionTotal = T.sidewalkStopFrames;
         } else if (f.ssPhase === "walkLoop" && f.actionFrame >= T.sidewalkLoopFrames) {
@@ -1983,7 +2026,12 @@ export class Sim {
       defenderPose.actionTotal > 0;
     const nativeLocomotion =
       defenderPose.action === "ss"
-        ? t5SidestepAnimationPhase(defenderPose.ssDir, defenderPose.ssPhase, defenderPoseFrame)
+        ? t5SidestepAnimationPhase(
+            defenderPose.ssDir,
+            defenderPose.ssPhase,
+            defenderPoseFrame,
+            defenderPose.t5SidestepMoveId,
+          )
         : t5LocomotionPhase(
             defenderPose.action,
             defenderPoseFrame,
@@ -2006,7 +2054,12 @@ export class Sim {
     if (testedNativeGeometry) {
       const locomotionRoot =
         defenderPose.action === "ss"
-          ? t5SidestepRootOffset(defenderPose.ssDir, defenderPose.ssPhase, defenderPoseFrame)
+          ? t5SidestepRootOffset(
+              defenderPose.ssDir,
+              defenderPose.ssPhase,
+              defenderPoseFrame,
+              defenderPose.t5SidestepMoveId,
+            )
           : nativeLocomotion?.transfersRoot
             ? sampleT5RootOffset(nativeLocomotion.animation, nativeLocomotion.actionFrame)
             : undefined;
@@ -3045,7 +3098,7 @@ export class Sim {
   }
 
   private applyT5Sidestep(f: FighterState): void {
-    const delta = t5SidestepRootDelta(f.ssDir, f.ssPhase, f.actionFrame);
+    const delta = t5SidestepRootDelta(f.ssDir, f.ssPhase, f.actionFrame, f.t5SidestepMoveId);
     const fw = this.facingVec(f);
     f.pos.x += fw.x * delta[2] - fw.z * delta[0];
     f.pos.z += fw.z * delta[2] + fw.x * delta[0];
@@ -3170,7 +3223,12 @@ export class Sim {
       const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
       const locomotion =
         pose.action === "ss"
-          ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, pose.actionFrame)
+          ? t5SidestepAnimationPhase(
+              pose.ssDir,
+              pose.ssPhase,
+              pose.actionFrame,
+              pose.t5SidestepMoveId,
+            )
           : t5LocomotionPhase(
               pose.action,
               pose.actionFrame,
@@ -3183,7 +3241,7 @@ export class Sim {
       const animation = reaction ?? attack ?? locomotion?.animation;
       const root =
         pose.action === "ss"
-          ? t5SidestepRootOffset(pose.ssDir, pose.ssPhase, pose.actionFrame)
+          ? t5SidestepRootOffset(pose.ssDir, pose.ssPhase, pose.actionFrame, pose.t5SidestepMoveId)
           : locomotion?.transfersRoot
             ? sampleT5RootOffset(locomotion.animation, locomotion.actionFrame)
             : undefined;
@@ -3288,7 +3346,12 @@ export class Sim {
     const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
     const locomotion =
       pose.action === "ss"
-        ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, pose.actionFrame)
+        ? t5SidestepAnimationPhase(
+            pose.ssDir,
+            pose.ssPhase,
+            pose.actionFrame,
+            pose.t5SidestepMoveId,
+          )
         : t5LocomotionPhase(
             pose.action,
             pose.actionFrame,
@@ -3407,6 +3470,7 @@ export class Sim {
       t5CrouchMoveId: f.t5CrouchMoveId,
       ssDir: f.ssDir,
       ssPhase: f.ssPhase,
+      t5SidestepMoveId: f.t5SidestepMoveId,
       t5PoseTail: f.t5PoseTail,
     });
     this.replay.push({ fighters: [snap(this.gs.fighters[0]), snap(this.gs.fighters[1])] });

@@ -446,20 +446,24 @@ dash reset, and button 2 while move 524 remains active selects normal move 677.
 The full correction is in `T5_PAL_WAVEDASH_TRANSITION_TRACE.md`.
 
 The lateral slice now uses the executable's corrected component-wise
-`channel 0 + channel 1` root. Quick-step moves `1062` and `1068` exit on source
-frame 27 after travelling `+0.942328 m` and `-0.942631 m`. Holding the matching
-vertical direction through frame 12 enters the 32-frame sidewalk start,
-continuation loops use moves `1067/1073` for 36 frames, and neutral exits through
-15-frame stops `1078/1079`. Universal group 722 makes basic attacks available
-from source frame 6 without adding an attack-startup frame. Full records and
-limitations are in `T5_PAL_SIDESTEP_RUNTIME.md`.
+`channel 0 + channel 1` root. Quick-step moves `1062` and `1068` return logical
+control and commit root on source frame 27 after travelling `+0.942328 m` and
+`-0.942631 m`; native pose/collision remain on the selected shell through frame
+40 before standing move 220 frame 1. A facing-right alternating-input trace
+selects exact frame-7 shells `u,N,d -> 1069`, `u,N,u -> 1071`, `d,N,u -> 1062`,
+and `d,N,d -> 1064`, proving the ordered side requirements precede the down
+fallback. Sidewalk continuation loops use moves `1067/1073` for 36 frames, and
+neutral exits through 15-frame stops `1078/1079`. Universal group 722 makes
+basic attacks available from source frame 6 without adding an attack-startup
+frame. Full records and limitations are in `T5_PAL_SIDESTEP_RUNTIME.md`.
 
 ## Next live-data work
 
-1. Recover sidestep's remaining side requirements, passive guard result,
-   character-specific attacks, crouch routes, tracking, and compatible
-   transition compensation before reinstating broad movement-dependent combo
-   assertions. The common roots, graph, and generic attack gate are now
+1. Live-validate sidestep's opposite-screen-side `111/112` routes, decode its
+   remaining side requirements, passive guard result, character-specific
+   attacks, crouch routes, tracking, and compatible transition compensation
+   before reinstating broad movement-dependent combo assertions. The common
+   roots, facing-right vertical matrix, graph, and generic attack gate are now
    implemented.
 2. Decode and test the remaining extra-data dispatch modes, cancel options,
    command groups, and requirements.

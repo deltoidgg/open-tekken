@@ -63,7 +63,7 @@ export function resolveT5NativePoseSource(fighter: FighterState): T5NativePoseSo
   const released = (pose.action === "walkF" || pose.action === "walkB") && pose.actionTotal > 0;
   const locomotion =
     pose.action === "ss"
-      ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, sourceFrame)
+      ? t5SidestepAnimationPhase(pose.ssDir, pose.ssPhase, sourceFrame, pose.t5SidestepMoveId)
       : t5LocomotionPhase(pose.action, sourceFrame, released, nativeLocomotionMoveId(pose));
   const animation = reaction ?? attack ?? locomotion?.animation;
   if (!animation?.hurtSphereCenters?.length) return undefined;

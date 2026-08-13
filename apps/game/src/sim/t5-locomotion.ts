@@ -1,6 +1,6 @@
 import { t5JinLocomotionAnimation } from "../data/t5-jin-locomotion-native.ts";
 import type { T5LocalPoint, T5NativeAnimationDef } from "../data/types.ts";
-import type { Action } from "./state.ts";
+import type { Action, T5SidestepMoveId, T5SidestepPhase } from "./state.ts";
 import { sampleT5PoseRoot, sampleT5RootOffset, T5_ZERO_ROOT_OFFSET } from "./t5-geometry.ts";
 
 export interface T5LocomotionPhase {
@@ -9,7 +9,7 @@ export interface T5LocomotionPhase {
   transfersRoot: boolean;
 }
 
-export type T5SidestepPhase = "step" | "walkStart" | "walkRelease" | "walkLoop" | "walkStop";
+export type { T5SidestepPhase } from "./state.ts";
 
 const T5_CROUCH_LOOP_MOVES = new Set([234, 238, 239, 240, 242, 243]);
 const T5_JUMP_ABORT_MOVES = new Set([251, 252, 253]);
@@ -233,6 +233,7 @@ export function t5LocomotionResetRootCommit(
 const SIDESTEP_MOVES = {
   1: {
     step: 1062,
+    stepVariant: 1063,
     walkStart: 1064,
     walkRelease: 1066,
     walkLoop: 1067,
@@ -240,6 +241,7 @@ const SIDESTEP_MOVES = {
   },
   "-1": {
     step: 1068,
+    stepVariant: 1069,
     walkStart: 1070,
     walkRelease: 1072,
     walkLoop: 1073,
@@ -252,10 +254,11 @@ export function t5SidestepAnimationPhase(
   direction: 1 | -1,
   phase: T5SidestepPhase,
   actionFrame: number,
+  nativeMoveId?: T5SidestepMoveId,
 ): T5LocomotionPhase | undefined {
   if (actionFrame < 1) return undefined;
   return {
-    animation: t5JinLocomotionAnimation(SIDESTEP_MOVES[direction][phase]),
+    animation: t5JinLocomotionAnimation(nativeMoveId ?? SIDESTEP_MOVES[direction][phase]),
     actionFrame,
     transfersRoot: true,
   };
@@ -265,8 +268,9 @@ export function t5SidestepRootOffset(
   direction: 1 | -1,
   phase: T5SidestepPhase,
   actionFrame: number,
+  nativeMoveId?: T5SidestepMoveId,
 ): T5LocalPoint {
-  const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame);
+  const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame, nativeMoveId);
   return resolved
     ? sampleT5RootOffset(resolved.animation, resolved.actionFrame)
     : T5_ZERO_ROOT_OFFSET;
@@ -276,8 +280,9 @@ export function t5SidestepRootDelta(
   direction: 1 | -1,
   phase: T5SidestepPhase,
   actionFrame: number,
+  nativeMoveId?: T5SidestepMoveId,
 ): T5LocalPoint {
-  const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame);
+  const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame, nativeMoveId);
   if (!resolved) return T5_ZERO_ROOT_OFFSET;
   const current = sampleT5RootOffset(resolved.animation, resolved.actionFrame);
   const previous =

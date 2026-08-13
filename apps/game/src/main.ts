@@ -248,6 +248,7 @@ function composeP1Pad(): Pad {
     dx: (screenDx * side) as -1 | 0 | 1,
     dy: raw.up ? 1 : raw.down ? -1 : 0,
     btns: raw.btns,
+    facingSide: side === 1 ? "right" : "left",
   };
 }
 
@@ -301,13 +302,16 @@ function frame(now: number): void {
   while (acc >= STEP && steps < 5) {
     acc -= STEP;
     if (!canStep) continue;
-    const p1 =
+    const p1: Pad =
       sim.gs.phase === "intro"
         ? skipPress
           ? { dx: 0 as const, dy: 0 as const, btns: 1 }
           : emptyPad()
         : composeP1Pad();
-    const p2 = sim.gs.phase === "fight" && !aiOff ? ai.update(sim.gs) : emptyPad();
+    const p2Base = sim.gs.phase === "fight" && !aiOff ? ai.update(sim.gs) : emptyPad();
+    const p2: Pad = p1.facingSide
+      ? { ...p2Base, facingSide: p1.facingSide === "right" ? "left" : "right" }
+      : p2Base;
     sim.step(p1, p2);
     scene.snapshot(sim.gs);
     handleEvents(sim.gs, sim.events());

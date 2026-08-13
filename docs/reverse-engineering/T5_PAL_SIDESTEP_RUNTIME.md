@@ -66,14 +66,14 @@ vertical `y`, forward `z`.
 The common positive and negative paths are mirrored structurally, but use
 separate animations and are not numerically perfect mirrors.
 
-| Role                            | Positive shell | Negative shell |        Animation frames |      Effective exit |
-| ------------------------------- | -------------: | -------------: | ----------------------: | ------------------: |
-| quick step                      |           1062 |           1068 |                      40 |     source frame 27 |
-| quick-step continuation variant |           1063 |           1069 |                      40 |     source frame 27 |
-| sidewalk start                  |    1064 / 1065 |    1070 / 1071 |                      32 |    automatic at end |
-| compatible release shell        |           1066 |           1072 | shared 32-frame payload |    automatic at end |
-| sidewalk loop                   |           1067 |           1073 |                      36 | automatic self-loop |
-| sidewalk stop                   |           1078 |           1079 |                      15 |     automatic stand |
+| Role                            | Positive shell | Negative shell |        Animation frames | Logical root/control exit |
+| ------------------------------- | -------------: | -------------: | ----------------------: | ------------------------: |
+| quick step                      |           1062 |           1068 |                      40 |           source frame 27 |
+| quick-step continuation variant |           1063 |           1069 |                      40 |           source frame 27 |
+| sidewalk start                  |    1064 / 1065 |    1070 / 1071 |                      32 |          automatic at end |
+| compatible release shell        |           1066 |           1072 | shared 32-frame payload |          automatic at end |
+| sidewalk loop                   |           1067 |           1073 |                      36 |       automatic self-loop |
+| sidewalk stop                   |           1078 |           1079 |                      15 |           automatic stand |
 
 Moves `1064`, `1065`, and `1066` point to the same positive animation. Moves
 `1070`, `1071`, and `1072` likewise share the negative animation. Separate
@@ -86,9 +86,12 @@ states, not ordinary standing sidesteps.
 
 ## Recovered lateral curves
 
-The quick-step state exits on source frame 27, so its effective displacement is
-the sample at zero-based animation index 26 rather than the end of its 40-frame
-payload.
+The quick-step state returns logical control and commits its final root on source
+frame 27, so its effective displacement is the sample at zero-based animation
+index 26 rather than the end of its 40-frame payload. Live publications retain
+the selected quick-step animation through frame 40, then publish standing move
+220 frame 1. Frames 28..40 therefore continue native pose, hurt, and body-push
+ownership at the committed logical root; they do not transfer more planar root.
 
 | Shell                         | Effective lateral displacement | Curve detail                                 |
 | ----------------------------- | -----------------------------: | -------------------------------------------- |
@@ -120,11 +123,12 @@ engine-generated special commands rather than a simple raw `u` or `d` cancel:
 |  1177 | `SPECIAL_0x8003` |   1062 | `115:0`        |   `0x0091` |
 |  1177 | `SPECIAL_0x8003` |   1068 | `116:0`        |   `0x0091` |
 
-The available legacy requirement names describe `111` and `112` as standing
-on the left and right side. Requirement `115` is only tentatively labeled as
-back-turned-related, while `116` and `172` remain unnamed. The exact semantics
-of special commands `0x8003/0x8004` must therefore not be invented from their
-numeric IDs.
+The available legacy requirement names in
+[`T5Aliases.py`](https://github.com/Kiloutre/TekkenMovesetExtractor/blob/master/T5Aliases.py)
+describe `111` and `112` as standing on the left and right side. Requirement
+`115` is only tentatively labeled as back-turned-related, while `116` and `172`
+remain unnamed. The exact semantics of special commands `0x8003/0x8004` must
+therefore not be invented from their numeric IDs.
 
 ### Controlled common entry trace
 
@@ -162,6 +166,31 @@ front-facing implementation now maps up to `1068` and down to `1062`; the
 unresolved requirement matrix can still select additional side-dependent
 routes and remains separate work.
 
+### Controlled alternating-input trace
+
+A second 1 kHz capture held P1 on the screen-left, facing-right side and
+re-pressed a vertical direction while the initial quick step published source
+frame 6. The next coherent player-frame publications were:
+
+| Input pair | Source publication | Frame-7 publication | Static route selected                          |
+| ---------- | ------------------ | ------------------- | ---------------------------------------------- |
+| `u,N,d`    | move `1068` f6     | move `1069` f7      | all-frame down fallback                        |
+| `u,N,u`    | move `1068` f6     | move `1071` f7      | up plus right-side requirement `112`           |
+| `d,N,u`    | move `1062` f6     | move `1062` f7      | left-side requirement `111` false; no fallback |
+| `d,N,d`    | move `1062` f6     | move `1064` f7      | down plus right-side requirement `112`         |
+
+This resolves command-list ordering and proves that a re-press is not simply a
+"same physical direction means sidewalk" rule. On this side, `u,N,d` must enter
+the distinct 1069 continuation variant while `d,N,u` must remain in 1062. The
+right-side observations agree with the legacy `111/112` names. The opposite
+screen side still needs a controlled live capture; its `1065/1070` selection is
+currently the direct static-graph consequence of those names.
+
+The same trace followed unmodified `1062/1068` and variant `1063/1069` shells
+through native frame 40. Their next coherent publication was standing move 220
+frame 1, confirming that source-frame-27 automatic control return does not mean
+the remaining animation samples are discarded.
+
 The same high-rate trace exposes the transition-controlled pose correction at
 player `+0x7C8/+0x7F0`. Gate 1 decays through weights `0.75, 0.50, 0.25, 0.00`
 at several shell handoffs, after which gate 3 ramps with a shell-specific
@@ -184,10 +213,11 @@ quick step 1062
   source frame 27:     AUTO               -> standing alias 0x8001 / move 220
 ```
 
-The two frame-12 entries share the same sidewalk animation, so unresolved
-left/right requirement selection does not change the generated root curve in
-this slice. It can still affect later cancel routing and must eventually be
-modeled.
+The paired frame-12 entries share each side's sidewalk animation, so requirement
+selection does not change the generated root curve in this slice. It still
+changes exact shell identity and later cancel ownership. The clone therefore
+tracks `1064/1065` and `1070/1071` separately even though each pair points to
+shared pose/root arrays.
 
 Forward and back directly enter walks `222` and `227` from source frame 1.
 Special dash and backdash commands also enter their shells from source frame 1.
@@ -216,7 +246,9 @@ stop animations run for 15 frames before the standing alias takes ownership.
 The implemented common graph is therefore:
 
 ```text
-tap:       1062/1068 -----------------------------> stand at frame 27
+tap:       1062/1068 -> logical stand/root commit at frame 27
+                         native pose continues to frame 40 -> 220 frame 1
+down cross: 1062/1068 -> 1063/1069 continuation variant -> same 27/40 split
 hold <=12: 1062/1068 -> 1064/1070 -> 1067/1073 -> loop ...
 early N:                  -> 1062/1068
 later N:                  -> 1066/1072 -> 1078/1079 -> stand
@@ -364,6 +396,15 @@ releases into the positive `1062` family. Re-press continuation tests use the
 same physical vertical direction as the selected family, preventing the entry
 shell, sidewalk payload, and native root curve from crossing families.
 
+The ordered source-frame-1..12 vertical records now evaluate the current
+screen-facing side before the all-frame down fallback. Each fighter retains the
+exact selected shell, including variants `1063/1069` and paired sidewalk starts
+`1064/1065/1070/1071`, so render pose, collision, root sampling, replay, and
+later command ownership all observe the same native move. On quick-step frame
+27 the logical action becomes actionable standing while a native pose tail
+publishes frames 27..40 at the already committed root; its neutral successor is
+move 220 frame 1.
+
 The `0x04AB` quick-step-to-sidewalk transition and the `0x0491` early-neutral
 return now retain the current one-based source frame. For the common positive
 route, a tap publishes quick-step frame 1, the re-press consumes sidewalk-start
@@ -394,7 +435,12 @@ Focused tests verify:
 
 - first-frame move `21/254` anticipation and the measured `u -> 1068` and
   `d -> 1062` neutral-release routes;
-- both complete 27-frame quick-step curves;
+- the four measured facing-right alternating-input routes at source frame 6;
+- inferred opposite-side `1065/1070` shell selection under requirements
+  `111/112`;
+- all four 27-frame quick-step/variant root curves;
+- native quick-step pose publication through frame 40 followed by standing
+  frame 1;
 - logical-root displacement through a full quick step;
 - compatible source-frame and root-delta preservation in both directions;
 - sidewalk start, one 36-frame loop, release, and 15-frame stop;
@@ -418,9 +464,10 @@ Focused tests verify:
 
 ## Remaining parity work
 
-1. Decode requirements `111`, `112`, `115`, `116`, and `172` in the executable
-   and reproduce their side/facing selection rather than mapping input sign
-   directly.
+1. Decode requirements `111`, `112`, `115`, `116`, and `172` in the executable.
+   The current `111/112` screen-side route is supported by legacy aliases and a
+   controlled facing-right trace, but the opposite side still needs a live
+   capture and the predicate implementation still needs executable proof.
 2. Recover the remaining input subsystem predicates that emit special commands
    `0x8003` and `0x8004`. Common front-facing tap/hold precedence is now live-
    traced; reversal and alternate side-state precedence remain open.

@@ -76,7 +76,7 @@ export interface ActivePushback {
 
 /** Native pose state that can outlive the logical action's control lock. */
 export interface T5PoseTail {
-  action: "attack" | "blockstun" | "hitstun";
+  action: "attack" | "blockstun" | "hitstun" | "ss";
   actionFrame: number;
   actionTotal: number;
   moveId: string | null;
@@ -88,7 +88,34 @@ export interface T5PoseTail {
   t5AnimationOrigin: T5LocalPoint;
   t5ReactionMoveId: number | null;
   t5ReactionOrigin: T5LocalPoint;
+  ssDir: 1 | -1;
+  ssPhase: T5SidestepPhase;
+  t5SidestepMoveId: T5SidestepMoveId;
 }
+
+export type T5SidestepPhase =
+  | "step"
+  | "stepVariant"
+  | "walkStart"
+  | "walkRelease"
+  | "walkLoop"
+  | "walkStop";
+
+export type T5SidestepMoveId =
+  | 1062
+  | 1063
+  | 1064
+  | 1065
+  | 1066
+  | 1067
+  | 1068
+  | 1069
+  | 1070
+  | 1071
+  | 1072
+  | 1073
+  | 1078
+  | 1079;
 
 export interface FighterState {
   id: 0 | 1;
@@ -147,7 +174,13 @@ export interface FighterState {
 
   // ss context: +1 = PAL shell 1062 (d), -1 = PAL shell 1068 (u)
   ssDir: 1 | -1;
-  ssPhase: "step" | "walkStart" | "walkRelease" | "walkLoop" | "walkStop";
+  ssPhase: T5SidestepPhase;
+  /** Exact PAL shell; paired sidewalk starts share animation but not cancel ownership. */
+  t5SidestepMoveId: T5SidestepMoveId;
+  /** Physical vertical direction which owns the current sidewalk hold. */
+  t5SidewalkInput: "u" | "d";
+  /** Screen-facing side used by PAL standing-side requirements 111/112. */
+  t5StandingSide: "left" | "right";
 
   // stun context
   stunKind: Reaction | "none";
@@ -300,6 +333,9 @@ export function createFighter(id: 0 | 1): FighterState {
     t5OrientationLastFrame: -1,
     ssDir: 1,
     ssPhase: "step",
+    t5SidestepMoveId: 1062,
+    t5SidewalkInput: "d",
+    t5StandingSide: id === 0 ? "right" : "left",
     stunKind: "none",
     stunEscapable: false,
     t5ReactionMoveId: null,

@@ -1,10 +1,55 @@
 import { B1, B2, B3, B4, type Dir } from "../input/pad.ts";
-import type { T5SidestepPhase } from "./t5-locomotion.ts";
+import type { T5SidestepMoveId, T5SidestepPhase } from "./state.ts";
 
 export type T5ActiveSidestepPhase = Exclude<T5SidestepPhase, "walkStop">;
 
+export type T5QuickStepVerticalRoute = {
+  phase: "walkStart" | "stepVariant";
+  moveId: T5SidestepMoveId;
+  input: "u" | "d";
+};
+
 /** Move 254 accepts the neutral down-tap special only through source frame 7. */
 export const T5_DOWN_SIDESTEP_RELEASE_END = 7;
+
+/** Resolve moves 1062/1068's ordered side requirements before the down fallback. */
+export function t5QuickStepVerticalRoute(
+  quickStepDirection: 1 | -1,
+  sourceFrame: number,
+  input: Dir,
+  standingSide: "left" | "right",
+): T5QuickStepVerticalRoute | undefined {
+  if (sourceFrame < 1 || sourceFrame > 26 || (input !== "u" && input !== "d")) {
+    return undefined;
+  }
+
+  if (sourceFrame <= 12) {
+    if (quickStepDirection === 1) {
+      if (input === "u" && standingSide === "left") {
+        return { phase: "walkStart", moveId: 1065, input };
+      }
+      if (input === "d" && standingSide === "right") {
+        return { phase: "walkStart", moveId: 1064, input };
+      }
+    } else {
+      if (input === "u" && standingSide === "right") {
+        return { phase: "walkStart", moveId: 1071, input };
+      }
+      if (input === "d" && standingSide === "left") {
+        return { phase: "walkStart", moveId: 1070, input };
+      }
+    }
+  }
+
+  if (input === "d") {
+    return {
+      phase: "stepVariant",
+      moveId: quickStepDirection === 1 ? 1063 : 1069,
+      input,
+    };
+  }
+  return undefined;
+}
 
 export type T5SidestepAttackRoute =
   | { kind: "move"; moveId: string; gate: number; group: 587 | 627 | 647 | 680 | 722 }
@@ -149,7 +194,7 @@ export function t5ActiveSidestepAttackRoute(
     }
   } else if (sourceFrame >= 19 && (direction === "d" || direction === "df" || direction === "db")) {
     const moveId = DOWN_GROUP[direction].get(buttons);
-    const group = phase === "walkStart" ? 627 : 587;
+    const group = phase === "walkStart" || phase === "stepVariant" ? 627 : 587;
     if (moveId) return { kind: "move", moveId, gate: 19, group };
   }
 
