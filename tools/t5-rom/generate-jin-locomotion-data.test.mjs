@@ -17,6 +17,13 @@ test("includes the PAL back-release turn shells in the default locomotion set", 
   );
 });
 
+test("includes the PAL turn-to-sidewalk bridge shells in the default locomotion set", () => {
+  assert.deepEqual(
+    DEFAULT_LOCOMOTION_MOVE_IDS.filter((moveId) => moveId >= 1074 && moveId <= 1077),
+    [1074, 1075, 1076, 1077],
+  );
+});
+
 test("shares locomotion poses while preserving each PAL move shell", () => {
   const base = {
     animationAddress: "0x123abc",

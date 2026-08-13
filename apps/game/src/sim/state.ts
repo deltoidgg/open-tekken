@@ -91,6 +91,7 @@ export interface T5PoseTail {
   ssDir: 1 | -1;
   ssPhase: T5SidestepPhase;
   t5SidestepMoveId: T5SidestepMoveId;
+  t5SidestepOrigin: T5LocalPoint;
 }
 
 export type T5SidestepPhase =
@@ -98,6 +99,8 @@ export type T5SidestepPhase =
   | "stepVariant"
   | "turnStep"
   | "turnRecovery"
+  | "turnWalkStart"
+  | "turnWalkLoop"
   | "walkStart"
   | "walkRelease"
   | "walkLoop"
@@ -116,6 +119,10 @@ export type T5SidestepMoveId =
   | 1071
   | 1072
   | 1073
+  | 1074
+  | 1075
+  | 1076
+  | 1077
   | 1078
   | 1079
   | 1090
@@ -185,6 +192,8 @@ export interface FighterState {
   t5SidestepMoveId: T5SidestepMoveId;
   /** Physical vertical direction which owns the current sidewalk hold. */
   t5SidewalkInput: "u" | "d";
+  /** Planar pose-origin correction retained across a compatible sidestep handoff. */
+  t5SidestepOrigin: T5LocalPoint;
   /** Clone-normalized analogue of PAL's integer view projection at player+0x6B8. */
   t5ProjectedX: number;
   /** PAL player+0x1BE: true when this fighter's projected X is >= the opponent's. */
@@ -343,6 +352,7 @@ export function createFighter(id: 0 | 1): FighterState {
     ssPhase: "step",
     t5SidestepMoveId: 1062,
     t5SidewalkInput: "d",
+    t5SidestepOrigin: [0, 0, 0],
     t5ProjectedX: id === 0 ? 1 : -1,
     t5SideOrderFlag: id === 0,
     stunKind: "none",

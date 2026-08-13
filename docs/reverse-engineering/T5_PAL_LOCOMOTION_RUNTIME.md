@@ -300,8 +300,9 @@ Focused tests verify:
    begin at source frame 1; passive guard and route precedence remain open.
 4. Recover move-524 tech-crouch, guard, and cancel precedence, plus the exact
    `SPECIAL_0x8001` input predicate and split logical/render-root commit.
-5. Decode sidestep requirements `111/112/115/116/172`, special input commands
-   `0x8003/0x8004`, and side-dependent intermediate moves `1074..1077`.
+5. Decode the input subsystem emitters for special commands `0x8003/0x8004`.
+   Requirements `111/112/113/114/115/116/172` and side-dependent bridge moves
+   `1074..1077` are now represented.
 6. Calibrate attack tracking, homing, hurt geometry, and facing changes against
    the recovered lateral root and posed body.
 7. Verify whether the executable transfers the small dash/backdash reverse tails

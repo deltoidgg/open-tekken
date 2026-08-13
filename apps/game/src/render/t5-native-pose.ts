@@ -81,10 +81,15 @@ export function resolveT5NativePoseSource(fighter: FighterState): T5NativePoseSo
     }
   } else if (attack) {
     animationOrigin = pose.t5AnimationOrigin;
+  } else if (pose.action === "ss" && pose.ssPhase === "turnWalkStart") {
+    // 1090/1092 -> 1074/1076 preserves the published root while the target
+    // timeline advances. The bridge remains posed-root owned until its reset.
+    animationOrigin = pose.t5SidestepOrigin;
   } else if (locomotion!.transfersRoot) {
     const root = sampleT5RootOffset(locomotion!.animation, locomotion!.actionFrame);
+    const sidestepOrigin = pose.action === "ss" ? pose.t5SidestepOrigin : ([0, 0, 0] as const);
     // Logical locomotion owns planar travel; native root Y remains visible.
-    animationOrigin = [-root[0], 0, -root[2]];
+    animationOrigin = [sidestepOrigin[0] - root[0], 0, sidestepOrigin[2] - root[2]];
   } else {
     animationOrigin = [0, 0, 0];
   }

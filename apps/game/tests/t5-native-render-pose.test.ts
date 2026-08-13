@@ -72,6 +72,10 @@ describe("Tekken 5 native render pose", () => {
       [-1, "turnRecovery", 1091, 25],
       [1, "turnStep", 1092, 15],
       [1, "turnRecovery", 1093, 25],
+      [-1, "turnWalkStart", 1074, 15],
+      [-1, "turnWalkLoop", 1075, 18],
+      [1, "turnWalkStart", 1076, 15],
+      [1, "turnWalkLoop", 1077, 18],
     ] as const) {
       for (const actionFrame of [1, finalFrame]) {
         const fighter = createFighter(0);
@@ -84,12 +88,42 @@ describe("Tekken 5 native render pose", () => {
         const source = resolveT5NativePoseSource(fighter)!;
         expect(source.animation.romMoveId).toBe(moveId);
         expect(source.actionFrame).toBe(actionFrame);
-        expect(source.animationOrigin).toEqual([0, 0, 0]);
+        if (phase === "turnStep" || phase === "turnRecovery") {
+          expect(source.animationOrigin).toEqual([0, 0, 0]);
+        } else if (phase === "turnWalkStart") {
+          expect(source.animationOrigin).toEqual(fighter.t5SidestepOrigin);
+        } else {
+          const root = sampleT5RootOffset(source.animation, actionFrame);
+          expect(source.animationOrigin).toEqual([
+            fighter.t5SidestepOrigin[0] - root[0],
+            0,
+            fighter.t5SidestepOrigin[2] - root[2],
+          ]);
+        }
 
         const pose = t5NativeRenderPoseFor(fighter)!;
         expect(Object.values(pose).flat().every(Number.isFinite)).toBe(true);
       }
     }
+  });
+
+  it("keeps the frame-10 turn root fixed when the compatible sidewalk bridge advances", () => {
+    const fighter = createFighter(0);
+    fighter.action = "ss";
+    fighter.actionFrame = 11;
+    fighter.ssDir = -1;
+    fighter.ssPhase = "turnWalkStart";
+    fighter.t5SidestepMoveId = 1074;
+
+    const turnAnimation = T5_JIN_LOCOMOTION_ANIMATIONS[1090];
+    const turnRoot = sampleT5RootOffset(turnAnimation, 10);
+    const source = resolveT5NativePoseSource(fighter)!;
+    const targetRoot = sampleT5RootOffset(source.animation, 11);
+    fighter.t5SidestepOrigin = [turnRoot[0] - targetRoot[0], 0, turnRoot[2] - targetRoot[2]];
+    const correctedSource = resolveT5NativePoseSource(fighter)!;
+    expect(correctedSource.animationOrigin).toEqual(fighter.t5SidestepOrigin);
+    expect(correctedSource.animationOrigin[0] + targetRoot[0]).toBeCloseTo(turnRoot[0], 9);
+    expect(correctedSource.animationOrigin[2] + targetRoot[2]).toBeCloseTo(turnRoot[2], 9);
   });
 
   it("rotates a separately tracked skeleton around the placed animation root", () => {

@@ -729,6 +729,21 @@ and reproduces the recovery pivot schedules instead of rotating ordinary
 quick-step shells procedurally. Frame-10 preserving routes through `1074/1076`
 and the recovery-shell command list are the next bounded checkpoint.
 
+Fifteenth checkpoint 2026-08-13: the source-frame-10 preserving branch is now
+executable in all four projected-side configurations. PAL consumes turn frame
+10, publishes `1074/1076` frame 11, retains that shell's root in posed space,
+and resets through `1075/1077` into ordinary `1073/1067`. Controlled traces
+measure all four reset commits and identify orientation state 24 as signed-16
+homing by one fifth of the remaining target error with a route-specific
+ten-degree bias. The clone now preserves render/collision/targeting continuity,
+transfers the intermediate loop's authored roots, reproduces the measured
+orientation samples, and completes the graph after neutral release. The
+probe-specific state-11 movement observed before turn frame 10 is deliberately
+excluded because natural back-facing entries use fixed state-12 roots. Detailed
+evidence and coordinate conversion are recorded in
+`T5_PAL_TURN_TO_SIDEWALK_BRIDGE.md`; command interruption and contact through
+the bridge are the next bounded checkpoint.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

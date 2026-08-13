@@ -33,6 +33,10 @@ import {
   T5_JIN_LOCOMOTION_1070,
   T5_JIN_LOCOMOTION_1071,
   T5_JIN_LOCOMOTION_1073,
+  T5_JIN_LOCOMOTION_1074,
+  T5_JIN_LOCOMOTION_1075,
+  T5_JIN_LOCOMOTION_1076,
+  T5_JIN_LOCOMOTION_1077,
   T5_JIN_LOCOMOTION_1079,
   T5_JIN_LOCOMOTION_1090,
   T5_JIN_LOCOMOTION_1091,
@@ -53,6 +57,7 @@ import {
   t5SidestepAnimationPhase,
   t5SidestepRootDelta,
   t5TurnResetRootCommit,
+  t5TurnWalkResetRootCommit,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
 import {
@@ -63,7 +68,9 @@ import {
   t5QuickStepVerticalRoute,
   t5SideOrderFlag,
   t5SidestepStopCommandRoute,
+  t5TurnStepVerticalRoute,
 } from "../src/sim/t5-sidestep.ts";
+import { sampleT5RootOffset } from "../src/sim/t5-geometry.ts";
 
 function accumulatedForward(
   action: "walkF" | "dash" | "backdash" | "CD",
@@ -79,7 +86,14 @@ function accumulatedForward(
 
 function accumulatedSide(
   direction: 1 | -1,
-  phase: "step" | "stepVariant" | "walkStart" | "walkLoop" | "walkStop",
+  phase:
+    | "step"
+    | "stepVariant"
+    | "turnWalkStart"
+    | "turnWalkLoop"
+    | "walkStart"
+    | "walkLoop"
+    | "walkStop",
   from: number,
   to: number,
 ) {
@@ -1038,6 +1052,153 @@ describe("Tekken 5 PAL locomotion roots", () => {
     expect(t5TurnResetRootCommit(1092, 1093)).toEqual([-0.888432339, 0, 0]);
     expect(t5TurnResetRootCommit(1091, 220)).toEqual([-0.052220056, 0, 0]);
     expect(t5TurnResetRootCommit(1093, 220)).toEqual([0.052226049, 0, 0]);
+  });
+
+  it("maps the single frame-10 turn-to-sidewalk requirement matrix", () => {
+    expect(t5TurnStepVerticalRoute(1090, 10, "u", true)).toEqual({
+      phase: "turnWalkStart",
+      moveId: 1074,
+      input: "u",
+    });
+    expect(t5TurnStepVerticalRoute(1090, 10, "d", false)?.moveId).toBe(1074);
+    expect(t5TurnStepVerticalRoute(1092, 10, "u", false)?.moveId).toBe(1076);
+    expect(t5TurnStepVerticalRoute(1092, 10, "d", true)?.moveId).toBe(1076);
+
+    expect(t5TurnStepVerticalRoute(1090, 9, "u", true)).toBeUndefined();
+    expect(t5TurnStepVerticalRoute(1090, 11, "u", true)).toBeUndefined();
+    expect(t5TurnStepVerticalRoute(1090, 10, "d", true)).toBeUndefined();
+    expect(t5TurnStepVerticalRoute(1092, 10, "u", true)).toBeUndefined();
+  });
+
+  it("keeps the turn-walk starts posed-root owned and transfers their loop curves", () => {
+    expect(T5_JIN_LOCOMOTION_1074.animationLength).toBe(15);
+    expect(T5_JIN_LOCOMOTION_1075.animationLength).toBe(18);
+    expect(T5_JIN_LOCOMOTION_1076.animationLength).toBe(15);
+    expect(T5_JIN_LOCOMOTION_1077.animationLength).toBe(18);
+
+    expect(accumulatedSide(-1, "turnWalkStart", 1, 15)).toBe(0);
+    expect(accumulatedSide(-1, "turnWalkLoop", 1, 18)).toBeCloseTo(
+      T5_JIN_LOCOMOTION_1075.rootOffsets[17]![0],
+      9,
+    );
+    expect(accumulatedSide(1, "turnWalkStart", 1, 15)).toBe(0);
+    expect(accumulatedSide(1, "turnWalkLoop", 1, 18)).toBeCloseTo(
+      T5_JIN_LOCOMOTION_1077.rootOffsets[17]![0],
+      9,
+    );
+    expect(t5TurnWalkResetRootCommit(1074, 1075)).toEqual([0.892921448, 0, 0]);
+    expect(t5TurnWalkResetRootCommit(1076, 1077)).toEqual([-0.893929396, 0, 0]);
+    expect(t5TurnWalkResetRootCommit(1075, 1073)).toEqual([-0.606759372, 0, 0]);
+    expect(t5TurnWalkResetRootCommit(1077, 1067)).toEqual([0.606615401, 0, 0]);
+  });
+
+  it.each([
+    [true, "u", 1090, -1, 1074, 1075, 1073],
+    [true, "d", 1092, 1, 1076, 1077, 1067],
+    [false, "u", 1092, 1, 1076, 1077, 1067],
+    [false, "d", 1090, -1, 1074, 1075, 1073],
+  ] as const)(
+    "preserves turn frame 10 into the projected-side bridge when flag is %s and input is %s",
+    (sideOrderFlag, input, turnMoveId, direction, startMoveId, loopMoveId, sidewalkMoveId) => {
+      const sim = fightSim(8);
+      const fighter = sim.gs.fighters[0];
+      fighter.face = Math.PI;
+      fighter.t5RootFace = Math.PI;
+      fighter.t5PreviousFace = Math.PI;
+      const projectedX = sideOrderFlag ? ([1, -1] as const) : ([-1, 1] as const);
+      const dy = input === "u" ? 1 : -1;
+
+      sim.step(pad({ dy }), pad(), { projectedX });
+      sim.step(pad(), pad(), { projectedX });
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 1,
+        ssPhase: "turnStep",
+        t5SidestepMoveId: turnMoveId,
+        ssDir: direction,
+      });
+
+      const start = { ...fighter.pos };
+      run(sim, 8);
+      expect(fighter).toMatchObject({ actionFrame: 9, t5SidestepMoveId: turnMoveId });
+      sim.step(pad({ dy }), pad(), { projectedX });
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 11,
+        ssPhase: "turnWalkStart",
+        t5SidestepMoveId: startMoveId,
+      });
+      expect(fighter.pos).toEqual(start);
+      const turnAnimation = turnMoveId === 1090 ? T5_JIN_LOCOMOTION_1090 : T5_JIN_LOCOMOTION_1092;
+      const turnRoot = sampleT5RootOffset(turnAnimation, 10);
+      const startAnimation = startMoveId === 1074 ? T5_JIN_LOCOMOTION_1074 : T5_JIN_LOCOMOTION_1076;
+      const startRoot11 = sampleT5RootOffset(startAnimation, 11);
+      expect(fighter.t5SidestepOrigin).toEqual([
+        turnRoot[0] - startRoot11[0],
+        0,
+        turnRoot[2] - startRoot11[2],
+      ]);
+      expect(Math.abs(fighter.face)).toBeCloseTo(Math.PI, 9);
+      expect(Math.abs(fighter.t5RootFace)).toBeCloseTo(Math.PI, 9);
+
+      run(sim, 4, { dy });
+      expect(fighter).toMatchObject({
+        actionFrame: 1,
+        ssPhase: "turnWalkLoop",
+        t5SidestepMoveId: loopMoveId,
+      });
+      const resetRoot = t5TurnWalkResetRootCommit(startMoveId, loopMoveId);
+      expect(Math.hypot(fighter.pos.x - start.x, fighter.pos.z - start.z)).toBeCloseTo(
+        Math.hypot(resetRoot[0], resetRoot[2]),
+        6,
+      );
+      expect(fighter.t5SidestepOrigin).toEqual([0, 0, 0]);
+
+      run(sim, 17, { dy });
+      expect(fighter).toMatchObject({
+        actionFrame: 1,
+        ssPhase: "walkLoop",
+        t5SidestepMoveId: sidewalkMoveId,
+      });
+    },
+  );
+
+  it("completes the back-turn sidewalk bridge after the preserving input is released", () => {
+    const sim = fightSim(8);
+    const fighter = sim.gs.fighters[0];
+    fighter.face = Math.PI;
+    fighter.t5RootFace = Math.PI;
+    fighter.t5PreviousFace = Math.PI;
+    const projectedX = [1, -1] as const;
+
+    sim.step(pad({ dy: 1 }), pad(), { projectedX });
+    sim.step(pad(), pad(), { projectedX });
+    run(sim, 8);
+    sim.step(pad({ dy: 1 }), pad(), { projectedX });
+    expect(fighter).toMatchObject({
+      actionFrame: 11,
+      ssPhase: "turnWalkStart",
+      t5SidestepMoveId: 1074,
+    });
+
+    run(sim, 4);
+    expect(fighter).toMatchObject({
+      actionFrame: 1,
+      ssPhase: "turnWalkLoop",
+      t5SidestepMoveId: 1075,
+    });
+    run(sim, 17);
+    expect(fighter).toMatchObject({
+      actionFrame: 1,
+      ssPhase: "walkLoop",
+      t5SidestepMoveId: 1073,
+    });
+    sim.step(pad(), pad(), { projectedX });
+    expect(fighter).toMatchObject({
+      actionFrame: 1,
+      ssPhase: "walkStop",
+      t5SidestepMoveId: 1079,
+    });
   });
 
   it.each([

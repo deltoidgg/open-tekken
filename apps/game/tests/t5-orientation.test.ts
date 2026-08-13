@@ -3,9 +3,11 @@ import { moveById } from "../src/data/jin.ts";
 import {
   stepT5AttackOrientation,
   stepT5PostActiveOrientation,
+  stepT5TurnWalkFace,
   t5AngleToRadians,
   t5FacingErrorMagnitude,
   t5TurnRecoveryFace,
+  t5TurnWalkResetFace,
 } from "../src/sim/t5-orientation.ts";
 
 const ANGLE_UNIT = (Math.PI * 2) / 0x10000;
@@ -104,5 +106,21 @@ describe("Tekken 5 PAL attack orientation", () => {
     const mirroredTarget = t5AngleToRadians(4401);
     expect(t5TurnRecoveryFace(mirroredTarget, 1093, 1)).toBeCloseTo(t5AngleToRadians(7723), 10);
     expect(t5TurnRecoveryFace(mirroredTarget, 1093, 15)).toBeCloseTo(t5AngleToRadians(4405), 10);
+  });
+
+  it("reproduces both measured state-24 reset and homing steps", () => {
+    const negativeReset = t5TurnWalkResetFace(t5AngleToRadians(-5624), 1075);
+    expect(negativeReset).toBeCloseTo(t5AngleToRadians(19043), 10);
+    expect(stepT5TurnWalkFace(negativeReset, t5AngleToRadians(-7220), 1075)).toBeCloseTo(
+      t5AngleToRadians(13427),
+      10,
+    );
+
+    const positiveReset = t5TurnWalkResetFace(t5AngleToRadians(-15994), 1077);
+    expect(positiveReset).toBeCloseTo(t5AngleToRadians(24726), 10);
+    expect(stepT5TurnWalkFace(positiveReset, t5AngleToRadians(-14293), 1077)).toBeCloseTo(
+      t5AngleToRadians(30393),
+      10,
+    );
   });
 });

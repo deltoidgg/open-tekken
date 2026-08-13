@@ -238,6 +238,8 @@ const SIDESTEP_MOVES = {
     stepVariant: 1063,
     turnStep: 1092,
     turnRecovery: 1093,
+    turnWalkStart: 1076,
+    turnWalkLoop: 1077,
     walkStart: 1064,
     walkRelease: 1066,
     walkLoop: 1067,
@@ -248,6 +250,8 @@ const SIDESTEP_MOVES = {
     stepVariant: 1069,
     turnStep: 1090,
     turnRecovery: 1091,
+    turnWalkStart: 1074,
+    turnWalkLoop: 1075,
     walkStart: 1070,
     walkRelease: 1072,
     walkLoop: 1073,
@@ -266,9 +270,9 @@ export function t5SidestepAnimationPhase(
   return {
     animation: t5JinLocomotionAnimation(nativeMoveId ?? SIDESTEP_MOVES[direction][phase]),
     actionFrame,
-    // 1090..1093 retain their animation root in posed space. PAL commits the
-    // planar root only at each reset boundary.
-    transfersRoot: phase !== "turnStep" && phase !== "turnRecovery",
+    // The turn and compatible bridge shells retain their animation root in
+    // posed space. PAL commits 1074/1076 only at their reset boundary.
+    transfersRoot: phase !== "turnStep" && phase !== "turnRecovery" && phase !== "turnWalkStart",
   };
 }
 
@@ -313,4 +317,21 @@ export function t5TurnResetRootCommit(
   targetMoveId: 1091 | 1093 | 220,
 ): T5LocalPoint {
   return T5_TURN_RESET_ROOT_COMMITS.get(`${sourceMoveId}:${targetMoveId}`) ?? T5_ZERO_ROOT_OFFSET;
+}
+
+const T5_TURN_WALK_RESET_ROOT_COMMITS = new Map<string, T5LocalPoint>([
+  ["1074:1075", [0.892921448, 0, 0]],
+  ["1076:1077", [-0.893929396, 0, 0]],
+  ["1075:1073", [-0.606759372, 0, 0]],
+  ["1077:1067", [0.606615401, 0, 0]],
+]);
+
+/** Planar commits measured at PAL's back-turn sidewalk reset boundaries. */
+export function t5TurnWalkResetRootCommit(
+  sourceMoveId: 1074 | 1075 | 1076 | 1077,
+  targetMoveId: 1067 | 1073 | 1075 | 1077,
+): T5LocalPoint {
+  return (
+    T5_TURN_WALK_RESET_ROOT_COMMITS.get(`${sourceMoveId}:${targetMoveId}`) ?? T5_ZERO_ROOT_OFFSET
+  );
 }

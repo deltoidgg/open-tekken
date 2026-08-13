@@ -10,7 +10,7 @@ import { TUNING as T } from "../data/tuning.ts";
 import type { Sim } from "../sim/sim.ts";
 import { t5PoseState, type FighterState, type GameState } from "../sim/state.ts";
 import { sampleT5RootOffset } from "../sim/t5-geometry.ts";
-import { t5LocomotionPhase } from "../sim/t5-locomotion.ts";
+import { t5LocomotionPhase, t5SidestepAnimationPhase } from "../sim/t5-locomotion.ts";
 import { poseFor } from "./animator.ts";
 import { CameraRig } from "./camera.ts";
 import { P1_PALETTE, P2_PALETTE, Rig } from "./rig.ts";
@@ -35,6 +35,21 @@ function nativeRootOffset(fighter: FighterState): readonly [number, number, numb
     const phase = t5LocomotionPhase(pose.action, pose.actionFrame, false, pose.t5JumpMoveId);
     if (phase) {
       const root = sampleT5RootOffset(phase.animation, phase.actionFrame);
+      return phase.transfersRoot ? [0, root[1], 0] : root;
+    }
+  }
+  if (pose.action === "ss") {
+    const phase = t5SidestepAnimationPhase(
+      pose.ssDir,
+      pose.ssPhase,
+      pose.actionFrame,
+      pose.t5SidestepMoveId,
+    );
+    if (phase) {
+      const root = sampleT5RootOffset(phase.animation, phase.actionFrame);
+      if (pose.ssPhase === "turnWalkStart") {
+        return [pose.t5SidestepOrigin[0] + root[0], root[1], pose.t5SidestepOrigin[2] + root[2]];
+      }
       return phase.transfersRoot ? [0, root[1], 0] : root;
     }
   }
@@ -221,6 +236,7 @@ export class SceneRenderer {
           ssDir: s.ssDir,
           ssPhase: s.ssPhase,
           t5SidestepMoveId: s.t5SidestepMoveId,
+          t5SidestepOrigin: s.t5SidestepOrigin,
           t5PoseTail: s.t5PoseTail,
           t5RootFace: s.t5RootFace,
           t5PreviousFace: s.t5PreviousFace,

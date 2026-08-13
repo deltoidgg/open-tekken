@@ -66,23 +66,25 @@ vertical `y`, forward `z`.
 The common positive and negative paths are mirrored structurally, but use
 separate animations and are not numerically perfect mirrors.
 
-| Role                            | Positive shell | Negative shell |        Animation frames | Logical root/control exit |
-| ------------------------------- | -------------: | -------------: | ----------------------: | ------------------------: |
-| quick step                      |           1062 |           1068 |                      40 |           source frame 27 |
-| quick-step continuation variant |           1063 |           1069 |                      40 |           source frame 27 |
-| sidewalk start                  |    1064 / 1065 |    1070 / 1071 |                      32 |          automatic at end |
-| compatible release shell        |           1066 |           1072 | shared 32-frame payload |          automatic at end |
-| sidewalk loop                   |           1067 |           1073 |                      36 |       automatic self-loop |
-| sidewalk stop                   |           1078 |           1079 |                      15 |           automatic stand |
+| Role                            | Positive shell | Negative shell |        Animation frames |    Logical root/control exit |
+| ------------------------------- | -------------: | -------------: | ----------------------: | ---------------------------: |
+| quick step                      |           1062 |           1068 |                      40 |              source frame 27 |
+| quick-step continuation variant |           1063 |           1069 |                      40 |              source frame 27 |
+| sidewalk start                  |    1064 / 1065 |    1070 / 1071 |                      32 |             automatic at end |
+| compatible release shell        |           1066 |           1072 | shared 32-frame payload |             automatic at end |
+| sidewalk loop                   |           1067 |           1073 |                      36 |          automatic self-loop |
+| sidewalk stop                   |           1078 |           1079 |                      15 |              automatic stand |
+| back-turn preserving bridge     |           1076 |           1074 |           frames 11..15 |              reset into loop |
+| back-turn homing loop           |           1077 |           1075 |                      18 | reset into ordinary sidewalk |
 
 Moves `1064`, `1065`, and `1066` point to the same positive animation. Moves
 `1070`, `1071`, and `1072` likewise share the negative animation. Separate
 shells still matter because their cancel lists and transition ownership differ.
 
-Moves `1074..1077` form additional side-dependent transition/loop paths. They
-are not needed by the common neutral quick-step-to-sidewalk route and are not
-yet mapped into the clone. Moves `1090..1093` are grounded side get-up/drop/rise
-states, not ordinary standing sidesteps.
+Moves `1074..1077` form the frame-10 preserving paths from back-facing turn
+shells `1090/1092` into ordinary sidewalk. Their split posed/logical root
+ownership and state-24 orientation are detailed in
+`T5_PAL_TURN_TO_SIDEWALK_BRIDGE.md`.
 
 ## Recovered lateral curves
 
@@ -560,14 +562,18 @@ Focused tests verify:
 - rejection of generic throws and unmapped stop records;
 - active-shell vulnerability, same-tick backward guard, and stop-shell guard;
 - a standing-hit/quick-step-whiff posed-hurt-sphere boundary; and
-- the split channel-0-plus-channel-1 root formula.
+- the split channel-0-plus-channel-1 root formula;
+- all four frame-10 `1090/1092 -> 1074/1076` projected-side routes;
+- target-frame-11 publication and posed-root continuity through `1074/1076`;
+- the four measured bridge reset commits and transferred `1075/1077` roots;
+- both captured state-24 reset/homing samples; and
+- neutral release through the bridge into the ordinary stop shell.
 
 ## Remaining parity work
 
-1. Complete the back-facing turn-shell cancel graph. Requirements `113/114`
-   and the `1090/1092 -> 1091/1093 -> 220` automatic route are now decoded,
-   measured, and represented; the source-frame-10 `d/u -> 1074/1076`
-   preserving branches remain open.
+1. Complete command interruption and contact coverage for the back-facing
+   turn graph. The automatic recovery and source-frame-10 preserving sidewalk
+   routes are decoded, measured, and represented.
 2. Force and trace a nonzero `player+0x2CA` countdown, then recover the input
    subsystem emitters for special commands `0x8003` and `0x8004`. Common
    anticipation-release precedence is proven, but standing-event precedence is
@@ -579,11 +585,11 @@ Focused tests verify:
    `452 -> 346 -> 348/349 -> 350/448` graph, and every outer frame-1 stop command
    are now represented. Active groups 722, 647, 587/627, and 680 are ordered by
    their exact source-frame gates.
-5. Reproduce the measured transition-controlled static correction pass and any
-   native logical/render root compensation attached to `0x0491` and `0x04AB`;
-   source-frame timing and destination-shell delta selection are implemented.
-6. Map moves `1074..1077` and determine the state requirements that select
-   those side-dependent intermediates.
+5. Reproduce the remaining transition-controlled static correction pass. Root
+   ownership and measured commits attached to the preserving and `0x00AB`
+   bridge resets are implemented.
+6. Capture a natural, unpatched frame-10 bridge setup and compare its complete
+   world-angle series with the controlled state-24 traces.
 7. Extend the authoritative recovered-skeleton renderer checks to attack
    tracking, homing, body push, and camera-facing behavior during lateral
    movement.

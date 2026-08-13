@@ -34,6 +34,32 @@ export function t5TurnRecoveryFace(
   return t5AngleToRadians(radiansToT5Angle(targetFace) + offset);
 }
 
+const T5_TURN_WALK_RESET_OFFSETS = {
+  1075: 24667,
+  1077: -24816,
+} as const;
+
+const T5_TURN_WALK_TARGET_OFFSETS = {
+  1075: -1820,
+  1077: 1820,
+} as const;
+
+/** Apply PAL's authored root-angle change in the clone's inverse angle convention. */
+export function t5TurnWalkResetFace(face: number, moveId: 1075 | 1077): number {
+  return t5AngleToRadians(radiansToT5Angle(face) + T5_TURN_WALK_RESET_OFFSETS[moveId]);
+}
+
+/**
+ * Reproduce orientation state 24: home one fifth of the shortest signed-angle
+ * error toward the opponent with the route's authored ten-degree bias.
+ */
+export function stepT5TurnWalkFace(face: number, targetFace: number, moveId: 1075 | 1077): number {
+  const faceAngle = radiansToT5Angle(face);
+  const targetAngle = signed16(radiansToT5Angle(targetFace) + T5_TURN_WALK_TARGET_OFFSETS[moveId]);
+  const step = Math.trunc(signed16(targetAngle - faceAngle) / 5);
+  return t5AngleToRadians(faceAngle + step);
+}
+
 /** PAL player+0x80: one's-complement magnitude of the signed target-angle error. */
 export function t5FacingErrorMagnitude(face: number, targetFace: number): number {
   const error = signed16(radiansToT5Angle(face) - radiansToT5Angle(targetFace));

@@ -52,13 +52,16 @@ import {
   t5SidestepRootDelta,
   t5SidestepRootOffset,
   t5TurnResetRootCommit,
+  t5TurnWalkResetRootCommit,
 } from "./t5-locomotion.ts";
 import {
+  stepT5TurnWalkFace,
   stepT5AttackOrientation,
   stepT5PostActiveOrientation,
   t5AngleToRadians,
   t5FacingErrorMagnitude,
   t5TurnRecoveryFace,
+  t5TurnWalkResetFace,
 } from "./t5-orientation.ts";
 import {
   T5_DOWN_SIDESTEP_RELEASE_END,
@@ -68,6 +71,7 @@ import {
   t5QuickStepVerticalRoute,
   t5SideOrderFlag,
   t5SidestepStopCommandRoute,
+  t5TurnStepVerticalRoute,
 } from "./t5-sidestep.ts";
 
 // Unmapped ballistic states still use the clone's original per-frame tuning.
@@ -147,6 +151,7 @@ export interface FighterSnap {
   ssDir: FighterState["ssDir"];
   ssPhase: FighterState["ssPhase"];
   t5SidestepMoveId: FighterState["t5SidestepMoveId"];
+  t5SidestepOrigin: FighterState["t5SidestepOrigin"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
 
@@ -832,6 +837,7 @@ export class Sim {
     f.ssPhase = route.phase;
     f.t5SidestepMoveId = route.moveId;
     f.t5SidewalkInput = route.input;
+    f.t5SidestepOrigin = [0, 0, 0];
     f.t5RootFace = f.face;
     f.t5PreviousFace = f.face;
     this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
@@ -1155,6 +1161,7 @@ export class Sim {
     total: number,
     preserveT5PoseTail = false,
   ): void {
+    if (f.action === "ss" && a !== "ss") this.commitT5SidestepOrigin(f);
     if (!preserveT5PoseTail) f.t5PoseTail = null;
     f.action = a;
     f.actionFrame = 0;
@@ -1202,6 +1209,7 @@ export class Sim {
       ssDir: fighter.ssDir,
       ssPhase: fighter.ssPhase,
       t5SidestepMoveId: fighter.t5SidestepMoveId,
+      t5SidestepOrigin: fighter.t5SidestepOrigin,
     };
   }
 
@@ -1603,8 +1611,38 @@ export class Sim {
         }
 
         if (f.ssPhase === "turnStep") {
+          const sourceMoveId = f.t5SidestepMoveId as 1090 | 1092;
+          const route = t5TurnStepVerticalRoute(
+            sourceMoveId,
+            f.actionFrame,
+            inp.dir,
+            f.t5SideOrderFlag,
+          );
+          if (route) {
+            const sourceAnimation = t5SidestepAnimationPhase(
+              f.ssDir,
+              f.ssPhase,
+              f.actionFrame,
+              sourceMoveId,
+            )!.animation;
+            const targetFrame = f.actionFrame + 1;
+            const targetAnimation = t5SidestepAnimationPhase(
+              f.ssDir,
+              route.phase,
+              targetFrame,
+              route.moveId,
+            )!.animation;
+            const sourceRoot = sampleT5RootOffset(sourceAnimation, f.actionFrame);
+            const targetRoot = sampleT5RootOffset(targetAnimation, targetFrame);
+            f.ssPhase = route.phase;
+            f.t5SidestepMoveId = route.moveId;
+            f.t5SidewalkInput = route.input;
+            f.t5SidestepOrigin = [sourceRoot[0] - targetRoot[0], 0, sourceRoot[2] - targetRoot[2]];
+            f.actionFrame = targetFrame;
+            f.actionTotal = 15;
+            break;
+          }
           if (f.actionFrame > T5_TURN_STEP_FRAMES) {
-            const sourceMoveId = f.t5SidestepMoveId as 1090 | 1092;
             const targetMoveId = sourceMoveId === 1090 ? 1091 : 1093;
             this.applyT5LocalRootDeltaAtFace(
               f,
@@ -1636,6 +1674,14 @@ export class Sim {
 
         const holdingSidewalkInput = inp.dir === f.t5SidewalkInput;
 
+        if (f.ssPhase === "turnWalkLoop") {
+          const moveId = f.t5SidestepMoveId as 1075 | 1077;
+          f.t5PreviousFace = f.face;
+          const face = stepT5TurnWalkFace(f.t5RootFace, this.t5TargetFace(f), moveId);
+          f.face = face;
+          f.t5RootFace = face;
+        }
+
         if (f.ssPhase === "step") {
           const sourceFrame = f.actionFrame - 1;
           const route = t5QuickStepVerticalRoute(f.ssDir, sourceFrame, inp.dir, f.t5SideOrderFlag);
@@ -1655,6 +1701,7 @@ export class Sim {
             f.t5SidestepMoveId = f.ssDir === 1 ? 1066 : 1072;
           }
         } else if (f.ssPhase === "walkLoop" && !holdingSidewalkInput) {
+          f.t5SidestepOrigin = [0, 0, 0];
           f.ssPhase = "walkStop";
           f.t5SidestepMoveId = f.ssDir === 1 ? 1078 : 1079;
           f.actionFrame = 1;
@@ -1670,17 +1717,48 @@ export class Sim {
           const preservePoseTail = this.preserveT5SidestepPoseTail(f);
           this.setAction(f, "idle", 0, preservePoseTail);
         } else if (f.ssPhase === "walkStart" && f.actionFrame >= T.sidewalkStartFrames) {
+          f.t5SidestepOrigin = [0, 0, 0];
           f.ssPhase = "walkLoop";
           f.t5SidestepMoveId = f.ssDir === 1 ? 1067 : 1073;
           f.actionFrame = 0;
           f.actionTotal = T.sidewalkLoopFrames;
         } else if (f.ssPhase === "walkRelease" && f.actionFrame >= T.sidewalkStartFrames) {
+          f.t5SidestepOrigin = [0, 0, 0];
           f.ssPhase = "walkStop";
           f.t5SidestepMoveId = f.ssDir === 1 ? 1078 : 1079;
           f.actionFrame = 0;
           f.actionTotal = T.sidewalkStopFrames;
         } else if (f.ssPhase === "walkLoop" && f.actionFrame >= T.sidewalkLoopFrames) {
           f.actionFrame = 0;
+        } else if (f.ssPhase === "turnWalkStart" && f.actionFrame >= 15) {
+          const sourceMoveId = f.t5SidestepMoveId as 1074 | 1076;
+          const targetMoveId = sourceMoveId === 1074 ? 1075 : 1077;
+          this.applyT5LocalRootDeltaAtFace(
+            f,
+            t5TurnWalkResetRootCommit(sourceMoveId, targetMoveId),
+            f.t5RootFace,
+          );
+          f.t5SidestepOrigin = [0, 0, 0];
+          f.ssPhase = "turnWalkLoop";
+          f.t5SidestepMoveId = targetMoveId;
+          f.actionFrame = 1;
+          f.actionTotal = 18;
+          f.t5PreviousFace = f.face;
+          const face = t5TurnWalkResetFace(f.t5RootFace, targetMoveId);
+          f.face = face;
+          f.t5RootFace = face;
+        } else if (f.ssPhase === "turnWalkLoop" && f.actionFrame >= 18) {
+          const sourceMoveId = f.t5SidestepMoveId as 1075 | 1077;
+          const targetMoveId = sourceMoveId === 1075 ? 1073 : 1067;
+          this.applyT5LocalRootDeltaAtFace(
+            f,
+            t5TurnWalkResetRootCommit(sourceMoveId, targetMoveId),
+            f.t5RootFace,
+          );
+          f.ssPhase = "walkLoop";
+          f.t5SidestepMoveId = targetMoveId;
+          f.actionFrame = 1;
+          f.actionTotal = T.sidewalkLoopFrames;
         } else if (f.ssPhase === "walkStop" && f.actionFrame >= T.sidewalkStopFrames) {
           this.setAction(f, "idle", 0);
         }
@@ -2146,11 +2224,19 @@ export class Sim {
           ? logicalReactionHeight
             ? logicalReactionOrigin!
             : defenderPose.t5ReactionOrigin
-          : locomotionRoot
-            ? ([-locomotionRoot[0], -locomotionRoot[1], -locomotionRoot[2]] as const)
-            : nativeAttackAnimation
-              ? defenderPose.t5AnimationOrigin
-              : defenderPose.t5ReactionOrigin,
+          : defenderPose.action === "ss" && defenderPose.ssPhase === "turnWalkStart"
+            ? defenderPose.t5SidestepOrigin
+            : locomotionRoot
+              ? ([
+                  (defenderPose.action === "ss" ? defenderPose.t5SidestepOrigin[0] : 0) -
+                    locomotionRoot[0],
+                  -locomotionRoot[1],
+                  (defenderPose.action === "ss" ? defenderPose.t5SidestepOrigin[2] : 0) -
+                    locomotionRoot[2],
+                ] as const)
+              : nativeAttackAnimation
+                ? defenderPose.t5AnimationOrigin
+                : defenderPose.t5ReactionOrigin,
         animation: nativeReactionAnimation ?? nativeLocomotion?.animation ?? nativeAttackAnimation,
         actionFrame: nativeReactionPose
           ? defenderPose.action === "launched"
@@ -3168,11 +3254,29 @@ export class Sim {
     f.pos.z += fw.z * delta[2] + fw.x * delta[0];
   }
 
+  private commitT5SidestepOrigin(f: FighterState): void {
+    const origin = f.t5SidestepOrigin;
+    if (origin[0] !== 0 || origin[2] !== 0 || f.ssPhase === "turnWalkStart") {
+      const bridgeRoot =
+        f.ssPhase === "turnWalkStart"
+          ? sampleT5RootOffset(
+              t5SidestepAnimationPhase(f.ssDir, f.ssPhase, f.actionFrame, f.t5SidestepMoveId)!
+                .animation,
+              f.actionFrame,
+            )
+          : ([0, 0, 0] as const);
+      this.applyT5LocalRootDeltaAtFace(
+        f,
+        [origin[0] + bridgeRoot[0], 0, origin[2] + bridgeRoot[2]],
+        f.t5RootFace,
+      );
+      f.t5SidestepOrigin = [0, 0, 0];
+    }
+  }
+
   private applyT5Sidestep(f: FighterState): void {
     const delta = t5SidestepRootDelta(f.ssDir, f.ssPhase, f.actionFrame, f.t5SidestepMoveId);
-    const fw = this.facingVec(f);
-    f.pos.x += fw.x * delta[2] - fw.z * delta[0];
-    f.pos.z += fw.z * delta[2] + fw.x * delta[0];
+    this.applyT5LocalRootDeltaAtFace(f, delta, f.t5RootFace);
   }
 
   private bodyPush(): void {
@@ -3316,6 +3420,7 @@ export class Sim {
           : locomotion?.transfersRoot
             ? sampleT5RootOffset(locomotion.animation, locomotion.actionFrame)
             : undefined;
+      const sidestepOrigin = pose.action === "ss" ? pose.t5SidestepOrigin : ([0, 0, 0] as const);
       return {
         pos: f.pos,
         face: pose.face,
@@ -3326,9 +3431,11 @@ export class Sim {
         attacking: pose.action === "attack",
         t5AnimationOrigin: reaction
           ? pose.t5ReactionOrigin
-          : root
-            ? ([-root[0], -root[1], -root[2]] as const)
-            : pose.t5AnimationOrigin,
+          : pose.action === "ss" && pose.ssPhase === "turnWalkStart"
+            ? pose.t5SidestepOrigin
+            : root
+              ? ([sidestepOrigin[0] - root[0], -root[1], sidestepOrigin[2] - root[2]] as const)
+              : pose.t5AnimationOrigin,
       };
     };
     resolvedPenetration ??= t5BodyPushPenetration(bodyPlacement(a), bodyPlacement(b));
@@ -3402,7 +3509,11 @@ export class Sim {
         ].includes(f.action) ||
         (f.action === "crouch" &&
           !(f.t5CrouchMoveId === 254 && f.actionFrame <= T5_DOWN_SIDESTEP_RELEASE_END)) ||
-        (f.action === "ss" && f.ssPhase !== "turnStep" && f.ssPhase !== "turnRecovery");
+        (f.action === "ss" &&
+          f.ssPhase !== "turnStep" &&
+          f.ssPhase !== "turnRecovery" &&
+          f.ssPhase !== "turnWalkStart" &&
+          f.ssPhase !== "turnWalkLoop");
       if (neutral) {
         const face = Math.atan2(o.pos.z - f.pos.z, o.pos.x - f.pos.x);
         f.face = face;
@@ -3454,9 +3565,12 @@ export class Sim {
       : attack
         ? pose.t5AnimationOrigin
         : ([0, 0, 0] as const);
-    if (!reaction && !attack && locomotion?.transfersRoot) {
+    if (!reaction && !attack && pose.action === "ss" && pose.ssPhase === "turnWalkStart") {
+      origin = pose.t5SidestepOrigin;
+    } else if (!reaction && !attack && locomotion?.transfersRoot) {
       const root = sampleT5RootOffset(locomotion.animation, locomotion.actionFrame);
-      origin = [-root[0], -root[1], -root[2]];
+      const sidestepOrigin = pose.action === "ss" ? pose.t5SidestepOrigin : ([0, 0, 0] as const);
+      origin = [sidestepOrigin[0] - root[0], -root[1], sidestepOrigin[2] - root[2]];
     }
     const poseRoot = sampleT5PoseRoot(animation, actionFrame);
     return t5LocalPointToWorld(
@@ -3552,6 +3666,7 @@ export class Sim {
       ssDir: f.ssDir,
       ssPhase: f.ssPhase,
       t5SidestepMoveId: f.t5SidestepMoveId,
+      t5SidestepOrigin: f.t5SidestepOrigin,
       t5PoseTail: f.t5PoseTail,
     });
     this.replay.push({ fighters: [snap(this.gs.fighters[0]), snap(this.gs.fighters[1])] });

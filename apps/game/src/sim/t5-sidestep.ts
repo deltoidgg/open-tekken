@@ -12,6 +12,12 @@ export type T5QuickStepVerticalRoute = {
   input: "u" | "d";
 };
 
+export type T5TurnStepVerticalRoute = {
+  phase: "turnWalkStart";
+  moveId: 1074 | 1076;
+  input: "u" | "d";
+};
+
 export type T5QuickStepEntryRoute =
   | {
       direction: 1 | -1;
@@ -92,6 +98,25 @@ export function t5QuickStepVerticalRoute(
       moveId: quickStepDirection === 1 ? 1063 : 1069,
       input,
     };
+  }
+  return undefined;
+}
+
+/** Resolve moves 1090/1092's single preserving frame into 1074/1076. */
+export function t5TurnStepVerticalRoute(
+  turnMoveId: 1090 | 1092,
+  destinationFrame: number,
+  input: Dir,
+  sideOrderFlag: boolean,
+): T5TurnStepVerticalRoute | undefined {
+  if (destinationFrame !== 10 || (input !== "u" && input !== "d")) return undefined;
+
+  if (turnMoveId === 1090) {
+    if ((input === "u" && sideOrderFlag) || (input === "d" && !sideOrderFlag)) {
+      return { phase: "turnWalkStart", moveId: 1074, input };
+    }
+  } else if ((input === "u" && !sideOrderFlag) || (input === "d" && sideOrderFlag)) {
+    return { phase: "turnWalkStart", moveId: 1076, input };
   }
   return undefined;
 }
@@ -232,7 +257,7 @@ export function t5ActiveSidestepAttackRoute(
     return { kind: "move", moveId: neutralBasic, gate: 6, group: 722 };
   }
 
-  if (phase === "walkLoop") {
+  if (phase === "walkLoop" || phase === "turnWalkStart" || phase === "turnWalkLoop") {
     if (sourceFrame >= 12 && (direction === "df" || direction === "db")) {
       const moveId = DOWN_GROUP[direction].get(buttons);
       if (moveId) return { kind: "move", moveId, gate: 12, group: 647 };
