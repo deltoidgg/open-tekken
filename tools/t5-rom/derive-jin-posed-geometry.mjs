@@ -24,6 +24,8 @@ export const JIN_BODY_PUSH_NODES = Object.freeze([3, 11, 7, 0, 19, 15, 20, 16]);
 export const JIN_HURT_SPHERE_NODES = Object.freeze([
   20, 16, 12, 8, 19, 15, 11, 7, 3, 10, 6, 0, 18, 14,
 ]);
+/** Nodes absent from hurt records but required by the visible render rig. */
+export const JIN_RENDER_SUPPLEMENTAL_NODES = Object.freeze([2, 4, 5, 9, 17, 21]);
 
 const OBJECT_POINTER_OFFSET = 0x894;
 const OBJECT_SKELETON_POINTER_OFFSET = 0x20;
@@ -1047,6 +1049,9 @@ export class JinPoseDeriver {
       ),
       hurtSphereCenters: poses.map((pose) =>
         JIN_HURT_SPHERE_NODES.map((node) => roundPoint(pose.positions[node])),
+      ),
+      renderSupplementalCenters: poses.map((pose) =>
+        JIN_RENDER_SUPPLEMENTAL_NODES.map((node) => roundPoint(pose.positions[node])),
       ),
       hitboxSamples,
     };

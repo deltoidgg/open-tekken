@@ -117,6 +117,7 @@ export interface FighterSnap {
   z: number;
   face: number;
   t5RootFace: number;
+  t5PreviousFace: number;
   action: FighterState["action"];
   actionFrame: number;
   actionTotal: number;
@@ -133,6 +134,9 @@ export interface FighterSnap {
   t5LocomotionReverse: FighterState["t5LocomotionReverse"];
   t5DashMoveId: FighterState["t5DashMoveId"];
   t5BackdashMoveId: FighterState["t5BackdashMoveId"];
+  t5CrouchMoveId: FighterState["t5CrouchMoveId"];
+  ssDir: FighterState["ssDir"];
+  ssPhase: FighterState["ssPhase"];
   t5PoseTail: FighterState["t5PoseTail"];
 }
 
@@ -3368,6 +3372,7 @@ export class Sim {
       z: f.pos.z,
       face: f.face,
       t5RootFace: f.t5RootFace,
+      t5PreviousFace: f.t5PreviousFace,
       action: f.action,
       actionFrame: f.actionFrame,
       actionTotal: f.actionTotal,
@@ -3384,6 +3389,9 @@ export class Sim {
       t5LocomotionReverse: f.t5LocomotionReverse,
       t5DashMoveId: f.t5DashMoveId,
       t5BackdashMoveId: f.t5BackdashMoveId,
+      t5CrouchMoveId: f.t5CrouchMoveId,
+      ssDir: f.ssDir,
+      ssPhase: f.ssPhase,
       t5PoseTail: f.t5PoseTail,
     });
     this.replay.push({ fighters: [snap(this.gs.fighters[0]), snap(this.gs.fighters[1])] });

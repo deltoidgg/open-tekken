@@ -140,11 +140,12 @@ remain the largest system-level departures from Tekken 5.
 
 ### 8. Presentation does not yet communicate the simulation
 
-Most visible attack and locomotion animation is still procedural. Foot planting,
-impact poses, any impact-class-specific freeze, camera compression, shake, sound
-transients, and effect timing are part of control feel. They should be driven
-from authoritative simulation events after those events are correct, not tuned
-independently.
+Recovered Jin attack, reaction, locomotion, and pose-tail shells now render the
+same final published skeleton positions used by collision. Unrecovered states
+still fall back explicitly to the procedural animator. Compatible-pose blending,
+impact-class-specific freeze, camera compression, shake, sound transients, and
+effect timing remain open. They should be driven from authoritative simulation
+events after those events are correct, not tuned independently.
 
 ## Iterative implementation order
 
@@ -453,6 +454,23 @@ Drive rendering, camera, sound, and effects from the authoritative event trace:
 
 This phase is where correct mechanics become recognizably Tekken, but it should
 not compensate for incorrect event frames.
+
+Native-render checkpoint 2026-08-13: the generated collision payload already
+contained 14 published anchors in hurt-record order. Six supplemental nodes
+(`2`, `4`, `5`, `9`, `17`, and `21`) now complete the visible 20-joint Jin skin.
+The renderer resolves the same reaction-first, attack-second, locomotion-last
+shell ownership as simulation, samples `playerFrame - 1`, and applies PAL's
+separate root-facing and skeleton-facing pivots without renderer-side pose
+easing. Button-1's visible hand is node 12, the same endpoint used by jab strike
+geometry; locomotion cancels animation-owned planar root already transferred to
+the logical fighter while retaining native height and frame-zero pivot. Replay
+snapshots now preserve prior/root facing, crouch shell, and sidestep phase so
+native pose selection remains historical rather than reading current state.
+Generated render anchors are packed and deduplicated by animation address in a
+presentation-only module, leaving calibrated collision data byte-unchanged.
+Procedural posing remains only for unrecovered shells. Exact compatible-pose
+blend rules, native mesh/skinning assets, camera response, contact effects/audio,
+and clear-air/uneven-floor lower-chain branches remain open.
 
 ## Recommended first three iterations
 

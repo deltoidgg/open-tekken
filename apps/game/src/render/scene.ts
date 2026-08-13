@@ -15,6 +15,7 @@ import { poseFor } from "./animator.ts";
 import { CameraRig } from "./camera.ts";
 import { P1_PALETTE, P2_PALETTE, Rig } from "./rig.ts";
 import { buildStage } from "./stage.ts";
+import { t5NativeRenderPoseFor } from "./t5-native-pose.ts";
 import { Vfx } from "./vfx.ts";
 
 interface FighterSnapshot {
@@ -216,8 +217,12 @@ export class SceneRenderer {
           t5LocomotionReverse: s.t5LocomotionReverse,
           t5DashMoveId: s.t5DashMoveId,
           t5BackdashMoveId: s.t5BackdashMoveId,
+          t5CrouchMoveId: s.t5CrouchMoveId,
+          ssDir: s.ssDir,
+          ssPhase: s.ssPhase,
           t5PoseTail: s.t5PoseTail,
           t5RootFace: s.t5RootFace,
+          t5PreviousFace: s.t5PreviousFace,
           pos: { x: s.x, y: s.y, z: s.z },
         };
         poseSrc = t5PoseState(poseSrc);
@@ -237,16 +242,22 @@ export class SceneRenderer {
         rootForward = p.rootForward + (c.rootForward - p.rootForward) * alpha;
         poseSrc = t5PoseState(f);
       }
-      const forwardX = Math.cos(rootFace);
-      const forwardZ = Math.sin(rootFace);
-      x += forwardX * rootForward - forwardZ * rootSide;
-      y += rootUp;
-      z += forwardZ * rootForward + forwardX * rootSide;
-      rig.root.position.set(x, y, z);
-      const pose = poseFor(poseSrc, this.time + i * 1.7);
-      // crisp attacks snap harder than idle transitions
-      const blend = poseSrc.action === "attack" ? 0.55 : 0.3;
-      rig.apply(pose, blend);
+      const nativePose = t5NativeRenderPoseFor(poseSrc);
+      if (nativePose) {
+        rig.root.position.set(x, y, z);
+        rig.applyNative(nativePose);
+      } else {
+        const forwardX = Math.cos(rootFace);
+        const forwardZ = Math.sin(rootFace);
+        x += forwardX * rootForward - forwardZ * rootSide;
+        y += rootUp;
+        z += forwardZ * rootForward + forwardX * rootSide;
+        rig.root.position.set(x, y, z);
+        const pose = poseFor(poseSrc, this.time + i * 1.7);
+        // Legacy or unrecovered shells retain their procedural transition.
+        const blend = poseSrc.action === "attack" ? 0.55 : 0.3;
+        rig.apply(pose, blend);
+      }
       rig.root.rotation.y = Math.PI / 2 - face + rig.rootYawExtra;
 
       // buff auras

@@ -21,6 +21,19 @@ export interface HitPushbacks {
 /** T5 local-space point in metres: lateral, vertical, then forward. */
 export type T5LocalPoint = readonly [side: number, up: number, forward: number];
 
+/**
+ * Skeleton nodes absent from the 14 native hurt records, in fixed node order:
+ * spine 2, head 4, shoulders 5/9, then toes 17/21.
+ */
+export type T5RenderSupplementalFrame = readonly [
+  spine: T5LocalPoint,
+  head: T5LocalPoint,
+  shoulderA: T5LocalPoint,
+  shoulderB: T5LocalPoint,
+  toeA: T5LocalPoint,
+  toeB: T5LocalPoint,
+];
+
 export interface T5NativeAnimationDef {
   romMoveId: number;
   animationLength: number;

@@ -274,12 +274,22 @@ node tools/t5-rom/generate-jin-reaction-data.mjs \
   /path/to/pcsx2-ee.bin apps/game/src/data/t5-jin-reactions-native.ts
 node tools/t5-rom/generate-jin-locomotion-data.mjs \
   /path/to/pcsx2-ee.bin apps/game/src/data/t5-jin-locomotion-native.ts
+node tools/t5-rom/generate-jin-render-data.mjs \
+  /path/to/pcsx2-ee.bin apps/game/src/data/t5-jin-render-native.ts
 ```
 
 The reaction generator emits posed body-push centres only for reaction shells
 whose runtime ownership has been established. Reactions `1` and `12` currently
 form that measured logical-air slice; other reactions retain the existing body
 fallback until a live trace proves their collision state.
+
+The render generator emits the six published skeleton nodes not already present
+in the 14 native hurt anchors: nodes `2`, `4`, `5`, `9`, `17`, and `21`.
+Together those streams reconstruct the 20 semantic joints used by the visible
+Jin skin. Frames are packed in `Float32Array` payloads and shared by native
+animation address; move IDs remain separate lookup keys so shell ownership is
+not lost. This stream is presentation-only and intentionally does not
+regenerate or perturb collision modules.
 
 Runtime ownership and the measured Jin curves are documented in
 `docs/reverse-engineering/T5_PAL_ANIMATION_RUNTIME.md` and
