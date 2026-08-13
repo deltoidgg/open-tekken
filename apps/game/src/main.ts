@@ -234,21 +234,16 @@ function watchPhase(gs: GameState): void {
 
 // ── relative direction: press toward the opponent's screen side ─────────────
 
-function composeP1Pad(): Pad {
+function composeP1Pad(projectedX: readonly [number, number]): Pad {
   const raw = devices.poll();
-  const gs = sim.gs;
-  const me = gs.fighters[0];
-  const opp = gs.fighters[1];
-  // pressing toward the opponent's screen side = forward
-  const right = scene.cameraRig.rightXZ();
-  const toOpp = { x: opp.pos.x - me.pos.x, z: opp.pos.z - me.pos.z };
-  const side = toOpp.x * right.x + toOpp.z * right.z >= 0 ? 1 : -1;
+  // PAL projected X grows toward screen-left, so this comparison also maps
+  // physical left/right onto the current opponent-relative direction.
+  const side = projectedX[0] >= projectedX[1] ? 1 : -1;
   const screenDx = raw.right ? 1 : raw.left ? -1 : 0;
   return {
     dx: (screenDx * side) as -1 | 0 | 1,
     dy: raw.up ? 1 : raw.down ? -1 : 0,
     btns: raw.btns,
-    facingSide: side === 1 ? "right" : "left",
   };
 }
 
@@ -302,17 +297,17 @@ function frame(now: number): void {
   while (acc >= STEP && steps < 5) {
     acc -= STEP;
     if (!canStep) continue;
+    const projectedX = sim.gs.fighters.map((fighter) =>
+      scene.cameraRig.t5ProjectedX(fighter.pos),
+    ) as [number, number];
     const p1: Pad =
       sim.gs.phase === "intro"
         ? skipPress
           ? { dx: 0 as const, dy: 0 as const, btns: 1 }
           : emptyPad()
-        : composeP1Pad();
+        : composeP1Pad(projectedX);
     const p2Base = sim.gs.phase === "fight" && !aiOff ? ai.update(sim.gs) : emptyPad();
-    const p2: Pad = p1.facingSide
-      ? { ...p2Base, facingSide: p1.facingSide === "right" ? "left" : "right" }
-      : p2Base;
-    sim.step(p1, p2);
+    sim.step(p1, p2Base, { projectedX });
     scene.snapshot(sim.gs);
     handleEvents(sim.gs, sim.events());
     watchPhase(sim.gs);

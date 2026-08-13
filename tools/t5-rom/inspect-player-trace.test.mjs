@@ -35,6 +35,7 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   );
   buffer.writeUInt16LE(dynamicMoveId, offset + 0x158);
   buffer.writeUInt8(1, offset + 0x1b8);
+  buffer.writeUInt8(1, offset + 0x1be);
   buffer.writeInt16LE(impactCounter, offset + 0x2b6);
   buffer.writeUInt16LE(21, offset + 0x2a4);
   buffer.writeUInt16LE(5, offset + 0x2a6);
@@ -68,6 +69,7 @@ function writePlayer(buffer, offset, { nativeMoveId, dynamicMoveId, playerFrame,
   buffer.writeFloatLE(42.8203125, offset + 0x690);
   buffer.writeFloatLE(0, offset + 0x694);
   buffer.writeFloatLE(46.4296875, offset + 0x698);
+  buffer.writeInt32LE(1370, offset + 0x6b8);
   buffer.writeUInt16LE(0x40, offset + 0x6ac);
   buffer.writeUInt16LE(0x08, offset + 0x6ae);
   buffer.writeFloatLE(400.25, offset + 0x750);
@@ -185,6 +187,12 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     currentMovePointer: PAL_JIN_MOVE_TABLE_ADDRESS + 370 * T5_MOVE_RECORD_SIZE,
     nativeMoveId: 370,
     dynamicMoveId: 783,
+    sideOrder: {
+      coordinate: 1370,
+      flag: 1,
+      requirement111: false,
+      requirement112: true,
+    },
     rootTransition: {
       transferPending: true,
       mode: 1,

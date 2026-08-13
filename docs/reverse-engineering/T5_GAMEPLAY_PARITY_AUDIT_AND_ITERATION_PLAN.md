@@ -688,6 +688,20 @@ source-frame-27 ambiguity: logical control and planar root return to standing at
 move 220 frame 1. Opposite-side live validation and executable predicate proof
 for `111/112` remain open.
 
+Twelfth checkpoint 2026-08-13: executable disassembly replaces the legacy
+standing-side interpretation with the exact view-projection predicate. Routine
+`0x002CEDB8` stores integer projected X at `player+0x6B8`; `0x0023C3A0`
+publishes `player+0x1BE = self.projectedX >= opponent.projectedX`; and the
+requirement evaluator makes `111` the false branch and `112` the true branch.
+Eight existing traces match this comparison without exception. A controlled
+1 kHz differential temporarily exchanged only the verified live `111/112`
+requirement words, captured the complementary matrix
+`1070/1068/1065/1063`, then restored and re-read the original words. The clone
+now supplies PAL-normalized perspective-projected X as frame context, keeps Pad
+purely input-owned, reproduces both four-route matrices, and locks the native
+`>=` tie behavior. Relative forward ownership is intentionally separate from
+this projected-order state.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

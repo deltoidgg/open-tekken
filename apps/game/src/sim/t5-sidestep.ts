@@ -12,12 +12,17 @@ export type T5QuickStepVerticalRoute = {
 /** Move 254 accepts the neutral down-tap special only through source frame 7. */
 export const T5_DOWN_SIDESTEP_RELEASE_END = 7;
 
+/** PAL 0x0023C3A0 publishes player+0x1BE from the two projected-X fields. */
+export function t5SideOrderFlag(selfProjectedX: number, opponentProjectedX: number): boolean {
+  return selfProjectedX >= opponentProjectedX;
+}
+
 /** Resolve moves 1062/1068's ordered side requirements before the down fallback. */
 export function t5QuickStepVerticalRoute(
   quickStepDirection: 1 | -1,
   sourceFrame: number,
   input: Dir,
-  standingSide: "left" | "right",
+  sideOrderFlag: boolean,
 ): T5QuickStepVerticalRoute | undefined {
   if (sourceFrame < 1 || sourceFrame > 26 || (input !== "u" && input !== "d")) {
     return undefined;
@@ -25,17 +30,17 @@ export function t5QuickStepVerticalRoute(
 
   if (sourceFrame <= 12) {
     if (quickStepDirection === 1) {
-      if (input === "u" && standingSide === "left") {
+      if (input === "u" && !sideOrderFlag) {
         return { phase: "walkStart", moveId: 1065, input };
       }
-      if (input === "d" && standingSide === "right") {
+      if (input === "d" && sideOrderFlag) {
         return { phase: "walkStart", moveId: 1064, input };
       }
     } else {
-      if (input === "u" && standingSide === "right") {
+      if (input === "u" && sideOrderFlag) {
         return { phase: "walkStart", moveId: 1071, input };
       }
-      if (input === "d" && standingSide === "left") {
+      if (input === "d" && !sideOrderFlag) {
         return { phase: "walkStart", moveId: 1070, input };
       }
     }

@@ -179,8 +179,10 @@ export interface FighterState {
   t5SidestepMoveId: T5SidestepMoveId;
   /** Physical vertical direction which owns the current sidewalk hold. */
   t5SidewalkInput: "u" | "d";
-  /** Screen-facing side used by PAL standing-side requirements 111/112. */
-  t5StandingSide: "left" | "right";
+  /** Clone-normalized analogue of PAL's integer view projection at player+0x6B8. */
+  t5ProjectedX: number;
+  /** PAL player+0x1BE: true when this fighter's projected X is >= the opponent's. */
+  t5SideOrderFlag: boolean;
 
   // stun context
   stunKind: Reaction | "none";
@@ -335,7 +337,8 @@ export function createFighter(id: 0 | 1): FighterState {
     ssPhase: "step",
     t5SidestepMoveId: 1062,
     t5SidewalkInput: "d",
-    t5StandingSide: id === 0 ? "right" : "left",
+    t5ProjectedX: id === 0 ? 1 : -1,
+    t5SideOrderFlag: id === 0,
     stunKind: "none",
     stunEscapable: false,
     t5ReactionMoveId: null,

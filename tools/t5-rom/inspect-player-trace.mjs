@@ -15,6 +15,7 @@ const LOGICAL_DISPLACEMENT_OFFSET = 0x11c;
 const CURRENT_MOVE_POINTER_OFFSET = 0xc4;
 const MOVE_ID_OFFSET = 0x158;
 const ROOT_TRANSFER_PENDING_OFFSET = 0x1b8;
+const SIDE_ORDER_FLAG_OFFSET = 0x1be;
 const PUSHBACK_DURATION_OFFSET = 0x2a4;
 const PUSHBACK_SAMPLE_COUNT_OFFSET = 0x2a6;
 const PUSHBACK_DIRECTION_OFFSET = 0x2a8;
@@ -31,6 +32,7 @@ const BODY_PUSH_STRIDE = 0x10;
 const BODY_PUSH_ORIGIN_OFFSET = 0x510;
 const COMPOSED_DISPLACEMENT_OFFSET = 0x640;
 const BODY_CORRECTION_OFFSET = 0x690;
+const SIDE_ORDER_COORDINATE_OFFSET = 0x6b8;
 const DIRECTION_MASK_OFFSET = 0x6ac;
 const DIRECTION_EDGE_OFFSET = 0x6ae;
 const RENDER_ROOT_OFFSET = 0x750;
@@ -65,6 +67,7 @@ function readPublishedSkeleton(buffer, offset, nodeCount, pointSize) {
 
 function readPlayer(buffer, offset, skeletonLayout) {
   const currentMovePointer = buffer.readUInt32LE(offset + CURRENT_MOVE_POINTER_OFFSET);
+  const sideOrderFlag = buffer.readUInt8(offset + SIDE_ORDER_FLAG_OFFSET);
   const hurtSpheres = Array.from({ length: HURT_SPHERE_COUNT }, (_, index) => {
     const sphereOffset = offset + HURT_SPHERE_OFFSET + index * HURT_SPHERE_STRIDE;
     return {
@@ -104,6 +107,12 @@ function readPlayer(buffer, offset, skeletonLayout) {
     currentMovePointer,
     nativeMoveId: palJinMoveIdFromPointer(currentMovePointer),
     dynamicMoveId: buffer.readUInt16LE(offset + MOVE_ID_OFFSET),
+    sideOrder: {
+      coordinate: buffer.readInt32LE(offset + SIDE_ORDER_COORDINATE_OFFSET),
+      flag: sideOrderFlag,
+      requirement111: sideOrderFlag === 0,
+      requirement112: sideOrderFlag !== 0,
+    },
     rootTransition: {
       transferPending: buffer.readUInt8(offset + ROOT_TRANSFER_PENDING_OFFSET) !== 0,
       mode: buffer.readUInt32LE(offset + ROOT_TRANSITION_MODE_OFFSET),
@@ -266,6 +275,7 @@ function timelineKey(sample) {
     .flatMap((player) => [
       player.nativeMoveId,
       player.dynamicMoveId,
+      player.sideOrder.flag,
       player.playerFrame,
       player.impactCounter,
       player.pushback.pointer,
@@ -312,7 +322,7 @@ function printTimeline(trace) {
     `Samples: ${trace.samples.length}; player struct: 0x${trace.playerSize.toString(16)}`,
   );
   console.log(
-    "time_ms\tp1_native\tp1_dynamic\tp1_frame\tp1_dir\tp1_edge\tp1_gate\tp1_weight\tp1_2b6\tp2_native\tp2_dynamic\tp2_frame\tp2_dir\tp2_edge\tp2_gate\tp2_weight\tp2_2b6",
+    "time_ms\tp1_native\tp1_dynamic\tp1_side_coord\tp1_side_flag\tp1_frame\tp1_dir\tp1_edge\tp1_gate\tp1_weight\tp1_2b6\tp2_native\tp2_dynamic\tp2_side_coord\tp2_side_flag\tp2_frame\tp2_dir\tp2_edge\tp2_gate\tp2_weight\tp2_2b6",
   );
   for (const sample of playerTraceTransitions(trace)) {
     const [player1, player2] = sample.players;
@@ -321,6 +331,8 @@ function printTimeline(trace) {
         sample.timeMs.toFixed(3),
         player1.nativeMoveId ?? "?",
         player1.dynamicMoveId,
+        player1.sideOrder.coordinate,
+        player1.sideOrder.flag,
         player1.playerFrame,
         `0x${player1.direction.mask.toString(16)}`,
         `0x${player1.direction.edge.toString(16)}`,
@@ -329,6 +341,8 @@ function printTimeline(trace) {
         player1.impactCounter,
         player2.nativeMoveId ?? "?",
         player2.dynamicMoveId,
+        player2.sideOrder.coordinate,
+        player2.sideOrder.flag,
         player2.playerFrame,
         `0x${player2.direction.mask.toString(16)}`,
         `0x${player2.direction.edge.toString(16)}`,
@@ -340,7 +354,10 @@ function printTimeline(trace) {
   }
 }
 
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
+const isMain =
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
 if (isMain) {
   const args = process.argv.slice(2);
   const inputPath = args.find((arg) => !arg.startsWith("--"));

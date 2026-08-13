@@ -55,6 +55,7 @@ import {
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
   t5QuickStepVerticalRoute,
+  t5SideOrderFlag,
   t5SidestepStopCommandRoute,
 } from "../src/sim/t5-sidestep.ts";
 
@@ -966,56 +967,62 @@ describe("Tekken 5 PAL locomotion roots", () => {
   });
 
   it("resolves the ordered 111/112 quick-step routes before the down fallback", () => {
-    expect(t5QuickStepVerticalRoute(1, 6, "u", "left")).toEqual({
+    expect(t5QuickStepVerticalRoute(1, 6, "u", false)).toEqual({
       phase: "walkStart",
       moveId: 1065,
       input: "u",
     });
-    expect(t5QuickStepVerticalRoute(1, 6, "d", "right")).toEqual({
+    expect(t5QuickStepVerticalRoute(1, 6, "d", true)).toEqual({
       phase: "walkStart",
       moveId: 1064,
       input: "d",
     });
-    expect(t5QuickStepVerticalRoute(-1, 6, "d", "left")).toEqual({
+    expect(t5QuickStepVerticalRoute(-1, 6, "d", false)).toEqual({
       phase: "walkStart",
       moveId: 1070,
       input: "d",
     });
-    expect(t5QuickStepVerticalRoute(-1, 6, "u", "right")).toEqual({
+    expect(t5QuickStepVerticalRoute(-1, 6, "u", true)).toEqual({
       phase: "walkStart",
       moveId: 1071,
       input: "u",
     });
 
-    expect(t5QuickStepVerticalRoute(1, 6, "d", "left")?.moveId).toBe(1063);
-    expect(t5QuickStepVerticalRoute(-1, 6, "d", "right")?.moveId).toBe(1069);
-    expect(t5QuickStepVerticalRoute(1, 13, "u", "left")).toBeUndefined();
-    expect(t5QuickStepVerticalRoute(-1, 26, "d", "right")?.moveId).toBe(1069);
-    expect(t5QuickStepVerticalRoute(-1, 27, "d", "right")).toBeUndefined();
+    expect(t5QuickStepVerticalRoute(1, 6, "d", false)?.moveId).toBe(1063);
+    expect(t5QuickStepVerticalRoute(-1, 6, "d", true)?.moveId).toBe(1069);
+    expect(t5QuickStepVerticalRoute(1, 13, "u", false)).toBeUndefined();
+    expect(t5QuickStepVerticalRoute(-1, 26, "d", true)?.moveId).toBe(1069);
+    expect(t5QuickStepVerticalRoute(-1, 27, "d", true)).toBeUndefined();
   });
 
   it.each([
-    ["u,N,d", 1, -1, "stepVariant", 1069],
-    ["u,N,u", 1, 1, "walkStart", 1071],
-    ["d,N,u", -1, 1, "step", 1062],
-    ["d,N,d", -1, -1, "walkStart", 1064],
+    ["u,N,d", true, 1, -1, "stepVariant", 1069],
+    ["u,N,u", true, 1, 1, "walkStart", 1071],
+    ["d,N,u", true, -1, 1, "step", 1062],
+    ["d,N,d", true, -1, -1, "walkStart", 1064],
+    ["u,N,d", false, 1, -1, "walkStart", 1070],
+    ["u,N,u", false, 1, 1, "step", 1068],
+    ["d,N,u", false, -1, 1, "walkStart", 1065],
+    ["d,N,d", false, -1, -1, "stepVariant", 1063],
   ] as const)(
-    "matches the live right-side quick-step pair %s",
-    (_label, firstDy, secondDy, phase, moveId) => {
+    "matches the PAL quick-step pair %s when projected-order flag is %s",
+    (_label, sideOrderFlag, firstDy, secondDy, phase, moveId) => {
       const sim = fightSim(8);
       const fighter = sim.gs.fighters[0];
-      const side = { facingSide: "right" as const };
+      fighter.t5ProjectedX = sideOrderFlag ? 1 : -1;
+      sim.gs.fighters[1].t5ProjectedX = sideOrderFlag ? -1 : 1;
 
-      sim.step(pad({ ...side, dy: firstDy }), pad());
-      sim.step(pad(side), pad());
-      run(sim, 5, side);
-      sim.step(pad({ ...side, dy: secondDy }), pad());
+      sim.step(pad({ dy: firstDy }), pad());
+      sim.step(pad(), pad());
+      run(sim, 5);
+      sim.step(pad({ dy: secondDy }), pad());
 
       expect(fighter).toMatchObject({
         action: "ss",
         actionFrame: 7,
         ssPhase: phase,
         t5SidestepMoveId: moveId,
+        t5SideOrderFlag: sideOrderFlag,
       });
       expect(
         t5SidestepAnimationPhase(
@@ -1028,31 +1035,42 @@ describe("Tekken 5 PAL locomotion roots", () => {
     },
   );
 
-  it("selects the paired sidewalk shell after a screen-side change", () => {
+  it("publishes the PAL >= tie rule for both fighters", () => {
+    expect(t5SideOrderFlag(12, 11)).toBe(true);
+    expect(t5SideOrderFlag(11, 12)).toBe(false);
+    expect(t5SideOrderFlag(12, 12)).toBe(true);
+
+    const sim = fightSim(8);
+    sim.step(pad(), pad(), { projectedX: [0, 0] });
+    expect(sim.gs.fighters.map((fighter) => fighter.t5SideOrderFlag)).toEqual([true, true]);
+  });
+
+  it("selects the paired sidewalk shell after projected screen order changes", () => {
     const positive = fightSim(8);
     const positiveFighter = positive.gs.fighters[0];
-    const left = { facingSide: "left" as const };
-    positive.step(pad({ ...left, dy: -1 }), pad());
-    positive.step(pad(left), pad());
-    run(positive, 5, left);
-    positive.step(pad({ ...left, dy: 1 }), pad());
+    positive.step(pad({ dy: -1 }), pad());
+    positive.step(pad(), pad());
+    run(positive, 5);
+    positive.step(pad({ dy: 1 }), pad(), { projectedX: [-1, 1] });
     expect(positiveFighter).toMatchObject({
       actionFrame: 7,
       ssPhase: "walkStart",
       t5SidestepMoveId: 1065,
+      t5SideOrderFlag: false,
     });
     expect(T5_JIN_LOCOMOTION_1064.rootOffsets).toBe(T5_JIN_LOCOMOTION_1065.rootOffsets);
 
     const negative = fightSim(8);
     const negativeFighter = negative.gs.fighters[0];
-    negative.step(pad({ ...left, dy: 1 }), pad());
-    negative.step(pad(left), pad());
-    run(negative, 5, left);
-    negative.step(pad({ ...left, dy: -1 }), pad());
+    negative.step(pad({ dy: 1 }), pad());
+    negative.step(pad(), pad());
+    run(negative, 5);
+    negative.step(pad({ dy: -1 }), pad(), { projectedX: [-1, 1] });
     expect(negativeFighter).toMatchObject({
       actionFrame: 7,
       ssPhase: "walkStart",
       t5SidestepMoveId: 1070,
+      t5SideOrderFlag: false,
     });
     expect(T5_JIN_LOCOMOTION_1070.rootOffsets).toBe(T5_JIN_LOCOMOTION_1071.rootOffsets);
   });
@@ -1060,13 +1078,12 @@ describe("Tekken 5 PAL locomotion roots", () => {
   it("keeps quick-step frame 40 as pose after control returns on frame 27", () => {
     const sim = fightSim(8);
     const fighter = sim.gs.fighters[0];
-    const side = { facingSide: "right" as const };
 
-    sim.step(pad({ ...side, dy: 1 }), pad());
-    sim.step(pad(side), pad());
-    run(sim, 5, side);
-    sim.step(pad({ ...side, dy: -1 }), pad());
-    run(sim, 20, side);
+    sim.step(pad({ dy: 1 }), pad());
+    sim.step(pad(), pad());
+    run(sim, 5);
+    sim.step(pad({ dy: -1 }), pad());
+    run(sim, 20);
 
     expect(fighter).toMatchObject({ action: "idle", actionFrame: 0 });
     expect(fighter.t5PoseTail).toMatchObject({
@@ -1077,9 +1094,9 @@ describe("Tekken 5 PAL locomotion roots", () => {
       t5SidestepMoveId: 1069,
     });
 
-    run(sim, 13, side);
+    run(sim, 13);
     expect(fighter.t5PoseTail?.actionFrame).toBe(40);
-    sim.step(pad(side), pad());
+    sim.step(pad(), pad());
     expect(fighter).toMatchObject({ action: "idle", actionFrame: 1, t5PoseTail: null });
   });
 

@@ -23,11 +23,10 @@ export class CameraRig {
     this.resize(aspect);
   }
 
-  /** camera right vector projected on the ground plane (input side mapping) */
-  rightXZ(): { x: number; z: number } {
-    const v = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
-    const len = Math.hypot(v.x, v.z) || 1;
-    return { x: v.x / len, z: v.z / len };
+  /** PAL-normalized projected X: larger values run toward viewport left. */
+  t5ProjectedX(point: { x: number; y: number; z: number }): number {
+    this.camera.updateMatrixWorld();
+    return -new THREE.Vector3(point.x, point.y, point.z).project(this.camera).x;
   }
 
   /** round reset: snap back to the +z side so P1 reads screen-left again */

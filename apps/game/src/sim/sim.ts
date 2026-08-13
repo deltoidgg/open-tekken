@@ -60,6 +60,7 @@ import {
   t5ActiveSidestepAttackRoute,
   t5ActiveSidestepMovementRoute,
   t5QuickStepVerticalRoute,
+  t5SideOrderFlag,
   t5SidestepStopCommandRoute,
 } from "./t5-sidestep.ts";
 
@@ -155,6 +156,11 @@ export interface SimOptions {
   seed?: number;
 }
 
+export interface T5FrameContext {
+  /** View-projected X in PAL's coordinate direction, one value per fighter. */
+  projectedX?: readonly [number, number];
+}
+
 export class Sim {
   gs: GameState = createGameState();
   parsers: [CommandParser, CommandParser] = [new CommandParser(), new CommandParser()];
@@ -187,12 +193,21 @@ export class Sim {
   }
 
   /** Advance exactly one Tekken gameplay/player frame. */
-  step(padP1: Pad, padP2: Pad): void {
+  step(padP1: Pad, padP2: Pad, context: T5FrameContext = {}): void {
     const gs = this.gs;
     gs.frame++;
     gs.events = [];
-    if (padP1.facingSide) gs.fighters[0].t5StandingSide = padP1.facingSide;
-    if (padP2.facingSide) gs.fighters[1].t5StandingSide = padP2.facingSide;
+    if (context.projectedX) {
+      gs.fighters[0].t5ProjectedX = context.projectedX[0];
+      gs.fighters[1].t5ProjectedX = context.projectedX[1];
+    }
+    for (const i of [0, 1] as const) {
+      const opponent = i === 0 ? 1 : 0;
+      gs.fighters[i].t5SideOrderFlag = t5SideOrderFlag(
+        gs.fighters[i].t5ProjectedX,
+        gs.fighters[opponent].t5ProjectedX,
+      );
+    }
     const inputs: [FrameInput, FrameInput] = [
       this.parsers[0].step(padP1),
       this.parsers[1].step(padP2),
@@ -1567,7 +1582,7 @@ export class Sim {
 
         if (f.ssPhase === "step") {
           const sourceFrame = f.actionFrame - 1;
-          const route = t5QuickStepVerticalRoute(f.ssDir, sourceFrame, inp.dir, f.t5StandingSide);
+          const route = t5QuickStepVerticalRoute(f.ssDir, sourceFrame, inp.dir, f.t5SideOrderFlag);
           if (route) {
             f.ssPhase = route.phase;
             f.t5SidestepMoveId = route.moveId;

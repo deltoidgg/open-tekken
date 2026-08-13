@@ -13,7 +13,7 @@ Reference: Tekken 5 PAL `SCES-53202` version 1.00, CRC `1F88BECD`, running at
 This note combines four independent sources:
 
 1. the stripped-`0x64` animation decoder and Jin's calibrated 22-node skeleton;
-2. Jin's live moveset in a read-only PCSX2 EE-memory snapshot; and
+2. Jin's live moveset in a read-only PCSX2 EE-memory snapshot;
 3. static R5900 disassembly of the decompressed main program loaded at
    `0x001F9F80`; and
 4. controlled 1 kHz player-structure and published-skeleton traces from the
@@ -180,11 +180,50 @@ frame 6. The next coherent player-frame publications were:
 | `d,N,d`    | move `1062` f6     | move `1064` f7      | down plus right-side requirement `112`         |
 
 This resolves command-list ordering and proves that a re-press is not simply a
-"same physical direction means sidewalk" rule. On this side, `u,N,d` must enter
-the distinct 1069 continuation variant while `d,N,u` must remain in 1062. The
-right-side observations agree with the legacy `111/112` names. The opposite
-screen side still needs a controlled live capture; its `1065/1070` selection is
-currently the direct static-graph consequence of those names.
+"same physical direction means sidewalk" rule. On this projected side,
+`u,N,d` must enter the distinct 1069 continuation variant while `d,N,u` must
+remain in 1062.
+
+### Requirements 111/112 and the opposite matrix
+
+Static disassembly supplies the exact predicate. The view-publication routine
+at `0x002CEDB8` transforms a player point through `0x0021D160`, converts the
+resulting projected floats to integers, and stores projected X at
+`player+0x6B8` and projected Y at `player+0x6BC`. Function `0x0023C3A0` then
+publishes both `player+0x1BE` and `player+0x1BF` as:
+
+```text
+sideOrderFlag = self.projectedX >= opponent.projectedX
+```
+
+The requirement evaluator at `0x0020F040` makes condition `111` true exactly
+when `player+0x1BE == 0`; `0x0020F050` makes condition `112` true exactly when
+the byte is nonzero. The equality case therefore makes requirement 112 true
+for both players.
+
+Eight captures covering baseline, position-change choreography, long sidewalk,
+flank movement, and both alternating-input runs contained no disagreement
+between the comparison and the published flag. The coordinate changed
+continuously with the view projection while relative forward ownership could
+change independently.
+
+A bounded differential capture proved the otherwise camera-managed flag-0
+matrix. The live requirement words at `0x015965B4` and `0x015965BC` were
+verified as `111/112`, temporarily exchanged as `112/111`, and restored and
+re-read as `111/112` after one 1 kHz trace. Projected X and `player+0x1BE`
+remained unchanged, so only the two predicates were inverted. The resulting
+matrix is the exact complement:
+
+| Input pair | Flag 1 result | Flag 0 result |
+| ---------- | ------------: | ------------: |
+| `u,N,d`    |          1069 |          1070 |
+| `u,N,u`    |          1071 |          1068 |
+| `d,N,u`    |          1062 |          1065 |
+| `d,N,d`    |          1064 |          1063 |
+
+This differential is stronger than inferring the opposite route from legacy
+labels: the same executable, position, timing, and input pulses selected all
+four complementary shells when only requirements 111 and 112 were exchanged.
 
 The same trace followed unmodified `1062/1068` and variant `1063/1069` shells
 through native frame 40. Their next coherent publication was standing move 220
@@ -396,9 +435,12 @@ releases into the positive `1062` family. Re-press continuation tests use the
 same physical vertical direction as the selected family, preventing the entry
 shell, sidewalk payload, and native root curve from crossing families.
 
-The ordered source-frame-1..12 vertical records now evaluate the current
-screen-facing side before the all-frame down fallback. Each fighter retains the
-exact selected shell, including variants `1063/1069` and paired sidewalk starts
+The ordered source-frame-1..12 vertical records now evaluate the current PAL-
+normalized projected-X order flag before the all-frame down fallback. Pad data
+contains only player input; the camera projection enters simulation as per-frame
+context, which updates the `+0x6B8` analogue and derives the `+0x1BE` analogue
+with the executable's `>=` rule. Each fighter retains the exact selected shell,
+including variants `1063/1069` and paired sidewalk starts
 `1064/1065/1070/1071`, so render pose, collision, root sampling, replay, and
 later command ownership all observe the same native move. On quick-step frame
 27 the logical action becomes actionable standing while a native pose tail
@@ -435,9 +477,9 @@ Focused tests verify:
 
 - first-frame move `21/254` anticipation and the measured `u -> 1068` and
   `d -> 1062` neutral-release routes;
-- the four measured facing-right alternating-input routes at source frame 6;
-- inferred opposite-side `1065/1070` shell selection under requirements
-  `111/112`;
+- all four unmodified flag-1 alternating-input routes at source frame 6;
+- all four flag-0 routes from the controlled requirement differential;
+- the exact projected-X `>=` predicate, including its equality behavior;
 - all four 27-frame quick-step/variant root curves;
 - native quick-step pose publication through frame 40 followed by standing
   frame 1;
@@ -464,10 +506,9 @@ Focused tests verify:
 
 ## Remaining parity work
 
-1. Decode requirements `111`, `112`, `115`, `116`, and `172` in the executable.
-   The current `111/112` screen-side route is supported by legacy aliases and a
-   controlled facing-right trace, but the opposite side still needs a live
-   capture and the predicate implementation still needs executable proof.
+1. Decode requirements `115`, `116`, and `172` in the executable. Requirements
+   `111/112`, both quick-step matrices, and their projected-X writer are now
+   executable-proven and implemented.
 2. Recover the remaining input subsystem predicates that emit special commands
    `0x8003` and `0x8004`. Common front-facing tap/hold precedence is now live-
    traced; reversal and alternate side-state precedence remain open.
@@ -486,8 +527,8 @@ Focused tests verify:
 7. Extend the authoritative recovered-skeleton renderer checks to attack
    tracking, homing, body push, and camera-facing behavior during lateral
    movement.
-8. Expand the controlled PCSX2 entry trace into a side/facing matrix, including
-   logical root, render root, requirements `115/116/172`, and guard outcome.
+8. Expand the controlled PCSX2 entry trace across requirements `115/116/172`,
+   including logical root, render root, and guard outcome.
 9. Implement group 1077's three incoming-high routes. Its unconditional
    source-frame-9 `df/db` fallbacks are now separate from attack routing.
 

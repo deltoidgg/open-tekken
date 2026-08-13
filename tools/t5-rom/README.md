@@ -145,7 +145,8 @@ includes root angle `+0x0E`, composed animation root `+0x68`, skeleton angle
 `+0x74`, logical per-frame displacement `+0x11C/+0x120/+0x124`, composed
 per-tick displacement `+0x640/+0x644/+0x648`, rendered root `+0x750`, raw
 direction mask/edge `+0x6AC/+0x6AE`, optional pose-correction gate/weight
-`+0x7C8/+0x7F0`, and live pushback state at `+0x2A4` through `+0x2F0`. All eight
+`+0x7C8/+0x7F0`, projected-X side-order coordinate `+0x6B8`, requirement flag
+`+0x1BE`, and live pushback state at `+0x2A4` through `+0x2F0`. All eight
 live body-push sphere
 records at `+0x490` and all 14 hurt records at `+0x378` are exposed as
 world-space centres and radii. The previous
