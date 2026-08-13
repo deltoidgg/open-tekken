@@ -18,6 +18,8 @@ export const T5_JUMP_COMMIT_FRAME = 8;
 export const T5_JUMP_AIRBORNE_START = 9;
 export const T5_JUMP_AIRBORNE_END = 38;
 export const T5_JUMP_STANDING_HANDOFF = 46;
+export const T5_TURN_STEP_FRAMES = 15;
+export const T5_TURN_RECOVERY_FRAMES = 25;
 
 /** The PAL movement routine negates move +0x1E, then scales by 1 / 256. */
 export const T5_JUMP_FORWARD_PER_TICK = 14771 / 256 / 1000;
@@ -234,6 +236,8 @@ const SIDESTEP_MOVES = {
   1: {
     step: 1062,
     stepVariant: 1063,
+    turnStep: 1092,
+    turnRecovery: 1093,
     walkStart: 1064,
     walkRelease: 1066,
     walkLoop: 1067,
@@ -242,6 +246,8 @@ const SIDESTEP_MOVES = {
   "-1": {
     step: 1068,
     stepVariant: 1069,
+    turnStep: 1090,
+    turnRecovery: 1091,
     walkStart: 1070,
     walkRelease: 1072,
     walkLoop: 1073,
@@ -260,7 +266,9 @@ export function t5SidestepAnimationPhase(
   return {
     animation: t5JinLocomotionAnimation(nativeMoveId ?? SIDESTEP_MOVES[direction][phase]),
     actionFrame,
-    transfersRoot: true,
+    // 1090..1093 retain their animation root in posed space. PAL commits the
+    // planar root only at each reset boundary.
+    transfersRoot: phase !== "turnStep" && phase !== "turnRecovery",
   };
 }
 
@@ -271,7 +279,7 @@ export function t5SidestepRootOffset(
   nativeMoveId?: T5SidestepMoveId,
 ): T5LocalPoint {
   const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame, nativeMoveId);
-  return resolved
+  return resolved?.transfersRoot
     ? sampleT5RootOffset(resolved.animation, resolved.actionFrame)
     : T5_ZERO_ROOT_OFFSET;
 }
@@ -283,11 +291,26 @@ export function t5SidestepRootDelta(
   nativeMoveId?: T5SidestepMoveId,
 ): T5LocalPoint {
   const resolved = t5SidestepAnimationPhase(direction, phase, actionFrame, nativeMoveId);
-  if (!resolved) return T5_ZERO_ROOT_OFFSET;
+  if (!resolved?.transfersRoot) return T5_ZERO_ROOT_OFFSET;
   const current = sampleT5RootOffset(resolved.animation, resolved.actionFrame);
   const previous =
     actionFrame === 1
       ? T5_ZERO_ROOT_OFFSET
       : sampleT5RootOffset(resolved.animation, actionFrame - 1);
   return [current[0] - previous[0], current[1] - previous[1], current[2] - previous[2]];
+}
+
+const T5_TURN_RESET_ROOT_COMMITS = new Map<string, T5LocalPoint>([
+  ["1090:1091", [0.887424811, 0, 0]],
+  ["1092:1093", [-0.888432339, 0, 0]],
+  ["1091:220", [-0.052220056, 0, 0]],
+  ["1093:220", [0.052226049, 0, 0]],
+]);
+
+/** Planar logical-root commit measured at PAL's turn-shell reset boundaries. */
+export function t5TurnResetRootCommit(
+  sourceMoveId: 1090 | 1091 | 1092 | 1093,
+  targetMoveId: 1091 | 1093 | 220,
+): T5LocalPoint {
+  return T5_TURN_RESET_ROOT_COMMITS.get(`${sourceMoveId}:${targetMoveId}`) ?? T5_ZERO_ROOT_OFFSET;
 }

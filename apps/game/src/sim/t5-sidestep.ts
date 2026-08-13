@@ -1,7 +1,10 @@
 import { B1, B2, B3, B4, type Dir } from "../input/pad.ts";
 import type { T5SidestepMoveId, T5SidestepPhase } from "./state.ts";
 
-export type T5ActiveSidestepPhase = Exclude<T5SidestepPhase, "walkStop">;
+export type T5ActiveSidestepPhase = Exclude<
+  T5SidestepPhase,
+  "turnStep" | "turnRecovery" | "walkStop"
+>;
 
 export type T5QuickStepVerticalRoute = {
   phase: "walkStart" | "stepVariant";
@@ -9,11 +12,19 @@ export type T5QuickStepVerticalRoute = {
   input: "u" | "d";
 };
 
-export type T5QuickStepEntryRoute = {
-  direction: 1 | -1;
-  moveId: 1062 | 1068;
-  input: "u" | "d";
-};
+export type T5QuickStepEntryRoute =
+  | {
+      direction: 1 | -1;
+      phase: "step";
+      moveId: 1062 | 1068;
+      input: "u" | "d";
+    }
+  | {
+      direction: 1 | -1;
+      phase: "turnStep";
+      moveId: 1090 | 1092;
+      input: "u" | "d";
+    };
 
 /** Move 254 accepts the neutral down-tap special only through source frame 7. */
 export const T5_DOWN_SIDESTEP_RELEASE_END = 7;
@@ -23,17 +34,24 @@ export function t5SideOrderFlag(selfProjectedX: number, opponentProjectedX: numb
   return selfProjectedX >= opponentProjectedX;
 }
 
-/** Resolve PAL requirements 115/116 for a front-facing vertical tap release. */
+/** Resolve PAL requirements 113..116 for a vertical tap release. */
 export function t5QuickStepEntryRoute(
   input: "u" | "d",
   sideOrderFlag: boolean,
   facingErrorMagnitude: number,
 ): T5QuickStepEntryRoute | undefined {
-  if (facingErrorMagnitude > 0x4000) return undefined;
-
   const direction = input === "u" ? (sideOrderFlag ? -1 : 1) : sideOrderFlag ? 1 : -1;
+  if (facingErrorMagnitude > 0x4000) {
+    return {
+      direction,
+      phase: "turnStep",
+      moveId: direction === 1 ? 1092 : 1090,
+      input,
+    };
+  }
   return {
     direction,
+    phase: "step",
     moveId: direction === 1 ? 1062 : 1068,
     input,
   };

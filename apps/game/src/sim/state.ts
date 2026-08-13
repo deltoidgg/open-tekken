@@ -96,6 +96,8 @@ export interface T5PoseTail {
 export type T5SidestepPhase =
   | "step"
   | "stepVariant"
+  | "turnStep"
+  | "turnRecovery"
   | "walkStart"
   | "walkRelease"
   | "walkLoop"
@@ -115,7 +117,11 @@ export type T5SidestepMoveId =
   | 1072
   | 1073
   | 1078
-  | 1079;
+  | 1079
+  | 1090
+  | 1091
+  | 1092
+  | 1093;
 
 export interface FighterState {
   id: 0 | 1;
@@ -172,7 +178,7 @@ export interface FighterState {
   /** Last move-timeline frame on which orientation was advanced. */
   t5OrientationLastFrame: number;
 
-  // ss context: +1 = PAL shell 1062 (d), -1 = PAL shell 1068 (u)
+  // ss context: +1 = PAL positive-side shell, -1 = PAL negative-side shell
   ssDir: 1 | -1;
   ssPhase: T5SidestepPhase;
   /** Exact PAL shell; paired sidewalk starts share animation but not cancel ownership. */
@@ -425,6 +431,7 @@ export function isActionable(f: FighterState): boolean {
     case "CDS":
       return true;
     case "ss":
+      if (f.ssPhase === "turnStep" || f.ssPhase === "turnRecovery") return false;
       return f.actionFrame + 1 >= TUNING.sidestepAttackCancelFrom;
     case "backdash":
       return f.actionFrame >= TUNING.backdashCancelFrame;

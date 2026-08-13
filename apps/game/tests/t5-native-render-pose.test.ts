@@ -66,6 +66,32 @@ describe("Tekken 5 native render pose", () => {
     expect(renderedRoot[1]).toBeCloseTo(poseRoot[1], 9);
   });
 
+  it("renders every published boundary of the back-facing turn chain", () => {
+    for (const [direction, phase, moveId, finalFrame] of [
+      [-1, "turnStep", 1090, 15],
+      [-1, "turnRecovery", 1091, 25],
+      [1, "turnStep", 1092, 15],
+      [1, "turnRecovery", 1093, 25],
+    ] as const) {
+      for (const actionFrame of [1, finalFrame]) {
+        const fighter = createFighter(0);
+        fighter.action = "ss";
+        fighter.actionFrame = actionFrame;
+        fighter.ssDir = direction;
+        fighter.ssPhase = phase;
+        fighter.t5SidestepMoveId = moveId;
+
+        const source = resolveT5NativePoseSource(fighter)!;
+        expect(source.animation.romMoveId).toBe(moveId);
+        expect(source.actionFrame).toBe(actionFrame);
+        expect(source.animationOrigin).toEqual([0, 0, 0]);
+
+        const pose = t5NativeRenderPoseFor(fighter)!;
+        expect(Object.values(pose).flat().every(Number.isFinite)).toBe(true);
+      }
+    }
+  });
+
   it("rotates a separately tracked skeleton around the placed animation root", () => {
     const transformed = t5NativePointToRigLocal([1, 4, 5], [0, 2, 3], {
       animationOrigin: [2, 1, 7],

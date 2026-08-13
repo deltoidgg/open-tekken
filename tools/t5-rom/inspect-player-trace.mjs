@@ -120,6 +120,8 @@ function readPlayer(buffer, offset, skeletonLayout) {
     sideEntry: {
       facingErrorMagnitude,
       specialInputTimer,
+      requirement113: sideOrderFlag === 0 && facingErrorMagnitude >= 0x4001,
+      requirement114: sideOrderFlag !== 0 && facingErrorMagnitude >= 0x4001,
       requirement115: sideOrderFlag === 0 && facingErrorMagnitude < 0x4001,
       requirement116: sideOrderFlag !== 0 && facingErrorMagnitude < 0x4001,
       requirement172: specialInputTimer === 0,

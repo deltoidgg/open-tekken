@@ -199,10 +199,10 @@ This capture corrects the clone's former direct mapping, which assigned up to
 `1062` and never converted a down tap out of move `254`. The complete
 front-facing entry matrix is now executable-proven:
 
-| Physical release | Flag 0 target | Flag 1 target |
-| ---------------- | ------------: | ------------: |
-| up from move `21` |          1062 |          1068 |
-| down from move `254` |       1068 |          1062 |
+| Physical release     | Flag 0 target | Flag 1 target |
+| -------------------- | ------------: | ------------: |
+| up from move `21`    |          1062 |          1068 |
+| down from move `254` |          1068 |          1062 |
 
 The matrix applies while the native facing-error magnitude is at most
 `0x4000`; alternate back-facing routes remain separate work.
@@ -564,10 +564,10 @@ Focused tests verify:
 
 ## Remaining parity work
 
-1. Decode requirements `113/114`, requirement `90`, and the alternate
-   back-facing records that lead to moves `1090/1092`. Requirements
-   `111/112/115/116/172`, both physical matrices, and their writers are now
-   executable-proven; the clone implements the front-facing entry gate.
+1. Complete the back-facing turn-shell cancel graph. Requirements `113/114`
+   and the `1090/1092 -> 1091/1093 -> 220` automatic route are now decoded,
+   measured, and represented; the source-frame-10 `d/u -> 1074/1076`
+   preserving branches remain open.
 2. Force and trace a nonzero `player+0x2CA` countdown, then recover the input
    subsystem emitters for special commands `0x8003` and `0x8004`. Common
    anticipation-release precedence is proven, but standing-event precedence is
@@ -587,9 +587,8 @@ Focused tests verify:
 7. Extend the authoritative recovered-skeleton renderer checks to attack
    tracking, homing, body push, and camera-facing behavior during lateral
    movement.
-8. Expand the controlled PCSX2 entry trace through the back-facing angle gate,
-   including alternate target shell, logical root, render root, and guard
-   outcome.
+8. Expand the controlled PCSX2 turn trace through command interruption and
+   contact, including the 1091/1093 direct command list and guard outcome.
 9. Implement group 1077's three incoming-high routes. Its unconditional
    source-frame-9 `df/db` fallbacks are now separate from attack routing.
 
@@ -598,5 +597,36 @@ The Computer connector successfully drove the PCSX2 practice window during the
 player structures, current and previous 22-node published skeletons, all 14
 hurt records, direction masks, correction state, and object pointers while the
 inputs were applied. The controlled observations above are taken from those
-traces and reversible requirement differentials; back-facing and nonzero-timer
-states are not presented as measured fact.
+traces and reversible requirement differentials. Back-facing entry and its
+automatic recovery are measured; nonzero-timer standing-special precedence is
+not yet presented as measured fact.
+
+## Back-facing turn-shell checkpoint
+
+The 2026-08-13 continuation pass decoded requirements `113/114` as the
+complements of `115/116` across the `0x4001` facing-error boundary:
+
+```text
+113 = !sideOrderFlag && facingErrorMagnitude >= 0x4001
+114 =  sideOrderFlag && facingErrorMagnitude >= 0x4001
+```
+
+The physical route matrix is `u/flag0 -> 1092`, `u/flag1 -> 1090`,
+`d/flag0 -> 1090`, and `d/flag1 -> 1092`. Moves `1090/1092` are 15-frame
+posed-root-owned turn shells and automatically reset to 25-frame recovery
+shells `1091/1093`. The logical root stays fixed inside each shell. Reset
+publication commits the following local side displacements:
+
+| reset          | local side commit |
+| -------------- | ----------------: |
+| `1090 -> 1091` |  `+0.887424811 m` |
+| `1092 -> 1093` |  `-0.888432339 m` |
+| `1091 -> 220`  |  `-0.052220056 m` |
+| `1093 -> 220`  |  `+0.052226049 m` |
+
+At the first reset, the new root angle is computed after the large side commit.
+PAL orientation state 12 then advances the packed skeleton pivot toward that
+root for 15 frames: move `1091` starts at `target - 2989` angle units and adds
+`213` per tick; move `1093` starts at `target + 3322` and subtracts `237` per
+tick. The animation's own channel-3 root yaw remains in generated pose data and
+must not be folded into that global pivot a second time.

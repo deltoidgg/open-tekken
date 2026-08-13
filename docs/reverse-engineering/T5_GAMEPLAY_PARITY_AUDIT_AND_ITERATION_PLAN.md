@@ -718,6 +718,17 @@ end-to-end two-tap outcomes. The trace inspector exposes `+0x80`, `+0x2CA`, and
 the decoded `115/116/172` states for the back-facing and nonzero-timer work that
 remains.
 
+Fourteenth checkpoint 2026-08-13: the complementary back-facing entry path is
+now executable. Requirements `113/114` select native shells `1090/1092` above
+the `0x4000` facing-error boundary while preserving the same physical
+projected-side matrix as front-facing entry. Controlled PAL traces establish
+the complete 15-frame turn, 25-frame recovery, and standing reset chain; no
+logical motion occurs within those animations. The clone now uses their native
+posed collision/render data, commits the four measured reset displacements,
+and reproduces the recovery pivot schedules instead of rotating ordinary
+quick-step shells procedurally. Frame-10 preserving routes through `1074/1076`
+and the recovery-shell command list are the next bounded checkpoint.
+
 ## Rules for future tuning
 
 - A measured curve is data, not a suggestion. Do not replace it with an easing

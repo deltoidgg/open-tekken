@@ -40,6 +40,8 @@ import {
 import {
   T5_JUMP_COMMIT_FRAME,
   T5_JUMP_STANDING_HANDOFF,
+  T5_TURN_RECOVERY_FRAMES,
+  T5_TURN_STEP_FRAMES,
   t5JumpForwardDelta,
   t5JumpIsAirborne,
   t5LocomotionPhase,
@@ -49,12 +51,14 @@ import {
   t5SidestepAnimationPhase,
   t5SidestepRootDelta,
   t5SidestepRootOffset,
+  t5TurnResetRootCommit,
 } from "./t5-locomotion.ts";
 import {
   stepT5AttackOrientation,
   stepT5PostActiveOrientation,
   t5AngleToRadians,
   t5FacingErrorMagnitude,
+  t5TurnRecoveryFace,
 } from "./t5-orientation.ts";
 import {
   T5_DOWN_SIDESTEP_RELEASE_END,
@@ -507,7 +511,9 @@ export class Sim {
 
     if (f.action === "ss") {
       if (inp.pressed && this.tryStartT5SidestepCommand(f, inp)) return;
-      if (f.ssPhase === "walkStop") return;
+      if (f.ssPhase === "turnStep" || f.ssPhase === "turnRecovery" || f.ssPhase === "walkStop") {
+        return;
+      }
       const movementRoute = t5ActiveSidestepMovementRoute(f.actionFrame + 1, inp.dir);
       if (movementRoute) {
         this.enterCrouch(f, movementRoute.moveId);
@@ -654,7 +660,8 @@ export class Sim {
   }
 
   private tryStartT5SidestepCommand(f: FighterState, inp: FrameInput): boolean {
-    if (f.ssPhase === "walkStop") {
+    if (f.ssPhase === "turnStep") return false;
+    if (f.ssPhase === "turnRecovery" || f.ssPhase === "walkStop") {
       const route = t5SidestepStopCommandRoute(
         f.actionFrame + 1,
         inp.pressedDir,
@@ -820,11 +827,13 @@ export class Sim {
     );
     if (!route) return false;
 
-    this.setAction(f, "ss", T.sidestepFrames);
+    this.setAction(f, "ss", route.phase === "turnStep" ? T5_TURN_STEP_FRAMES : T.sidestepFrames);
     f.ssDir = route.direction;
-    f.ssPhase = "step";
+    f.ssPhase = route.phase;
     f.t5SidestepMoveId = route.moveId;
     f.t5SidewalkInput = route.input;
+    f.t5RootFace = f.face;
+    f.t5PreviousFace = f.face;
     this.emit({ type: "sidestep", pos: { ...f.pos }, fighter: f.id });
     return true;
   }
@@ -1584,8 +1593,44 @@ export class Sim {
         break;
       }
       case "ss": {
-        if (inp.dir === "b" || inp.dir === "f") {
+        if (
+          f.ssPhase !== "turnStep" &&
+          f.ssPhase !== "turnRecovery" &&
+          (inp.dir === "b" || inp.dir === "f")
+        ) {
           this.setAction(f, inp.dir === "b" ? "walkB" : "walkF", 0);
+          break;
+        }
+
+        if (f.ssPhase === "turnStep") {
+          if (f.actionFrame > T5_TURN_STEP_FRAMES) {
+            const sourceMoveId = f.t5SidestepMoveId as 1090 | 1092;
+            const targetMoveId = sourceMoveId === 1090 ? 1091 : 1093;
+            this.applyT5LocalRootDeltaAtFace(
+              f,
+              t5TurnResetRootCommit(sourceMoveId, targetMoveId),
+              f.t5RootFace,
+            );
+            const targetFace = this.t5TargetFace(f);
+            f.ssPhase = "turnRecovery";
+            f.t5SidestepMoveId = targetMoveId;
+            f.actionFrame = 1;
+            f.actionTotal = T5_TURN_RECOVERY_FRAMES;
+            f.t5PreviousFace = f.face;
+            f.t5RootFace = targetFace;
+            f.face = t5TurnRecoveryFace(targetFace, targetMoveId, 1);
+          }
+          break;
+        }
+
+        if (f.ssPhase === "turnRecovery") {
+          const moveId = f.t5SidestepMoveId as 1091 | 1093;
+          f.t5PreviousFace = f.face;
+          f.face = t5TurnRecoveryFace(f.t5RootFace, moveId, f.actionFrame);
+          if (f.actionFrame > T5_TURN_RECOVERY_FRAMES) {
+            this.applyT5LocalRootDeltaAtFace(f, t5TurnResetRootCommit(moveId, 220), f.t5RootFace);
+            this.setAction(f, "idle", 0);
+          }
           break;
         }
 
@@ -3342,20 +3387,22 @@ export class Sim {
       [a, b],
       [b, a],
     ] as const) {
-      const neutral = [
-        "idle",
-        "walkF",
-        "walkB",
-        "crouch",
-        "rising",
-        "dash",
-        "run",
-        "ss",
-        "backdash",
-        "CD",
-        "CDS",
-        "getup",
-      ].includes(f.action);
+      const neutral =
+        [
+          "idle",
+          "walkF",
+          "walkB",
+          "rising",
+          "dash",
+          "run",
+          "backdash",
+          "CD",
+          "CDS",
+          "getup",
+        ].includes(f.action) ||
+        (f.action === "crouch" &&
+          !(f.t5CrouchMoveId === 254 && f.actionFrame <= T5_DOWN_SIDESTEP_RELEASE_END)) ||
+        (f.action === "ss" && f.ssPhase !== "turnStep" && f.ssPhase !== "turnRecovery");
       if (neutral) {
         const face = Math.atan2(o.pos.z - f.pos.z, o.pos.x - f.pos.x);
         f.face = face;
@@ -3363,6 +3410,14 @@ export class Sim {
         f.t5PreviousFace = face;
       }
     }
+  }
+
+  /** Resolve PAL's target angle from the two published posed roots. */
+  private t5TargetFace(fighter: FighterState): number {
+    const opponent = this.gs.fighters[fighter.id === 0 ? 1 : 0];
+    const fighterRoot = this.t5FacingRoot(fighter);
+    const opponentRoot = this.t5FacingRoot(opponent);
+    return Math.atan2(opponentRoot.z - fighterRoot.z, opponentRoot.x - fighterRoot.x);
   }
 
   /** PAL targeting reads the fighter world position at player+0x750/+0x758. */

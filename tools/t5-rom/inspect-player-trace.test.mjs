@@ -198,6 +198,8 @@ test("parses PCSX2 player trace headers and measured state fields", () => {
     sideEntry: {
       facingErrorMagnitude: 0x4000,
       specialInputTimer: 0,
+      requirement113: false,
+      requirement114: false,
       requirement115: false,
       requirement116: true,
       requirement172: true,
@@ -250,13 +252,23 @@ test("decodes the PAL side-entry angle boundary and special-input timer", () => 
   assert.deepEqual(parsePlayerTrace(buffer).samples[0].players[0].sideEntry, {
     facingErrorMagnitude: 0x4000,
     specialInputTimer: 1,
+    requirement113: false,
+    requirement114: false,
     requirement115: true,
     requirement116: false,
     requirement172: false,
   });
 
   buffer.writeUInt16LE(0x4001, playerOffset + 0x80);
-  assert.equal(parsePlayerTrace(buffer).samples[0].players[0].sideEntry.requirement115, false);
+  assert.deepEqual(parsePlayerTrace(buffer).samples[0].players[0].sideEntry, {
+    facingErrorMagnitude: 0x4001,
+    specialInputTimer: 1,
+    requirement113: true,
+    requirement114: false,
+    requirement115: false,
+    requirement116: false,
+    requirement172: false,
+  });
 });
 
 test("parses version-two published current and previous skeleton points", () => {

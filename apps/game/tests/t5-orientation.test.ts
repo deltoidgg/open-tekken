@@ -5,6 +5,7 @@ import {
   stepT5PostActiveOrientation,
   t5AngleToRadians,
   t5FacingErrorMagnitude,
+  t5TurnRecoveryFace,
 } from "../src/sim/t5-orientation.ts";
 
 const ANGLE_UNIT = (Math.PI * 2) / 0x10000;
@@ -93,5 +94,15 @@ describe("Tekken 5 PAL attack orientation", () => {
   it("uses a five-tick final state-7 schedule near animation end", () => {
     const result = stepT5PostActiveOrientation(0, 0.1, 0, 0, 35, 10, 39);
     expect(result.frames).toBe(5);
+  });
+
+  it("reproduces the measured 1091/1093 pivot schedules", () => {
+    const target = t5AngleToRadians(7182);
+    expect(t5TurnRecoveryFace(target, 1091, 1)).toBeCloseTo(t5AngleToRadians(4193), 10);
+    expect(t5TurnRecoveryFace(target, 1091, 15)).toBeCloseTo(t5AngleToRadians(7175), 10);
+
+    const mirroredTarget = t5AngleToRadians(4401);
+    expect(t5TurnRecoveryFace(mirroredTarget, 1093, 1)).toBeCloseTo(t5AngleToRadians(7723), 10);
+    expect(t5TurnRecoveryFace(mirroredTarget, 1093, 15)).toBeCloseTo(t5AngleToRadians(4405), 10);
   });
 });

@@ -34,6 +34,10 @@ import {
   T5_JIN_LOCOMOTION_1071,
   T5_JIN_LOCOMOTION_1073,
   T5_JIN_LOCOMOTION_1079,
+  T5_JIN_LOCOMOTION_1090,
+  T5_JIN_LOCOMOTION_1091,
+  T5_JIN_LOCOMOTION_1092,
+  T5_JIN_LOCOMOTION_1093,
 } from "../src/data/t5-jin-locomotion-native.ts";
 import {
   T5_JUMP_AIRBORNE_END,
@@ -48,6 +52,7 @@ import {
   t5LocomotionResetRootCommit,
   t5SidestepAnimationPhase,
   t5SidestepRootDelta,
+  t5TurnResetRootCommit,
 } from "../src/sim/t5-locomotion.ts";
 import { B1, B2, B3, B4, fightSim, hpOf, pad, playP1, run, S, setSeparation } from "./helpers.ts";
 import {
@@ -970,27 +975,127 @@ describe("Tekken 5 PAL locomotion roots", () => {
   it("resolves requirements 115/116 into the four front-facing entry routes", () => {
     expect(t5QuickStepEntryRoute("u", true, 0)).toEqual({
       direction: -1,
+      phase: "step",
       moveId: 1068,
       input: "u",
     });
     expect(t5QuickStepEntryRoute("d", true, 0)).toEqual({
       direction: 1,
+      phase: "step",
       moveId: 1062,
       input: "d",
     });
     expect(t5QuickStepEntryRoute("u", false, 0)).toEqual({
       direction: 1,
+      phase: "step",
       moveId: 1062,
       input: "u",
     });
     expect(t5QuickStepEntryRoute("d", false, 0)).toEqual({
       direction: -1,
+      phase: "step",
       moveId: 1068,
       input: "d",
     });
     expect(t5QuickStepEntryRoute("u", true, 0x4000)).toBeDefined();
-    expect(t5QuickStepEntryRoute("u", true, 0x4001)).toBeUndefined();
   });
+
+  it("resolves requirements 113/114 into the four back-facing turn routes", () => {
+    expect(t5QuickStepEntryRoute("u", true, 0x4001)).toEqual({
+      direction: -1,
+      phase: "turnStep",
+      moveId: 1090,
+      input: "u",
+    });
+    expect(t5QuickStepEntryRoute("d", true, 0x7fff)).toEqual({
+      direction: 1,
+      phase: "turnStep",
+      moveId: 1092,
+      input: "d",
+    });
+    expect(t5QuickStepEntryRoute("u", false, 0x4001)?.moveId).toBe(1092);
+    expect(t5QuickStepEntryRoute("d", false, 0x7fff)?.moveId).toBe(1090);
+  });
+
+  it("keeps 1090..1093 posed-root owned and exposes their measured reset commits", () => {
+    for (const [direction, phase, moveId] of [
+      [-1, "turnStep", 1090],
+      [-1, "turnRecovery", 1091],
+      [1, "turnStep", 1092],
+      [1, "turnRecovery", 1093],
+    ] as const) {
+      expect(t5SidestepAnimationPhase(direction, phase, 1, moveId)).toMatchObject({
+        animation: { romMoveId: moveId },
+        transfersRoot: false,
+      });
+      expect(t5SidestepRootDelta(direction, phase, 1, moveId)).toEqual([0, 0, 0]);
+    }
+    expect(T5_JIN_LOCOMOTION_1090.animationLength).toBe(15);
+    expect(T5_JIN_LOCOMOTION_1091.animationLength).toBe(25);
+    expect(T5_JIN_LOCOMOTION_1092.animationLength).toBe(15);
+    expect(T5_JIN_LOCOMOTION_1093.animationLength).toBe(25);
+    expect(t5TurnResetRootCommit(1090, 1091)).toEqual([0.887424811, 0, 0]);
+    expect(t5TurnResetRootCommit(1092, 1093)).toEqual([-0.888432339, 0, 0]);
+    expect(t5TurnResetRootCommit(1091, 220)).toEqual([-0.052220056, 0, 0]);
+    expect(t5TurnResetRootCommit(1093, 220)).toEqual([0.052226049, 0, 0]);
+  });
+
+  it.each([
+    [true, 1090, 1091, -1, 0.887424811],
+    [false, 1092, 1093, 1, 0.888432339],
+  ] as const)(
+    "publishes the complete back-facing turn chain when projected-order flag is %s",
+    (sideOrderFlag, stepMoveId, recoveryMoveId, direction, firstCommit) => {
+      const sim = fightSim(8);
+      const fighter = sim.gs.fighters[0];
+      fighter.face = Math.PI;
+      fighter.t5RootFace = Math.PI;
+      fighter.t5PreviousFace = Math.PI;
+      const projectedX = sideOrderFlag ? ([1, -1] as const) : ([-1, 1] as const);
+
+      sim.step(pad({ dy: 1 }), pad(), { projectedX });
+      sim.step(pad(), pad(), { projectedX });
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 1,
+        ssDir: direction,
+        ssPhase: "turnStep",
+        t5SidestepMoveId: stepMoveId,
+      });
+
+      const start = { ...fighter.pos };
+      run(sim, 14);
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 15,
+        ssPhase: "turnStep",
+        t5SidestepMoveId: stepMoveId,
+      });
+      expect(fighter.pos).toEqual(start);
+
+      sim.step(pad(), pad());
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 1,
+        ssPhase: "turnRecovery",
+        t5SidestepMoveId: recoveryMoveId,
+      });
+      expect(Math.hypot(fighter.pos.x - start.x, fighter.pos.z - start.z)).toBeCloseTo(
+        firstCommit,
+        9,
+      );
+
+      run(sim, 24);
+      expect(fighter).toMatchObject({
+        action: "ss",
+        actionFrame: 25,
+        ssPhase: "turnRecovery",
+        t5SidestepMoveId: recoveryMoveId,
+      });
+      sim.step(pad(), pad());
+      expect(fighter).toMatchObject({ action: "idle", actionFrame: 0 });
+    },
+  );
 
   it.each([
     ["u", true, 1, -1, 1068],

@@ -14,6 +14,26 @@ export function t5AngleToRadians(angle: number): number {
   return signed16(angle) * T5_ANGLE_SCALE;
 }
 
+const T5_TURN_RECOVERY_SCHEDULE = {
+  1091: { firstOffset: -2989, step: 213 },
+  1093: { firstOffset: 3322, step: -237 },
+} as const;
+
+/**
+ * PAL state 12 schedule captured from the automatic 1090/1092 reset. The
+ * first 15 recovery frames converge the skeleton pivot on the new root face.
+ */
+export function t5TurnRecoveryFace(
+  targetFace: number,
+  moveId: 1091 | 1093,
+  actionFrame: number,
+): number {
+  const schedule = T5_TURN_RECOVERY_SCHEDULE[moveId];
+  const scheduledFrame = Math.max(1, Math.min(15, Math.trunc(actionFrame)));
+  const offset = schedule.firstOffset + (scheduledFrame - 1) * schedule.step;
+  return t5AngleToRadians(radiansToT5Angle(targetFace) + offset);
+}
+
 /** PAL player+0x80: one's-complement magnitude of the signed target-angle error. */
 export function t5FacingErrorMagnitude(face: number, targetFace: number): number {
   const error = signed16(radiansToT5Angle(face) - radiansToT5Angle(targetFace));
